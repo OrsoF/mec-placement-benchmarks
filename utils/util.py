@@ -1,7 +1,7 @@
 from os import listdir, mkdir
 from os.path import join
 import numpy as np
-import pickle
+import pickle as pkl
 from typing import Callable
 
 import networkx as nx
@@ -175,7 +175,7 @@ def network_graph_design(graph_name,
         f = open(file_name, "w+")
         f.close()
         f = open(file_name, 'wb')
-        pickle.dump(services_i, f, protocol=2)
+        pkl.dump(services_i, f, protocol=2)
         f.close()
 
 class SingleTask:
@@ -222,3 +222,12 @@ class Services:
         self.max_flows.append(self.current_task_element.flow_max)
         self.max_latencies.append(self.current_task_element.max_latency)
         self.needed_resources.append(self.current_task_element.resources_needed)
+
+def pickle_save(object, file_name):
+    with open(file_name, 'wb') as handle:
+        pkl.dump(object, handle, protocol=pkl.HIGHEST_PROTOCOL)
+
+def pickle_load(file_name):
+    with open(file_name, 'rb') as handle:
+        python_variable = pkl.load(handle)
+    return python_variable

@@ -2,7 +2,7 @@ import os
 import numpy as np
 
 from utils.util import base_graphs_directory, graphs_with_services_directory, base_graphs_files_list, base_graphs_names_list, service_folder_name
-from utils.util import make_graph_with_services_directory
+from utils.util import make_graph_with_services_directory, pickle_save
 from utils.util import GraphWithServices, SingleTask, Services
 import networkx as nx
 from networkx.readwrite.gml import read_gml, write_gml
@@ -71,7 +71,8 @@ for graph_number in range(len(base_graphs_names_list)):
         services_problem_name = base_services_name+str(number_of_tasks)
         services_problem_file_name = services_problem_name+'.pkl'
 
-
+        pickle_save(services_problem,
+                    services_problem_file_name)
 
     print()
     print('Terminé')
