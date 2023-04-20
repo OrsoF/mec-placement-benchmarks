@@ -47,6 +47,12 @@ for graph_number in range(len(base_graphs_names_list)):
     write_gml(graph_with_services.nx_graph, current_processed_graph_file_path)
 
     services_directory = os.path.join(current_processed_graph_directory, service_folder_name)
+
+    try:
+        os.mkdir(services_directory)
+    except FileExistsError:
+        pass
+
     base_services_name = graph_name+'_'
 
     
@@ -71,10 +77,7 @@ for graph_number in range(len(base_graphs_names_list)):
         services_problem_name = base_services_name+str(number_of_tasks)
         services_problem_file_name = services_problem_name+'.pkl'
 
-        pickle_save(services_problem,
-                    services_problem_file_name)
+        services_problem_file_directory = os.path.join(services_directory, services_problem_file_name)
 
-    print()
-    print('Terminé')
-    print()
-    assert False
+        pickle_save(services_problem,
+                    services_problem_file_directory)

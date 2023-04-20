@@ -7,13 +7,7 @@ from typing import Callable
 import networkx as nx
 from networkx.readwrite.gml import read_gml, write_gml
 
-data_folder = 'data'
-original_graph_folder = join(data_folder, 'base_graphs')
-base_graphs_name = [elem[:-4] for elem in listdir(original_graph_folder)]
-base_graphs = [read_gml(join(original_graph_folder, base_graph_name+'.gml')) for base_graph_name in base_graphs_name]
-processed_graph_folder = join(data_folder, 'graphs_with_services')
 service_folder_name = 'services'
-
 base_graphs_directory = 'base_graphs'
 graphs_with_services_directory = 'graphs_with_services'
 
@@ -223,9 +217,10 @@ class Services:
         self.max_latencies.append(self.current_task_element.max_latency)
         self.needed_resources.append(self.current_task_element.resources_needed)
 
-def pickle_save(object, file_name):
+def pickle_save(object_instance : object, 
+                file_name : str):
     with open(file_name, 'wb') as handle:
-        pkl.dump(object, handle, protocol=pkl.HIGHEST_PROTOCOL)
+        pkl.dump(object_instance, handle, protocol=pkl.HIGHEST_PROTOCOL)
 
 def pickle_load(file_name):
     with open(file_name, 'rb') as handle:
