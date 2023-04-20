@@ -142,8 +142,8 @@ def network_graph_design(graph_name,
 
     write_gml(nx_graph, join('data', 'graphs_with_services', graph_name, 'graph_'+graph_name+'.gml'))
 
-    alpha_moyen = sum(nx_graph.edges[edge]['alpha'] for edge in nx_graph.edges)/len(nx_graph.edges)
-    beta_moyen = sum(nx_graph.edges[edge]['beta'] for edge in nx_graph.edges)/len(nx_graph.edges)
+    alpha_moyen = np.mean([nx_graph.edges[edge]['alpha'] for edge in nx_graph.edges])
+    beta_moyen = np.mean([nx_graph.edges[edge]['beta'] for edge in nx_graph.edges])
 
     for i in range(1, 11):
         # We generate i services
