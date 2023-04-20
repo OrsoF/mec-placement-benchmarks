@@ -2,6 +2,7 @@ from os import listdir, mkdir
 from os.path import join
 import numpy as np
 import pickle
+from typing import Callable
 
 import networkx as nx
 from networkx.readwrite.gml import read_gml, write_gml
@@ -11,11 +12,24 @@ original_graph_folder = join(data_folder, 'base_graphs')
 base_graphs_name = [elem[:-4] for elem in listdir(original_graph_folder)]
 base_graphs = [read_gml(join(original_graph_folder, base_graph_name+'.gml')) for base_graph_name in base_graphs_name]
 processed_graph_folder = join(data_folder, 'graphs_with_services')
+service_folder_name = 'services'
 
-try:
-    mkdir(processed_graph_folder)
-except FileExistsError:
-    pass
+base_graphs_directory = 'base_graphs'
+graphs_with_services_directory = 'graphs_with_services'
+
+base_graphs_files_list = listdir(base_graphs_directory)
+base_graphs_names_list = [graph_file[:-4] for graph_file in base_graphs_files_list]
+
+def make_graph_with_services_directory():
+    try:
+        mkdir(graphs_with_services_directory)
+    except FileExistsError:
+        pass
+
+# try:
+#     mkdir(processed_graph_folder)
+# except FileExistsError:
+#     pass
 
 def get_base_graphs_gml(original_graph_path):
     original_graph_list = listdir(original_graph_path)
@@ -44,16 +58,16 @@ def generate_service(nx_graph,
         service.append(dic)
     return service
 
-class GraphWithServices(nx.DiGraph):
+class GraphWithServices:
     def __init__(self, 
-                 base_graph,
-                 node_resources,
-                 edge_capacity,
-                 latency_alpha_factor,
-                 latency_beta_factor):
+                 base_graph : nx.Graph,
+                 node_resources : float,
+                 edge_capacity : float,
+                 latency_alpha_factor : float,
+                 latency_beta_factor : float):
 
         self.nx_graph = nx.DiGraph(base_graph)
-        nx_graph = nx.relabel.relabel_nodes(nx_graph, {node : i for i, node in enumerate(nx_graph.nodes())})
+        self.nx_graph = nx.relabel.relabel_nodes(self.nx_graph, {node : i for i, node in enumerate(self.nx_graph.nodes())})
         self.make_graph_symmetric()
         self.remove_all_attributes()
 
@@ -77,7 +91,7 @@ class GraphWithServices(nx.DiGraph):
     def set_latency_alpha_factor(self,
                                  latency_alpha_factor):
         latency_alpha_map = {edge : {'alpha' : latency_alpha_factor} for edge in self.nx_graph.edges}
-        nx.classes.function.set_edge_attributes(self.nx_graph, latency_alpha_map)^
+        nx.classes.function.set_edge_attributes(self.nx_graph, latency_alpha_map)
 
     def set_latency_beta_factor(self,
                                  latency_beta_factor):
@@ -101,7 +115,7 @@ class GraphWithServices(nx.DiGraph):
 
 def process_base_graph(nx_graph : nx.Graph,
                        resource_by_node : float,
-                       capacity_function : function,
+                       capacity_function : Callable,
                        alpha_constant : float,
                        beta_constant : float):
     
@@ -164,7 +178,7 @@ def network_graph_design(graph_name,
         pickle.dump(services_i, f, protocol=2)
         f.close()
 
-class single_task:
+class SingleTask:
     def __init__(self,
                  nx_graph,
                  origin_node_index,
@@ -178,7 +192,7 @@ class single_task:
         self.max_latency = max_latency
         self.resources_needed = resources_needed
 
-class services:
+class Services:
     def __init__(self, 
                  task_list, 
                  nx_graph):
