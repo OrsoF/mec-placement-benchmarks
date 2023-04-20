@@ -16,17 +16,17 @@ def services_to_features(services):
 [demand['latency'] for service in services for demand in service],\
 [sum(demand['resources'] for demand in service) for service in services]
 
-def get_encoded_outgoing_arc(G, arc_dic, n):
-    return [arc_dic[elem] for elem in get_outgoing_arc(G, n)]
+def get_encoded_outgoing_arc(nx_graph, arc_dic, n):
+    return [arc_dic[elem] for elem in get_outgoing_arc(nx_graph, n)]
 
-def get_outgoing_arc(G, n):
-    return [(n, elem) for elem in G.neighbors(n)]
+def get_outgoing_arc(nx_graph, n):
+    return [(n, elem) for elem in nx_graph.neighbors(n)]
 
-def get_encoded_incoming_arc(G, arc_dic, n):
-    return [arc_dic[elem] for elem in get_incoming_arc(G, n)]
+def get_encoded_incoming_arc(nx_graph, arc_dic, n):
+    return [arc_dic[elem] for elem in get_incoming_arc(nx_graph, n)]
 
-def get_incoming_arc(G, n):
-    return [(elem, n) for elem in G.neighbors(n)]
+def get_incoming_arc(nx_graph, n):
+    return [(elem, n) for elem in nx_graph.neighbors(n)]
 
 def get_info_from_results(results, info_string):
     i = str(results).lower().find(info_string.lower()) + len(info_string)
