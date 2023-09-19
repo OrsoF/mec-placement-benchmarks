@@ -285,7 +285,6 @@ class Solver(InstanceSolver):
         self._model_parameters()
 
         demand_arc_transit = np.zeros((self.total_demands, self.edge_number))
-        service_node_matrix = np.zeros((self.service_number, self.node_number))
         quantity_matrix = np.zeros(self.total_demands)
 
         for arc in self.nx_graph.edges:
