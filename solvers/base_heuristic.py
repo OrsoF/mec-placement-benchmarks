@@ -191,15 +191,15 @@ class Solver(InstanceSolver):
                     res / weight_nodes[i] for i, res in enumerate(available_resources)
                 ]
 
-        available_resources = [
-            self.nx_graph.nodes[node]["resources"] for node in self.nx_graph.nodes
-        ]
-        allocations = greedy_server_allocation(
-            available_resources, np.copy(self.resources), weight_nodes
-        )
-        service_node_matrix = server_allocations_to_matrix(
-            allocations, self.node_number
-        )
+        # available_resources = [
+        #     self.nx_graph.nodes[node]["resources"] for node in self.nx_graph.nodes
+        # ]
+        # allocations = greedy_server_allocation(
+        #     available_resources, np.copy(self.resources), weight_nodes
+        # )
+        # service_node_matrix = server_allocations_to_matrix(
+        #     allocations, self.node_number
+        # )
 
         return service_node_matrix, chosen_nodes
 
