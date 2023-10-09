@@ -11,30 +11,36 @@ from utils.instance_solver import InstanceSolver
 
 
 def greedy_server_allocation(
-    resources: list[float], needed_resources: list[float], priority: list[float]
+    resources_in_servers: list[float],
+    resources_needed_by_services: list[float],
+    server_priority: list[float],
 ):
-    assert len(priority) == len(
-        resources
+    """
+    Associated a list of services with needed_resources to a list of server with resources following a given priority.
+    """
+    assert len(server_priority) == len(
+        resources_in_servers
     ), "The priority factors is not shaped as list[server_number]."
-    assert np.all([priority_value > 0 for priority_value in priority])
+    assert np.all([priority_value > 0 for priority_value in server_priority])
 
     # Initialize a list to store the allocations
-    allocations = []
+    service_server_association = []
 
     # Create a list of server indices sorted by priority in descending order
     server_indices_sorted_by_priority = sorted(
-        range(len(priority)),
-        key=lambda server_index: resources[server_index] / priority[server_index],
+        range(len(server_priority)),
+        key=lambda server_index: resources_in_servers[server_index]
+        / server_priority[server_index],
         reverse=True,
     )
 
     # Iterate through each service
-    for service_resources in needed_resources:
+    for service_resources in resources_needed_by_services:
         best_server = None
 
         # Iterate through the sorted servers by priority
         for server_index in server_indices_sorted_by_priority:
-            server_resources = resources[server_index]
+            server_resources = resources_in_servers[server_index]
 
             # Check if the server has enough resources for the service
             if server_resources >= service_resources:
@@ -43,24 +49,29 @@ def greedy_server_allocation(
 
         if best_server is not None:
             # Allocate the service to the best server
-            allocations.append(best_server)
+            service_server_association.append(best_server)
             # Update available resources of the chosen server
-            resources[best_server] -= service_resources
+            resources_in_servers[best_server] -= service_resources
         else:
             # No suitable server found for the service
-            allocations.append(None)
+            service_server_association.append(None)
 
-    assert None not in allocations, "One service has no server."
-    assert len(allocations) == len(
-        needed_resources
+    assert None not in service_server_association, "One service has no server."
+    assert len(service_server_association) == len(
+        resources_needed_by_services
     ), "Allocations should be shaped as the number of service to place."
 
-    return allocations
+    return service_server_association
 
 
-def server_allocations_to_matrix(allocations: list[int], number_of_nodes: int):
-    service_node_matrix = np.zeros((len(allocations), number_of_nodes))
-    for service_index, server in enumerate(allocations):
+def server_allocations_to_matrix(
+    service_server_association: list[int], number_of_servers: int
+):
+    """
+    Transform a list of size |services| with the number of the given server into a matrix of size (services, servers) with zeros and ones.
+    """
+    service_node_matrix = np.zeros((len(service_server_association), number_of_servers))
+    for service_index, server in enumerate(service_server_association):
         service_node_matrix[service_index, server] = 1.0
     return service_node_matrix
 
@@ -99,7 +110,7 @@ class Solver(InstanceSolver):
         ]
         self.beta = [self.nx_graph.edges[edge]["beta"] for edge in self.nx_graph.edges]
 
-        self.cumulative_demands = None
+        self.cumulative_demands: np.ndarray = None
 
     def serv_number(self, d: int) -> tuple[int, int]:
         """
@@ -197,7 +208,7 @@ class Solver(InstanceSolver):
 
         used_paths = [[]] * self.total_demands
         for d in range(self.total_demands):
-            s, d0 = service_number[d]
+            s, _ = service_number[d]
             origin, destination = self.origins[d], chosen_nodes[s]
             shortest_paths = islice(
                 nx.algorithms.simple_paths.shortest_simple_paths(
