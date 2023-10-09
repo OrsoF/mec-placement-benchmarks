@@ -99,46 +99,51 @@ class Solver(InstanceSolver):
         ]
         self.beta = [self.nx_graph.edges[edge]["beta"] for edge in self.nx_graph.edges]
 
+        self.cumulative_demands = None
+
     def serv_number(self, d: int) -> tuple[int, int]:
         """
         Considering a list of services a the index of a demand d,
         the function returns the associated service index
         and the index of the demand in the considered service.
         """
-        task_number = np.array(
-            [
-                sum(self.demand_per_service[:s])
-                <= d
-                < sum(self.demand_per_service[: s + 1])
-                for s in range(len(self.services) - 1)
-            ]
-            + [1]
-        )
-        s = np.argmax(task_number)
-        return s, d - sum(self.demand_per_service[:s])
+
+        if self.cumulative_demands is None:
+            self.cumulative_demands = np.cumsum(self.demand_per_service)
+            self.cumulative_demands_plus_zero = np.array(
+                [0] + list(self.cumulative_demands)
+            )
+
+        service = np.where(self.cumulative_demands_plus_zero <= d)[0][-1]
+
+        local_demand_number = d - self.cumulative_demands_plus_zero[service]
+
+        assert service >= 0, "Service number should be a non negative integer."
+        assert (
+            local_demand_number >= 0
+        ), "Demand number should be a non negative integer."
+
+        return service, local_demand_number
 
     def capacity_check(self, path: list[int], quantity: float) -> bool:
         """
         Returns True if the quantity can pass through the path, False otherwise.
         """
         if len(path) == 1:
+            # The path is of length 0
             return True
+        elif len(path) == 2:
+            # The path is an edge, we check the condition on it.
+            return self.nx_graph.edges[tuple(path)]["remaining_capacity"] >= quantity
         else:
-            return bool(
-                min(
-                    [
-                        self.nx_graph.edges[(path[i], path[i + 1])][
-                            "remaining_capacity"
-                        ]
-                        >= quantity
-                        for i in range(len(path) - 1)
-                    ]
-                )
+            # The path is made of multiple edges, we check the condition on the first edge and on the the remaining path.
+            return self.capacity_check(path[:2], quantity) and self.capacity_check(
+                path[1:], quantity
             )
 
     def latency_check(self, path: list[int], latency: float, quantity: float) -> bool:
         """
-        Return True if the considered path can support
+        Return True if the considered service can support
         an additional latency associated with quanity, False otherwise.
         """
         if len(path) == 1:
@@ -156,9 +161,7 @@ class Solver(InstanceSolver):
             )
             return current_latency + additional_latency <= latency
 
-    def services_nodes_association(
-        self, weight_nodes: list[float]
-    ) -> (np.ndarray, list[int]):
+    def services_nodes_association(self) -> (np.ndarray, list[int]):
         """
         Given services, it associate a node to each service.
         """
@@ -166,42 +169,14 @@ class Solver(InstanceSolver):
         available_resources = [
             self.nx_graph.nodes[node]["resources"] for node in self.nx_graph.nodes
         ]
-        needed_resources = np.copy(self.resources)
-        assert len(needed_resources) == len(self.services)
-        service_node_matrix = np.zeros((self.service_number, self.node_number))
-        possible_nodes = [
-            res / weight_nodes[i] for i, res in enumerate(available_resources)
-        ]
-        assert len(possible_nodes) == len(self.nx_graph.nodes)
-        chosen_nodes = [-1] * self.service_number
-        while max(needed_resources) > 0:
-            s = np.argmax(needed_resources)
-            resources = needed_resources[s]
-            node = np.argmax(possible_nodes)
-            if available_resources[node] - resources >= 0:
-                available_resources[node] -= resources
-                possible_nodes[node] = available_resources[node] / weight_nodes[node]
-                needed_resources[s] = 0
-
-                service_node_matrix[s, node] = 1
-                chosen_nodes[s] = node
-            else:
-                weight_nodes[node] += 1
-                possible_nodes = [
-                    res / weight_nodes[i] for i, res in enumerate(available_resources)
-                ]
-
-        available_resources = [
-            self.nx_graph.nodes[node]["resources"] for node in self.nx_graph.nodes
-        ]
         allocations = greedy_server_allocation(
-            available_resources, np.copy(self.resources), weight_nodes
+            available_resources, np.copy(self.resources), self.weight_nodes
         )
         service_node_matrix = server_allocations_to_matrix(
             allocations, self.node_number
         )
 
-        return service_node_matrix, chosen_nodes
+        return service_node_matrix, allocations
 
     def shortest_paths_choice(
         self,
@@ -301,85 +276,38 @@ class Solver(InstanceSolver):
                 break
         return self.nx_graph, flows
 
-    def run(self, options={"time": 3600, "threads": 1}):
+    def run(self, limit_shortest_paths: int = 2, options={"time": 3600, "threads": 1}):
         start_time = time.time()
+
+        self.weight_nodes = [1] * len(self.nx_graph.nodes)
+        self.weight_edges = [1] * len(self.nx_graph.edges)
 
         self._model_parameters()
 
-        def heuristic_solve(
-            weight_nodes: list,
-            weight_edges: list,
-            limit_shortest_paths: int,
-            verbose: bool = False,
-        ):
-            if verbose:
-                print(
-                    "pmin",
-                    sum(
-                        demand["pmin"]
-                        for service in self.services
-                        for demand in service
-                    ),
-                )
-                print(
-                    "pmax",
-                    sum(
-                        demand["pmax"]
-                        for service in self.services
-                        for demand in service
-                    ),
-                )
+        demand_arc_transit = np.zeros((self.total_demands, self.edge_number))
+        quantity_matrix = np.zeros(self.total_demands)
 
-            demand_arc_transit, y, p = (
-                np.zeros((self.total_demands, self.edge_number)),
-                np.zeros((self.service_number, self.node_number)),
-                np.zeros(self.total_demands),
-            )
+        for arc in self.nx_graph.edges:
+            self.nx_graph.edges[arc]["remaining_capacity"] = self.nx_graph.edges[arc][
+                "capacity"
+            ]
+            self.nx_graph.edges[arc]["latency"] = 0
 
-            for arc in self.nx_graph.edges:
-                self.nx_graph.edges[arc]["remaining_capacity"] = self.nx_graph.edges[
-                    arc
-                ]["capacity"]
-                self.nx_graph.edges[arc]["latency"] = 0
+        p = self.min_flows.copy()
 
-            p = self.min_flows.copy()
+        # Association noeuds/services
+        service_node_matrix, chosen_nodes = self.services_nodes_association()
 
-            # Association noeuds/services
-
-            service_node_matrix, chosen_nodes = self.services_nodes_association(
-                weight_nodes
-            )
-
-            # For a given demand, we list the paths (shortest to longest) and take the first possible
-
-            demand_arc_transit, used_paths, solved = self.shortest_paths_choice(
-                chosen_nodes,
-                demand_arc_transit,
-                weight_edges,
-                limit_shortest_paths,
-            )
-            if not solved:
-                return demand_arc_transit, y, p, False
-
-            # We now increase the quantity of data
-
-            else:
-                G, p = self.increase_quantities(
-                    used_paths,
-                    weight_edges,
-                    p,
-                )
-                return demand_arc_transit, y, p, True
-
-        weight_nodes, weight_edges = [1] * len(self.nx_graph.nodes), [1] * len(
-            self.nx_graph.edges
+        # For a given demand, we list the paths (shortest to longest) and take the first possible
+        demand_arc_transit, used_paths, solved = self.shortest_paths_choice(
+            chosen_nodes,
+            demand_arc_transit,
+            self.weight_edges,
+            limit_shortest_paths,
         )
 
-        a, b, c, d = heuristic_solve(
-            weight_nodes,
-            weight_edges,
-            self.limit_shortest_path,
-        )
+        if solved:
+            _, p = self.increase_quantities(used_paths, self.weight_edges, p)
 
         self.runtime = time.time() - start_time
-        self.objective_value = np.sum(c)
+        self.objective_value = np.sum(p)
