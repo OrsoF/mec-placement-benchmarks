@@ -1,3 +1,5 @@
+# This code is there to test all solvers on all instances of problem.
+
 from utils.get_all_instances import all_instances
 from utils.get_all_solvers import all_solvers
 
