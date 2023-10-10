@@ -10,12 +10,6 @@ from problem_classes.probleminstance import ProblemInstance
 import numpy as np
 import os
 from utils.pickle_utils import pickle_save
-
-assert "gml_graphs" in os.listdir(os.getcwd()) and len(
-    os.listdir(os.path.join(os.getcwd(), "gml_graphs"))
-), "The 'gml_graphs' must exists and should not be empty."
-
-
 from utils.graph_utils import make_graph_from_gml
 
 
@@ -25,6 +19,10 @@ def make_services(
     number_of_services: int,
     instance_name: str,
 ) -> ServicePackage:
+    """
+    Build a ServicePackage object with multiples
+    services and multiple demands per services.
+    """
     alpha_moyen = sum(
         network_graph.nx_graph.edges[edge]["alpha"]
         for edge in network_graph.nx_graph.edges
@@ -59,38 +57,45 @@ def make_services(
     return service_package
 
 
-gml_path = "gml_graphs"
-instance_path = "instances"
-files = os.listdir(gml_path)
+gml_path = os.path.join(os.getcwd(), "gml_graphs")
+instance_path = os.path.join(os.getcwd(), "instances")
 
-for pkl_graph_name in files:
-    pkl_path = os.path.join(gml_path, pkl_graph_name)
-    graph_name = pkl_graph_name[:-4]  # france.gml -> france
 
-    network_graph: NetworkGraph = make_graph_from_gml(pkl_path)
+def make_instance_from_gml(
+    gml_path: str = gml_path, instance_path: str = instance_path
+):
+    gml_list_original = os.listdir(gml_path)
 
-    for number_of_service in range(1, 11):
-        number_of_demands_per_service = number_of_service
+    for gml_graph_name in gml_list_original:
+        gml_path = os.path.join(gml_path, gml_graph_name)
+        graph_name = gml_graph_name[:-4]  # france.gml -> france
 
-        instance_name = "{}_{}_instance_{}_{}_{}".format(
-            network_graph.nx_graph.number_of_nodes(),
-            network_graph.nx_graph.number_of_edges(),
-            number_of_service,
-            number_of_demands_per_service,
-            graph_name,
-        )
+        # Transforming gml into NetworkGraph
+        network_graph: NetworkGraph = make_graph_from_gml(gml_path)
 
-        service_package = make_services(
-            network_graph,
-            number_of_demands_per_service,
-            number_of_service,
-            instance_name,
-        )
+        # Building services
+        for number_of_service in range(1, 11):
+            number_of_demands_per_service = number_of_service
 
-        problem_instance = ProblemInstance(
-            network_graph, service_package, instance_name
-        )
+            instance_name = "{}_{}_instance_{}_{}_{}".format(
+                network_graph.nx_graph.number_of_nodes(),
+                network_graph.nx_graph.number_of_edges(),
+                number_of_service,
+                number_of_demands_per_service,
+                graph_name,
+            )
 
-        saved_file_path = os.path.join(instance_path, instance_name + ".pkl")
+            service_package = make_services(
+                network_graph,
+                number_of_demands_per_service,
+                number_of_service,
+                instance_name,
+            )
 
-        pickle_save(problem_instance, saved_file_path)
+            problem_instance = ProblemInstance(
+                network_graph, service_package, instance_name
+            )
+
+            saved_file_path = os.path.join(instance_path, instance_name + ".pkl")
+
+            pickle_save(problem_instance, saved_file_path)

@@ -1,5 +1,7 @@
 # Delete all files
-import reset
+from utils.data_management import reset
+
+reset()
 
 # Create basic instances (less than 50 nodes)
 import utils.make_instances_from_gml
