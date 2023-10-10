@@ -321,4 +321,8 @@ class Solver(InstanceSolver):
             _, p = self.increase_quantities(used_paths, self.weight_edges, p)
 
         self.runtime = time.time() - start_time
-        self.objective_value = np.sum(p)
+        objective_value = np.sum(p)
+
+        self.runtime = time.time() - start_time
+        self.lower_bound = objective_value
+        self.upper_bound = objective_value

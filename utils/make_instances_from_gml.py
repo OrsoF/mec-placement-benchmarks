@@ -1,5 +1,3 @@
-print("Building Instances...")
-
 from networkx.readwrite.gml import read_gml
 import networkx as nx
 from problem_classes.networkgraph import NetworkGraph
@@ -57,17 +55,17 @@ def make_services(
     return service_package
 
 
-gml_path = os.path.join(os.getcwd(), "gml_graphs")
+all_gml_path = os.path.join(os.getcwd(), "gml_graphs")
 instance_path = os.path.join(os.getcwd(), "instances")
 
 
 def make_instance_from_gml(
-    gml_path: str = gml_path, instance_path: str = instance_path
+    all_gml_path: str = all_gml_path, instance_path: str = instance_path
 ):
-    gml_list_original = os.listdir(gml_path)
+    gml_list_original = os.listdir(all_gml_path)
 
     for gml_graph_name in gml_list_original:
-        gml_path = os.path.join(gml_path, gml_graph_name)
+        gml_path = os.path.join(all_gml_path, gml_graph_name)
         graph_name = gml_graph_name[:-4]  # france.gml -> france
 
         # Transforming gml into NetworkGraph

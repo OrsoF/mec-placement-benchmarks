@@ -4,7 +4,6 @@ from utils.data_management import (
     get_solver_list,
     experience_index,
     create_dataframe_from_dict,
-    reorder_columns,
     folder_management,
 )
 from utils.make_instances_from_gml import make_instance_from_gml
@@ -34,7 +33,8 @@ all_solvers = get_solver_list()
 instance_list = instance_list[1:3]
 
 runtimes = {}
-objectives = {}
+lower_bounds = {}
+upper_bounds = {}
 
 print("Solving all instances with all methods...")
 for solver in all_solvers:
@@ -49,19 +49,24 @@ for solver in all_solvers:
         sol.run(options={"time": 3600, "threads": 1})
         result_name = (instance.problem_name, sol.solver_name)
         runtimes[result_name] = np.round(float(sol.runtime), 2)
-        objectives[result_name] = np.round(float(sol.objective_value), 2)
+        lower_bounds[result_name] = np.round(float(sol.lower_bound), 2)
+        upper_bounds[result_name] = np.round(float(sol.upper_bound), 2)
 
 
-index = experience_index()
-runtimes_dataframe = create_dataframe_from_dict(runtimes)
-objectives_dataframe = create_dataframe_from_dict(objectives)
+experience_number = experience_index()
 
-objectives_dataframe, runtimes_dataframe = reorder_columns(
-    objectives_dataframe, runtimes_dataframe
-)
-
-print(runtimes_dataframe)
-runtimes_dataframe.to_excel("results/{}_runtimes.xlsx".format(index))
+runtimes_df = create_dataframe_from_dict(runtimes)
+runtimes_df.to_excel("results/{}_runtimes.xlsx".format(experience_number))
 print()
-print(objectives_dataframe)
-objectives_dataframe.to_excel("results/{}_objectives.xlsx".format(index))
+print(runtimes_df)
+print()
+
+lower_bounds_df = create_dataframe_from_dict(lower_bounds)
+lower_bounds_df.to_excel("results/{}_lower_bounds.xlsx".format(experience_number))
+print(lower_bounds_df)
+print()
+
+upper_bounds_df = create_dataframe_from_dict(upper_bounds)
+upper_bounds_df.to_excel("results/{}_upper_bounds.xlsx".format(experience_number))
+print(upper_bounds_df)
+print()

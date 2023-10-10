@@ -276,4 +276,5 @@ class Solver:
             self.results[elem] = get_info_from_results(resultat, elem)
 
         self.runtime = self.results["Time: "]
-        self.objective_value = self.results["Lower bound: "]
+        self.lower_bound = self.results["Lower bound: "]
+        self.upper_bound = self.results["Upper bound: "]

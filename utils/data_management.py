@@ -53,10 +53,10 @@ def get_solver_list():
     solver_list = []
 
     solver_path = "solvers"
-    solver_list = os.listdir(solver_path)
-    for solver in solver_list:
-        if solver != "__pycache__":
-            solver_module = "{}.{}".format(solver_path, solver[:-3])
+    solver_string_list = os.listdir(solver_path)
+    for solver_str in solver_string_list:
+        if solver_str != "__pycache__":
+            solver_module = "{}.{}".format(solver_path, solver_str[:-3])
             current_solver = importlib.import_module(solver_module)
             solver_list.append(current_solver.Solver)
     return solver_list
