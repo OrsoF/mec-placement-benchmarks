@@ -16,7 +16,7 @@ from utils.get_all_solvers import all_solvers
 from problem_classes.probleminstance import ProblemInstance
 from utils.instance_solver import InstanceSolver
 from utils.pandas_util import create_dataframe_from_dict, reorder_columns
-from utils.check_a_network_graph import check_network_graph
+from utils.check_network_graph import check_network_graph
 from utils.experience_utils import experience_index
 import numpy as np
 

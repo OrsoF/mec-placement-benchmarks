@@ -1,5 +1,5 @@
 import networkx as nx
-from utils.check_a_network_graph import check_network_graph
+from utils.check_network_graph import check_network_graph
 
 
 class NetworkGraph:

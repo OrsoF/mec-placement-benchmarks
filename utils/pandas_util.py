@@ -1,7 +1,10 @@
 import pandas as pd
 
 
-def create_dataframe_from_dict(input_dict):
+def create_dataframe_from_dict(input_dict: dict):
+    """
+    Create a pandas.DataFrame from a dict {(row, col) : value}
+    """
     # Extract unique row and column names
     rows = set()
     columns = set()

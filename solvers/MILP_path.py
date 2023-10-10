@@ -8,7 +8,8 @@ from utils.graph_neighbors import get_encoded_incoming_arc, get_encoded_outgoing
 from itertools import islice
 
 import pyomo.environ as pyo
-import time
+from pyomo.opt.results import SolverResults
+from time import time
 from networkx.readwrite.gml import read_gml
 import networkx as nx
 import os
