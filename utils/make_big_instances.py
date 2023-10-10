@@ -206,37 +206,38 @@ def generate_service_package_for_three_levels_graph(
     return ServicePackage(services=services, instance_name=instance_name)
 
 
-gml_path = "gml_graphs"
-instance_path = "instances"
-files = os.listdir(gml_path)
-
-for gml_graph_name in files:
+def make_big_instances():
     gml_path = "gml_graphs"
+    instance_path = "instances"
+    files = os.listdir(gml_path)
 
-    gml_path = os.path.join(gml_path, gml_graph_name)
-    graph_name = gml_graph_name[:-4]  # france.gml -> france
+    for gml_graph_name in files:
+        gml_path = "gml_graphs"
 
-    network_graph = make_graph_from_gml(gml_path)
+        gml_path = os.path.join(gml_path, gml_graph_name)
+        graph_name = gml_graph_name[:-4]  # france.gml -> france
 
-    three_levels_network_graph = add_two_levels_to_base_graph(network_graph)
+        network_graph = make_graph_from_gml(gml_path)
 
-    for number_of_service in range(1, 11):
-        service_package = generate_service_package_for_three_levels_graph(
-            three_levels_network_graph, number_of_service, graph_name
-        )
+        three_levels_network_graph = add_two_levels_to_base_graph(network_graph)
 
-        instance_name = "{}_{}_instance_{}_{}_{}".format(
-            len(three_levels_network_graph.nx_graph.edges),
-            len(three_levels_network_graph.nx_graph.edges),
-            number_of_service,
-            number_of_service,
-            graph_name,
-        )
+        for number_of_service in range(1, 11):
+            service_package = generate_service_package_for_three_levels_graph(
+                three_levels_network_graph, number_of_service, graph_name
+            )
 
-        problem_instance = ProblemInstance(
-            three_levels_network_graph, service_package, instance_name
-        )
+            instance_name = "{}_{}_instance_{}_{}_{}".format(
+                len(three_levels_network_graph.nx_graph.edges),
+                len(three_levels_network_graph.nx_graph.edges),
+                number_of_service,
+                number_of_service,
+                graph_name,
+            )
 
-        saved_file_path = os.path.join(instance_path, instance_name + ".pkl")
+            problem_instance = ProblemInstance(
+                three_levels_network_graph, service_package, instance_name
+            )
 
-        pickle_save(problem_instance, saved_file_path)
+            saved_file_path = os.path.join(instance_path, instance_name + ".pkl")
+
+            pickle_save(problem_instance, saved_file_path)

@@ -1,35 +1,42 @@
-# Delete all files
-from utils.data_management import reset
+from utils.data_management import (
+    reset,
+    get_instance_list,
+    get_solver_list,
+    experience_index,
+    create_dataframe_from_dict,
+    reorder_columns,
+)
+from utils.make_instances_from_gml import make_instance_from_gml
+from utils.make_big_instances import make_big_instances
+import numpy as np
+from problem_classes.probleminstance import ProblemInstance
+from utils.instance_solver import InstanceSolver
+from utils.check_network_graph import check_network_graph
 
+# Delete all files
 reset()
 
 # Create basic instances (less than 50 nodes)
-import utils.make_instances_from_gml
+make_instance_from_gml()
 
 # Create big custom instances (1000 nodes or more)
-import utils.make_big_instances_from_gml
+make_big_instances()
 
 # Create a list of available instance
-from utils.get_all_instances import all_instances
+instance_list = get_instance_list()
 
 # Create a list of available solvers
-from utils.get_all_solvers import all_solvers
+all_solvers = get_solver_list()
 
-from problem_classes.probleminstance import ProblemInstance
-from utils.instance_solver import InstanceSolver
-from utils.pandas_util import create_dataframe_from_dict, reorder_columns
-from utils.check_network_graph import check_network_graph
-from utils.experience_utils import experience_index
-import numpy as np
 
-all_instances = all_instances[1:3]
+instance_list = instance_list[1:3]
 
 runtimes = {}
 objectives = {}
 
 print("Solving all instances with all methods...")
 for solver in all_solvers:
-    for instance in all_instances:
+    for instance in instance_list:
         instance: ProblemInstance
         sol: InstanceSolver = solver(instance)
 
