@@ -5,6 +5,7 @@ from utils.data_management import (
     experience_index,
     create_dataframe_from_dict,
     reorder_columns,
+    folder_management,
 )
 from utils.make_instances_from_gml import make_instance_from_gml
 from utils.make_big_instances import make_big_instances
@@ -13,8 +14,9 @@ from problem_classes.probleminstance import ProblemInstance
 from utils.instance_solver import InstanceSolver
 from utils.check_network_graph import check_network_graph
 
-# Delete all files
+# Delete all files, create folders
 reset()
+folder_management()
 
 # Create basic instances (less than 50 nodes)
 make_instance_from_gml()
@@ -49,15 +51,8 @@ for solver in all_solvers:
         runtimes[result_name] = np.round(float(sol.runtime), 2)
         objectives[result_name] = np.round(float(sol.objective_value), 2)
 
-import os
-
-try:
-    os.mkdir("results")
-except FileExistsError:
-    pass
 
 index = experience_index()
-
 runtimes_dataframe = create_dataframe_from_dict(runtimes)
 objectives_dataframe = create_dataframe_from_dict(objectives)
 
