@@ -7,7 +7,7 @@ from problem_classes.servicepackage import ServicePackage
 from problem_classes.probleminstance import ProblemInstance
 import numpy as np
 import os
-from utils.pickle_utils import pickle_save
+from utils.data_management import pickle_save
 from utils.graph_utils import make_graph_from_gml
 
 
