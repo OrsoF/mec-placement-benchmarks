@@ -6,6 +6,8 @@ from problem_classes.probleminstance import ProblemInstance
 from utils.pyomo_utils import get_info_from_results
 from utils.graph_neighbors import get_encoded_incoming_arc, get_encoded_outgoing_arc
 from itertools import islice
+from utils.data_management import get_result_informations
+from pyomo.opt.base.solvers import SolverFactoryClass
 
 import pyomo.environ as pyo
 import time
@@ -30,8 +32,10 @@ class Solver:
 
     def _model_parameters(self):
         self.S = len(self.services)
-        self.Sd = [service.task_number for service in self.services]
-        self.D = sum(self.Sd)
+        self.number_of_tasks_per_service = [
+            service.task_number for service in self.services
+        ]
+        self.D = sum(self.number_of_tasks_per_service)
         self.E = self.G.number_of_nodes()
         self.A = self.G.number_of_edges()
         self.arc_dic = {elem: i for i, elem in enumerate(self.G.edges)}
@@ -39,10 +43,10 @@ class Solver:
         self.origins = [
             origin for service in self.services for origin in service.origin_nodes
         ]
-        self.Pdmin = [
+        self.minimum_flows = [
             min_flow for service in self.services for min_flow in service.min_flows
         ]
-        self.Pdmax = [
+        self.maximum_flows = [
             max_flow for service in self.services for max_flow in service.max_flows
         ]
         self.latencies = [
@@ -71,16 +75,14 @@ class Solver:
         self.all_shortest_paths = [
             elem for path_list in self.shortest_paths for elem in path_list
         ]
-        self.C, C_demand = sum(len(elem) for elem in self.shortest_paths), [
-            len(elem) for elem in self.shortest_paths
-        ]
+        self.C = sum(len(path) for path in self.shortest_paths)
         self.D_path_number = [
-            i for i, path_list in enumerate(self.shortest_paths) for path in path_list
+            i for i, path_list in enumerate(self.shortest_paths) for _ in path_list
         ]
         self.D_path = [
-            i for i, path_list in enumerate(self.shortest_paths) for path in path_list
+            i for i, path_list in enumerate(self.shortest_paths) for _ in path_list
         ]
-        self.m = max(self.Pdmax)
+        self.m = max(self.maximum_flows)
         self.n = max(self.latencies)
 
         self.shortest_paths = [
@@ -110,8 +112,10 @@ class Solver:
             for i in range(1, len(self.shortest_paths) + 1)
         ]
 
-        self.M = max(self.Pdmax)
-        self.N = max(self.alpha) * sum(self.Pdmax) + max(self.beta)
+        self.maximum_required_flow = max(self.maximum_flows)
+        self.maximum_possible_latency = max(self.alpha) * sum(self.maximum_flows) + max(
+            self.beta
+        )
 
     def path_to_demand(self, p):
         return self.p_to_d[p]
@@ -150,7 +154,7 @@ class Solver:
         self.model.val_q = pyo.Constraint(
             self.model.D,
             rule=lambda model, d: pyo.inequality(
-                self.Pdmin[d], model.q[d], self.Pdmax[d]
+                self.minimum_flows[d], model.q[d], self.maximum_flows[d]
             ),
         )
         self.model.res = pyo.Constraint(
@@ -199,11 +203,13 @@ class Solver:
         self.model.qual2 = pyo.Constraint(
             self.model.P,
             rule=lambda model, p: model.Q[p]
-            >= model.q[self.path_to_demand(p)] - self.M * (1 - model.l[p]),
+            >= model.q[self.path_to_demand(p)]
+            - self.maximum_required_flow * (1 - model.l[p]),
         )
 
         self.model.qual3 = pyo.Constraint(
-            self.model.P, rule=lambda model, p: model.Q[p] <= self.M * model.l[p]
+            self.model.P,
+            rule=lambda model, p: model.Q[p] <= self.maximum_required_flow * model.l[p],
         )
 
         self.model.lat1 = pyo.Constraint(
@@ -220,13 +226,14 @@ class Solver:
             rule=lambda model, p, a: model.L[p, a]
             >= self.alpha[a] * sum(self.delta(pp, a) * model.Q[pp] for pp in model.P)
             + self.beta[a]
-            - self.N * (1 - model.z[p]),
+            - self.maximum_possible_latency * (1 - model.z[p]),
         )
 
         self.model.lat3 = pyo.Constraint(
             self.model.P,
             self.model.A,
-            rule=lambda model, p, a: model.L[p, a] <= self.N * model.z[p],
+            rule=lambda model, p, a: model.L[p, a]
+            <= self.maximum_possible_latency * model.z[p],
         )
 
     def gamma(self, p, e):
@@ -254,7 +261,13 @@ class Solver:
             self.gamma(p, e) * model.l[p] for p in range(self.pd[d], self.pd[d + 1])
         )
 
-    def run(self, options):
+    def run(
+        self,
+        options,
+        solving_time_limit: float = 600,
+        thread_limit: int = 1,
+        solver: str = "gurobi",
+    ):
         self._model_parameters()
         self.model_creation()
         self.set_creation()
@@ -263,31 +276,21 @@ class Solver:
         self.set_constraints()
         self.set_objective()
 
-        opt = pyo.SolverFactory("gurobi")
-        self.options = {"time": 3600, "threads": 1}
-        for key in self.options.keys():
-            opt.options[key] = self.options[key]
+        opt = pyo.SolverFactory(solver)
+        if solver == "gurobi":
+            opt.options["TimeLimit"] = solving_time_limit
+            opt.options["threads"] = thread_limit
+        else:
+            assert False, "Not implemented yet."
 
         try:
             solver_result = opt.solve(self.model)
+            (
+                self.runtime,
+                self.lower_bound,
+                self.upper_bound,
+                self.solving_status,
+            ) = get_result_informations(solver_result)
 
-            results_informations = [
-                "Time: ",
-                "Lower bound: ",
-                "Upper bound: ",
-                "Termination condition: ",
-            ]
-            self.results = {}
-            for elem in results_informations:
-                self.results[elem] = get_info_from_results(solver_result, elem)
         except ValueError:
-            self.results = {
-                "Time: ": self.options["TimeLimit"],
-                "Lower bound: ": 0,
-                "Upper bound: ": 0,
-                "Termination condition: ": False,
-            }
-
-        self.runtime = self.results["Time: "]
-        self.lower_bound = self.results["Lower bound: "]
-        self.upper_bound = self.results["Upper bound: "]
+            self.runtime, self.lower_bound, self.upper_bound = solving_time_limit, 0, 0

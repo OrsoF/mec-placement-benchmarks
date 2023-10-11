@@ -113,3 +113,26 @@ def reorder_columns(df1, df2):
             raise ValueError("The first DataFrame must have at least one row.")
     else:
         raise TypeError("Input arguments must be Pandas DataFrames.")
+
+
+def get_result_informations(solver_result) -> tuple:
+    tuple_of_results = [0, 0, 0, 0]
+    tuple_of_results[0] = get_info_from_results(solver_result, "Time: ")
+    tuple_of_results[1] = get_info_from_results(solver_result, "Lower bound: ")
+    tuple_of_results[2] = get_info_from_results(solver_result, "Upper bound: ")
+    tuple_of_results[3] = get_info_from_results(
+        solver_result, "Termination condition: "
+    )
+    return tuple_of_results
+
+
+def get_info_from_results(result_type: str, info_string: str):
+    """
+    Get information about results from Pyomo result info string.
+    """
+    i = str(result_type).lower().find(info_string.lower()) + len(info_string)
+    value = ""
+    while str(result_type)[i] != "\n":
+        value = value + str(result_type)[i]
+        i += 1
+    return value
