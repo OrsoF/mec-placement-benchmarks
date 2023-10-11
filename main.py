@@ -29,7 +29,7 @@ instance_list = get_instance_list()
 # Create a list of available solvers
 all_solvers = get_solver_list()
 
-
+experience_number = experience_index()
 instance_list = instance_list  # [1:3]
 
 runtimes = {}
@@ -46,14 +46,23 @@ for solver in all_solvers:
 
         check_network_graph(instance.network_graph.nx_graph)
 
-        sol.run(options={"time": 60, "threads": 1})
+        sol.run(options={"TimeLimit": 20, "threads": 1})
         result_name = (instance.problem_name, sol.solver_name)
         runtimes[result_name] = np.round(float(sol.runtime), 2)
         lower_bounds[result_name] = np.round(float(sol.lower_bound), 2)
         upper_bounds[result_name] = np.round(float(sol.upper_bound), 2)
 
+        runtimes_df = create_dataframe_from_dict(runtimes)
+        runtimes_df.to_excel("results/{}_runtimes.xlsx".format(experience_number))
+        lower_bounds_df = create_dataframe_from_dict(lower_bounds)
+        lower_bounds_df.to_excel(
+            "results/{}_lower_bounds.xlsx".format(experience_number)
+        )
+        upper_bounds_df = create_dataframe_from_dict(upper_bounds)
+        upper_bounds_df.to_excel(
+            "results/{}_upper_bounds.xlsx".format(experience_number)
+        )
 
-experience_number = experience_index()
 
 runtimes_df = create_dataframe_from_dict(runtimes)
 runtimes_df.to_excel("results/{}_runtimes.xlsx".format(experience_number))

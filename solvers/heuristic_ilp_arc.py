@@ -58,7 +58,12 @@ class Solver(InstanceSolver):
         ]
         self.cumulative_demands: np.ndarray = None
 
-    def run(self, options={"time": 60, "threads": 1}, solver: str = "gurobi"):
+    def run(
+        self,
+        options={"time": 60, "threads": 1},
+        solver: str = "gurobi",
+        verbose: bool = False,
+    ):
         # Plan du solver:
         # - Attribuer les services a des serveurs
         # - Résoudre le problème de routage (avec arc/path methods)
@@ -75,6 +80,8 @@ class Solver(InstanceSolver):
         # Go solve le probleme ILP arc en fixant les variables y
 
         ilp_solver_arc = ilp_solver(self.problem_instance)
+        if verbose:
+            print("Building problem...")
         ilp_solver_arc._model_parameters()
         ilp_solver_arc._build_model()
         ilp_solver_arc._build_sets()
@@ -90,10 +97,14 @@ class Solver(InstanceSolver):
                 else:
                     ilp_solver_arc.model.y[service_index, server_index].fix(0)
 
+        if verbose:
+            print("Building constraints...")
         ilp_solver_arc._build_params()
         ilp_solver_arc._build_constraints()
         ilp_solver_arc._build_objective()
 
+        if verbose:
+            print("Solving...")
         ilp_solver_arc._solve_problem()
 
         self.results = ilp_solver_arc.results

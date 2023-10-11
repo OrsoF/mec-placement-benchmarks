@@ -268,13 +268,22 @@ class Solver:
         for key in self.options.keys():
             opt.options[key] = self.options[key]
 
-        resultat = opt.solve(self.model)
+        try:
+            solver_result = opt.solve(self.model)
 
-        res = ["Time: ", "Lower bound: ", "Upper bound: ", "Termination condition: "]
-        self.results = {}
-        for elem in res:
-            self.results[elem] = get_info_from_results(resultat, elem)
-
-        self.runtime = self.results["Time: "]
-        self.lower_bound = self.results["Lower bound: "]
-        self.upper_bound = self.results["Upper bound: "]
+            results_informations = [
+                "Time: ",
+                "Lower bound: ",
+                "Upper bound: ",
+                "Termination condition: ",
+            ]
+            self.results = {}
+            for elem in results_informations:
+                self.results[elem] = get_info_from_results(solver_result, elem)
+        except ValueError:
+            self.results = {
+                "Time: ": self.options["TimeLimit"],
+                "Lower bound: ": 0,
+                "Upper bound: ": 0,
+                "Termination condition: ": False,
+            }

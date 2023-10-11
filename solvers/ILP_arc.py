@@ -288,16 +288,25 @@ class Solver(InstanceSolver):
         optimum = pyo.SolverFactory(self.solver)
         for key in self.options.keys():
             optimum.options[key] = self.options[key]
-        solver_result = optimum.solve(self.model)
-        results_informations = [
-            "Time: ",
-            "Lower bound: ",
-            "Upper bound: ",
-            "Termination condition: ",
-        ]
-        self.results = {}
-        for elem in results_informations:
-            self.results[elem] = get_info_from_results(solver_result, elem)
+        try:
+            solver_result = optimum.solve(self.model)
+
+            results_informations = [
+                "Time: ",
+                "Lower bound: ",
+                "Upper bound: ",
+                "Termination condition: ",
+            ]
+            self.results = {}
+            for elem in results_informations:
+                self.results[elem] = get_info_from_results(solver_result, elem)
+        except ValueError:
+            self.results = {
+                "Time: ": self.options["TimeLimit"],
+                "Lower bound: ": 0,
+                "Upper bound: ": 0,
+                "Termination condition: ": False,
+            }
 
     def run(self, options: dict, solver: str = "gurobi"):
         self.solver = solver
