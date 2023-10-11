@@ -21,7 +21,7 @@ class Solver(InstanceSolver):
         self.problem_instance = problem_instance
         self.services: list[Service] = self.problem_instance.service_package.services
         self.nx_graph: nx.DiGraph = self.problem_instance.network_graph.nx_graph
-        self.solver_name = "heuristic_lp"
+        self.solver_name = "heuristic_ilp_arc"
 
         self._model_parameters()
 
@@ -58,7 +58,7 @@ class Solver(InstanceSolver):
         ]
         self.cumulative_demands: np.ndarray = None
 
-    def run(self, options={"time": 3600, "threads": 1}, solver: str = "gurobi"):
+    def run(self, options={"time": 60, "threads": 1}, solver: str = "gurobi"):
         # Plan du solver:
         # - Attribuer les services a des serveurs
         # - Résoudre le problème de routage (avec arc/path methods)

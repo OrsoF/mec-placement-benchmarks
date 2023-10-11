@@ -30,7 +30,7 @@ instance_list = get_instance_list()
 all_solvers = get_solver_list()
 
 
-instance_list = instance_list[1:3]
+instance_list = instance_list  # [1:3]
 
 runtimes = {}
 lower_bounds = {}
@@ -46,7 +46,7 @@ for solver in all_solvers:
 
         check_network_graph(instance.network_graph.nx_graph)
 
-        sol.run(options={"time": 3600, "threads": 1})
+        sol.run(options={"time": 60, "threads": 1})
         result_name = (instance.problem_name, sol.solver_name)
         runtimes[result_name] = np.round(float(sol.runtime), 2)
         lower_bounds[result_name] = np.round(float(sol.lower_bound), 2)
