@@ -262,7 +262,7 @@ class Solver:
 
     def run(
         self,
-        options,
+        options: dict = None,
         solving_time_limit: float = 600,
         thread_limit: int = 1,
         solver: str = "gurobi",

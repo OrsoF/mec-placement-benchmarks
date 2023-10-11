@@ -65,14 +65,12 @@ class Solver(InstanceSolver):
         self.all_shortest_paths = [
             elem for path_list in self.shortest_paths for elem in path_list
         ]
-        self.C, C_demand = sum(len(elem) for elem in self.shortest_paths), [
-            len(elem) for elem in self.shortest_paths
-        ]
+        self.C = sum(len(elem) for elem in self.shortest_paths)
         self.D_path_number = [
-            i for i, path_list in enumerate(self.shortest_paths) for path in path_list
+            i for i, path_list in enumerate(self.shortest_paths) for _ in path_list
         ]
         self.D_path = [
-            i for i, path_list in enumerate(self.shortest_paths) for path in path_list
+            i for i, path_list in enumerate(self.shortest_paths) for _ in path_list
         ]
         self.m = max(self.Pdmax)
         self.n = max(self.latencies)
@@ -330,33 +328,9 @@ class Solver(InstanceSolver):
             sense=pyo.maximize, rule=lambda model: sum(model.p.values())
         )
 
-    def _solve_problem(self):
-        opt = pyo.SolverFactory(self.solver)
-        for key in self.options.keys():
-            opt.options[key] = self.options[key]
-        try:
-            solver_result = opt.solve(self.model)
-
-            results_informations = [
-                "Time: ",
-                "Lower bound: ",
-                "Upper bound: ",
-                "Termination condition: ",
-            ]
-            self.results = {}
-            for elem in results_informations:
-                self.results[elem] = get_info_from_results(solver_result, elem)
-        except ValueError:
-            self.results = {
-                "Time: ": self.options["TimeLimit"],
-                "Lower bound: ": 0,
-                "Upper bound: ": 0,
-                "Termination condition: ": False,
-            }
-
     def run(
         self,
-        options,
+        options: dict = None,
         solving_time_limit: float = 600,
         thread_limit: int = 1,
         solver: str = "gurobi",

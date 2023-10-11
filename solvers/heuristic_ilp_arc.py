@@ -80,14 +80,10 @@ class Solver(InstanceSolver):
         # Go solve le probleme ILP arc en fixant les variables y
 
         ilp_solver_arc = ilp_solver(self.problem_instance)
-        if verbose:
-            print("Building problem...")
         ilp_solver_arc._model_parameters()
         ilp_solver_arc._build_model()
         ilp_solver_arc._build_sets()
         ilp_solver_arc._build_variables()
-        ilp_solver_arc.options = options
-        ilp_solver_arc.solver = solver
 
         # Fixer ici la variable y
         for service_index in range(self.service_number):
@@ -97,18 +93,8 @@ class Solver(InstanceSolver):
                 else:
                     ilp_solver_arc.model.y[service_index, server_index].fix(0)
 
-        if verbose:
-            print("Building constraints...")
-        ilp_solver_arc._build_params()
-        ilp_solver_arc._build_constraints()
-        ilp_solver_arc._build_objective()
+        ilp_solver_arc.run()
 
-        if verbose:
-            print("Solving...")
-        ilp_solver_arc._solve_problem()
-
-        self.results = ilp_solver_arc.results
-
-        self.runtime = float(self.results["Time: "]) + presolving_time
-        self.lower_bound = self.results["Lower bound: "]
-        self.upper_bound = self.results["Upper bound: "]
+        self.runtime = float(ilp_solver_arc.runtime) + presolving_time
+        self.lower_bound = ilp_solver_arc.lower_bound
+        self.upper_bound = ilp_solver_arc.upper_bound

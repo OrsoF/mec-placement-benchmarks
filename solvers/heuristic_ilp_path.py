@@ -59,13 +59,8 @@ class Solver(InstanceSolver):
         self.cumulative_demands: np.ndarray = None
 
     def run(self, options={"time": 60, "threads": 1}, solver: str = "gurobi"):
-        # Plan du solver:
-        # - Attribuer les services a des serveurs
-        # - Résoudre le problème de routage (avec arc/path methods)
-        # ça revient à présolve une partie du problème et fixer ensuite des variables dans ILP arc et ILP path
-
-        # Go presolve le probleme
         start_time = time.time()
+
         server_priority = [1 for _ in range(self.nx_graph.number_of_nodes())]
         service_server_association = greedy_server_allocation(
             self.available_resources, self.needed_resources, server_priority
@@ -79,8 +74,6 @@ class Solver(InstanceSolver):
         ilp_solver_arc._build_model()
         ilp_solver_arc._build_sets()
         ilp_solver_arc._build_variables()
-        ilp_solver_arc.options = options
-        ilp_solver_arc.solver = solver
 
         # Fixer ici la variable y
         for service_index in range(self.service_number):
@@ -90,14 +83,8 @@ class Solver(InstanceSolver):
                 else:
                     ilp_solver_arc.model.y[service_index, server_index].fix(0)
 
-        ilp_solver_arc._build_params()
-        ilp_solver_arc._build_constraints()
-        ilp_solver_arc._build_objective()
+        ilp_solver_arc.run()
 
-        ilp_solver_arc._solve_problem()
-
-        self.results = ilp_solver_arc.results
-
-        self.runtime = float(self.results["Time: "]) + presolving_time
-        self.lower_bound = self.results["Lower bound: "]
-        self.upper_bound = self.results["Upper bound: "]
+        self.runtime = float(ilp_solver_arc.runtime) + presolving_time
+        self.lower_bound = ilp_solver_arc.lower_bound
+        self.upper_bound = ilp_solver_arc.upper_bound
