@@ -67,13 +67,11 @@ class Solver(InstanceSolver):
         self.all_shortest_paths = [
             elem for path_list in self.shortest_paths for elem in path_list
         ]
-        self.C, C_demand = sum(len(elem) for elem in self.shortest_paths), [
-            len(elem) for elem in self.shortest_paths
-        ]
+        self.C = sum(len(elem) for elem in self.shortest_paths)
         self.m = max(self.Pdmax)
         self.n = max(self.latencies)
         self.D_path_number = [
-            i for i, path_list in enumerate(self.shortest_paths) for path in path_list
+            i for i, path_list in enumerate(self.shortest_paths) for _ in path_list
         ]
 
     def _build_model(self):
@@ -239,7 +237,7 @@ class Solver(InstanceSolver):
             },
         )
         D_path = [
-            i for i, path_list in enumerate(self.shortest_paths) for path in path_list
+            i for i, path_list in enumerate(self.shortest_paths) for _ in path_list
         ]
         self.model.D_path = pyo.Param(
             self.model.C,

@@ -3,7 +3,7 @@ from problem_classes.servicepackage import ServicePackage
 from problem_classes.networkgraph import NetworkGraph
 from problem_classes.service import Service
 from problem_classes.probleminstance import ProblemInstance
-from utils.data_management import get_info_from_results
+from utils.data_management import get_result_informations
 from utils.graph_neighbors import get_encoded_incoming_arc, get_encoded_outgoing_arc
 
 import pyomo.environ as pyo
@@ -275,10 +275,13 @@ class Solver(InstanceSolver):
                 "Termination condition: ": False,
             }
 
-    def run(self, solver: str = "gurobi", options: dict = {"time": 3600, "threads": 1}):
-        self.solver = solver
-        self.options = options
-
+    def run(
+        self,
+        options,
+        solving_time_limit: float = 600,
+        thread_limit: int = 1,
+        solver: str = "gurobi",
+    ):
         self._model_parameters()
         self._build_model()
         self._build_sets()
@@ -286,8 +289,22 @@ class Solver(InstanceSolver):
         self._build_params()
         self._build_constraints()
         self._build_objective()
-        self._solve_problem()
 
-        self.runtime = self.results["Time: "]
-        self.lower_bound = self.results["Lower bound: "]
-        self.upper_bound = self.results["Upper bound: "]
+        opt = pyo.SolverFactory(solver)
+        if solver == "gurobi":
+            opt.options["TimeLimit"] = solving_time_limit
+            opt.options["threads"] = thread_limit
+        else:
+            assert False, "Not implemented yet."
+
+        try:
+            solver_result = opt.solve(self.model)
+            (
+                self.runtime,
+                self.lower_bound,
+                self.upper_bound,
+                self.solving_status,
+            ) = get_result_informations(solver_result)
+
+        except ValueError:
+            self.runtime, self.lower_bound, self.upper_bound = solving_time_limit, 0, 0
