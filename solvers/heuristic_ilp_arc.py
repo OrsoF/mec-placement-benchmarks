@@ -60,9 +60,10 @@ class Solver(InstanceSolver):
 
     def run(
         self,
-        options={"time": 60, "threads": 1},
+        options: dict = None,
+        solving_time_limit: float = 600,
+        thread_limit: int = 1,
         solver: str = "gurobi",
-        verbose: bool = False,
     ):
         # Plan du solver:
         # - Attribuer les services a des serveurs

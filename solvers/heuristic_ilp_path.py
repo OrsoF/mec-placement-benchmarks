@@ -58,7 +58,13 @@ class Solver(InstanceSolver):
         ]
         self.cumulative_demands: np.ndarray = None
 
-    def run(self, options={"time": 60, "threads": 1}, solver: str = "gurobi"):
+    def run(
+        self,
+        options: dict = None,
+        solving_time_limit: float = 600,
+        thread_limit: int = 1,
+        solver: str = "gurobi",
+    ):
         start_time = time.time()
 
         server_priority = [1 for _ in range(self.nx_graph.number_of_nodes())]

@@ -287,7 +287,13 @@ class Solver(InstanceSolver):
                 break
         return self.nx_graph, flows
 
-    def run(self, limit_shortest_paths: int = 2, options={"time": 3600, "threads": 1}):
+    def run(
+        self,
+        options: dict = None,
+        solving_time_limit: float = 600,
+        thread_limit: int = 1,
+        solver: str = "gurobi",
+    ):
         start_time = time.time()
 
         self.weight_nodes = [1] * len(self.nx_graph.nodes)
@@ -314,7 +320,7 @@ class Solver(InstanceSolver):
             chosen_nodes,
             demand_arc_transit,
             self.weight_edges,
-            limit_shortest_paths,
+            self.limit_shortest_path,
         )
 
         if solved:
