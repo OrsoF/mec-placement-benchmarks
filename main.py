@@ -30,7 +30,7 @@ instance_list = get_instance_list()
 all_solvers = get_solver_list()
 
 experience_number = experience_index()
-instance_list = instance_list  # [1:3]
+instance_list = instance_list[1:2]
 
 runtimes = {}
 lower_bounds = {}

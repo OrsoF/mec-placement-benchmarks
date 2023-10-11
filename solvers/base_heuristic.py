@@ -77,7 +77,7 @@ def server_allocations_to_matrix(
 
 
 class Solver(InstanceSolver):
-    def __init__(self, problem_instance: ProblemInstance, limit_shortest_path: int = 5):
+    def __init__(self, problem_instance: ProblemInstance, limit_shortest_path: int = 1):
         self.problem_instance = problem_instance
         self.services: list[Service] = self.problem_instance.service_package.services
         self.nx_graph: nx.DiGraph = self.problem_instance.network_graph.nx_graph

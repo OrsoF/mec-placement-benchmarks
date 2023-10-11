@@ -96,21 +96,6 @@ def create_dataframe_from_dict(input_dict: dict):
     return df
 
 
-def reorder_columns_by_first_row(dataframe):
-    # Get the values of the first row
-    first_row_values = dataframe.iloc[0].values
-
-    # Sort the indices of the columns based on the first row values
-    sorted_indices = sorted(
-        range(len(first_row_values)), key=lambda k: first_row_values[k]
-    )
-
-    # Reorder the columns in the DataFrame based on the sorted indices
-    reordered_dataframe = dataframe.iloc[:, sorted_indices]
-
-    return reordered_dataframe
-
-
 def reorder_columns(df1, df2):
     if isinstance(df1, pd.DataFrame) and isinstance(df2, pd.DataFrame):
         if df1.shape[0] >= 1:

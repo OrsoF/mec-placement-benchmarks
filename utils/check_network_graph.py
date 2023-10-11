@@ -2,6 +2,9 @@ import networkx as nx
 
 
 def check_network_graph(nx_graph: nx.DiGraph):
+    """
+    Checks if the graph is a DiGraph and is symmetric.
+    """
     assert isinstance(
         nx_graph, nx.DiGraph
     ), "Considered graph is not a DiGraph instance."

@@ -287,3 +287,7 @@ class Solver:
                 "Upper bound: ": 0,
                 "Termination condition: ": False,
             }
+
+        self.runtime = self.results["Time: "]
+        self.lower_bound = self.results["Lower bound: "]
+        self.upper_bound = self.results["Upper bound: "]
