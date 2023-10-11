@@ -9,6 +9,6 @@ class InstanceSolver:
         self.upper_bound: float
         self.solver_name = ""
 
-    def run(self):
+    def run(self, **args):
         # To be implemented in the real solver.
         pass
