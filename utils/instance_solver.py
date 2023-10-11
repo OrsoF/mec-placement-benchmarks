@@ -9,6 +9,12 @@ class InstanceSolver:
         self.upper_bound: float
         self.solver_name = ""
 
-    def run(self, **args):
+    def run(
+        self,
+        options: dict = None,
+        solving_time_limit: float = 600,
+        thread_limit: int = 1,
+        solver: str = "gurobi",
+    ):
         # To be implemented in the real solver.
         pass

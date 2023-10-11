@@ -12,6 +12,17 @@ import numpy as np
 from problem_classes.probleminstance import ProblemInstance
 from utils.instance_solver import InstanceSolver
 from utils.check_network_graph import check_network_graph
+import multiprocessing
+
+
+def execute_with_timeout(target_function, args, timeout):
+    process = multiprocessing.Process(target=target_function, args=args)
+    process.start()
+    process.join(timeout)
+    if process.is_alive():
+        process.terminate()
+        process.join()
+
 
 # Delete all files, create folders
 reset()
@@ -36,6 +47,8 @@ runtimes = {}
 lower_bounds = {}
 upper_bounds = {}
 
+solving_time_limit = 60
+
 print("Solving all instances with all methods...")
 for solver in all_solvers:
     for instance in instance_list:
@@ -46,7 +59,8 @@ for solver in all_solvers:
 
         check_network_graph(instance.network_graph.nx_graph)
 
-        sol.run(options={"TimeLimit": 20, "threads": 1})
+        sol.run(solving_time_limit=solving_time_limit)
+
         result_name = (instance.problem_name, sol.solver_name)
         runtimes[result_name] = np.round(float(sol.runtime), 2)
         lower_bounds[result_name] = np.round(float(sol.lower_bound), 2)
