@@ -3,7 +3,6 @@ from problem_classes.servicepackage import ServicePackage
 from problem_classes.networkgraph import NetworkGraph
 from problem_classes.service import Service
 from problem_classes.probleminstance import ProblemInstance
-from utils.pyomo_utils import get_info_from_results
 from utils.graph_neighbors import get_encoded_incoming_arc, get_encoded_outgoing_arc
 from itertools import islice
 from utils.data_management import get_result_informations
@@ -129,17 +128,17 @@ class Solver:
             ]
         )
 
-    def model_creation(self):
+    def _model_creation(self):
         self.model = pyo.ConcreteModel()
 
-    def set_creation(self):
+    def _set_creation(self):
         self.model.A = pyo.Set(initialize=range(self.A))
         self.model.P = pyo.Set(initialize=range(self.P))
         self.model.E = pyo.Set(initialize=range(self.E))
         self.model.S = pyo.Set(initialize=range(self.S))
         self.model.D = pyo.Set(initialize=range(self.D))
 
-    def variable_creation(self):
+    def _variable_creation(self):
         self.model.L = pyo.Var(self.model.P, self.model.A, within=pyo.NonNegativeReals)
         self.model.Q = pyo.Var(self.model.P, within=pyo.NonNegativeReals)
         self.model.q = pyo.Var(self.model.D, within=pyo.NonNegativeReals)
@@ -150,7 +149,7 @@ class Solver:
         self.model.z = pyo.Var(self.model.P, within=pyo.Binary)
         self.model.nul = pyo.Var(range(1))
 
-    def set_constraints(self):
+    def _set_constraints(self):
         self.model.val_q = pyo.Constraint(
             self.model.D,
             rule=lambda model, d: pyo.inequality(
@@ -239,12 +238,12 @@ class Solver:
     def gamma(self, p, e):
         return int(self.paths[p][-1] == e)
 
-    def set_objective(self):
+    def _set_objective(self):
         self.model.obj = pyo.Objective(
             sense=pyo.maximize, rule=lambda model: sum(model.q.values())
         )
 
-    def set_params(self):
+    def _set_params(self):
         self.model.serv_number = pyo.Param(
             self.model.D,
             initialize={
@@ -269,12 +268,12 @@ class Solver:
         solver: str = "gurobi",
     ):
         self._model_parameters()
-        self.model_creation()
-        self.set_creation()
-        self.variable_creation()
-        self.set_params()
-        self.set_constraints()
-        self.set_objective()
+        self._model_creation()
+        self._set_creation()
+        self._variable_creation()
+        self._set_params()
+        self._set_constraints()
+        self._set_objective()
 
         opt = pyo.SolverFactory(solver)
         if solver == "gurobi":
