@@ -11,7 +11,7 @@ from utils.instance_solver import InstanceSolver
 
 
 def greedy_server_allocation(
-    resources_in_servers: list[float],
+    available_resources_in_servers: list[float],
     resources_needed_by_services: list[float],
     server_priority: list[float],
 ):
@@ -19,7 +19,7 @@ def greedy_server_allocation(
     Associated a list of services with needed_resources to a list of server with resources following a given priority.
     """
     assert len(server_priority) == len(
-        resources_in_servers
+        available_resources_in_servers
     ), "The priority factors is not shaped as list[server_number]."
     assert np.all([priority_value > 0 for priority_value in server_priority])
 
@@ -29,7 +29,7 @@ def greedy_server_allocation(
     # Create a list of server indices sorted by priority in descending order
     server_indices_sorted_by_priority = sorted(
         range(len(server_priority)),
-        key=lambda server_index: resources_in_servers[server_index]
+        key=lambda server_index: available_resources_in_servers[server_index]
         / server_priority[server_index],
         reverse=True,
     )
@@ -40,7 +40,7 @@ def greedy_server_allocation(
 
         # Iterate through the sorted servers by priority
         for server_index in server_indices_sorted_by_priority:
-            server_resources = resources_in_servers[server_index]
+            server_resources = available_resources_in_servers[server_index]
 
             # Check if the server has enough resources for the service
             if server_resources >= service_resources:
@@ -51,7 +51,7 @@ def greedy_server_allocation(
             # Allocate the service to the best server
             service_server_association.append(best_server)
             # Update available resources of the chosen server
-            resources_in_servers[best_server] -= service_resources
+            available_resources_in_servers[best_server] -= service_resources
         else:
             # No suitable server found for the service
             service_server_association.append(None)
