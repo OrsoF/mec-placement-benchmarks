@@ -84,10 +84,15 @@ class Solver(InstanceSolver):
         self.limit_shortest_path = limit_shortest_path
         self.solver_name = "base_heuristic"
 
+        self.service_node_matrix: np.ndarray
+        self.quantity_matrix: np.ndarray
+
     def _model_parameters(self):
+        self.weight_nodes = [1] * len(self.nx_graph.nodes)
+        self.weight_edges = [1] * len(self.nx_graph.edges)
+
         self.service_number = len(self.services)
-        self.demand_per_service = [service.task_number for service in self.services]
-        self.total_demands = sum(self.demand_per_service)
+
         self.node_number = self.nx_graph.number_of_nodes()
         self.edge_number = self.nx_graph.number_of_edges()
         self.arc_dic = {elem: i for i, elem in enumerate(self.nx_graph.edges)}
@@ -111,6 +116,22 @@ class Solver(InstanceSolver):
         self.beta = [self.nx_graph.edges[edge]["beta"] for edge in self.nx_graph.edges]
 
         self.cumulative_demands: np.ndarray = None
+
+        self.demand_per_service = [service.task_number for service in self.services]
+        self.total_demands = sum(self.demand_per_service)
+        self.demand_arc_transit = np.zeros(
+            (self.total_demands, self.edge_number)
+        )  # x matrix
+        self.quantity_matrix = np.zeros(self.total_demands)  # q matrix
+        self.service_node_matrix = np.zeros((self.service_number, self.node_number))
+
+        for arc in self.nx_graph.edges:
+            self.nx_graph.edges[arc]["remaining_capacity"] = self.nx_graph.edges[arc][
+                "capacity"
+            ]
+            self.nx_graph.edges[arc]["latency"] = 0
+
+        self.quantity_matrix = self.min_flows.copy()
 
     def serv_number(self, d: int) -> tuple[int, int]:
         """
@@ -295,39 +316,30 @@ class Solver(InstanceSolver):
         solver: str = "gurobi",
     ):
         start_time = time.time()
-
-        self.weight_nodes = [1] * len(self.nx_graph.nodes)
-        self.weight_edges = [1] * len(self.nx_graph.edges)
-
         self._model_parameters()
 
-        demand_arc_transit = np.zeros((self.total_demands, self.edge_number))
-        quantity_matrix = np.zeros(self.total_demands)
-
-        for arc in self.nx_graph.edges:
-            self.nx_graph.edges[arc]["remaining_capacity"] = self.nx_graph.edges[arc][
-                "capacity"
-            ]
-            self.nx_graph.edges[arc]["latency"] = 0
-
-        p = self.min_flows.copy()
+        # Résolution = (x, y, q)
 
         # Association noeuds/services
-        service_node_matrix, chosen_nodes = self.services_nodes_association()
+        self.service_node_matrix, chosen_nodes = self.services_nodes_association()
 
         # For a given demand, we list the paths (shortest to longest) and take the first possible
-        demand_arc_transit, used_paths, solved = self.shortest_paths_choice(
+        self.demand_arc_transit, used_paths, solved = self.shortest_paths_choice(
             chosen_nodes,
-            demand_arc_transit,
+            self.demand_arc_transit,
             self.weight_edges,
             self.limit_shortest_path,
         )
 
+        self.x = self.demand_arc_transit
+
         if solved:
-            _, p = self.increase_quantities(used_paths, self.weight_edges, p)
+            _, self.quantity_matrix = self.increase_quantities(
+                used_paths, self.weight_edges, self.quantity_matrix
+            )
 
         self.runtime = time.time() - start_time
-        objective_value = np.sum(p)
+        objective_value = np.sum(self.quantity_matrix)
 
         self.runtime = time.time() - start_time
         self.lower_bound = objective_value
