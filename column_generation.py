@@ -52,10 +52,10 @@ class Solver:
     def generate_initial_solution(self):
         base_heuristic_solver = base_heuristic(self.problem_instance)
         base_heuristic_solver.run()
-        y = base_heuristic_solver.service_node_matrix
-        x = base_heuristic_solver.x
-        p = base_heuristic_solver.quantity_matrix
-        return y, x, p
+        service_node_matrix: np.ndarray = base_heuristic_solver.service_node_matrix  # y
+        demand_arc_transit: np.ndarray = base_heuristic_solver.demand_arc_transit  # x
+        quantity_matrix: np.ndarray = base_heuristic_solver.quantity_matrix  # p
+        return service_node_matrix, demand_arc_transit, quantity_matrix
 
     def master_problem(self, instance, pattern):
         pass
@@ -65,12 +65,13 @@ class Solver:
 
     def col_gen(self):
         # Generate initial solution
-        x, y, p = self.generate_initial_solution()
-        objVal_history = []
+        initial_solution = self.generate_initial_solution()
+        objective_value_history = []
+
         while True:
-            master_problem = self.master_problem(ins_, patterns)
+            master_problem = self.master_problem(ins_, initial_solution)
             master_problem.optimize()
-            objVal_history.append(master_problem.objVal)
+            objective_value_history.append(master_problem.objVal)
             dual_variables = np.array(
                 [constraint.pi for constraint in master_problem.getConstrs()]
             )
@@ -84,7 +85,7 @@ class Solver:
             "Total number of rolls used: ",
             int(np.array([math.ceil(i.x) for i in master_problem.getVars()]).sum()),
         )
-        return objVal_history
+        return objective_value_history
 
     def run(
         self,

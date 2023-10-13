@@ -333,6 +333,8 @@ class Solver(InstanceSolver):
             _, self.quantity_matrix = self.increase_quantities(
                 used_paths, self.weight_edges, self.quantity_matrix
             )
+        else:
+            assert False, "The problem has not been solved by heuristic."
 
         self.runtime = time.time() - start_time
         objective_value = np.sum(self.quantity_matrix)
