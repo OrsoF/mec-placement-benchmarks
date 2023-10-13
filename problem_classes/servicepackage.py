@@ -8,7 +8,7 @@ class ServicePackage:
 
         self.nx_graph: nx.Graph = services[0].network_graph.nx_graph
 
-        self.services = []
+        self.services: list[Service] = []
         for service in services:
             self.services.append(service)
 

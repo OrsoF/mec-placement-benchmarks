@@ -19,40 +19,38 @@ class Solver(InstanceSolver):
         self.services: list[Service] = self.problem_instance.service_package.services
         self.G: nx.DiGraph = self.problem_instance.network_graph.nx_graph
         self.solver_name = "ILP_arc"
+        self.network_graph = self.problem_instance.network_graph
+        self.nx_graph = self.network_graph.nx_graph
 
     def _model_parameters(self):
-        self.number_of_services = len(self.services)
-        self.demand_per_service = [service.task_number for service in self.services]
-        self.total_demands = sum(self.demand_per_service)
-        self.node_number = self.G.number_of_nodes()
-        self.arc_number = self.G.number_of_edges()
-        self.arc_dic = {arc: i for i, arc in enumerate(self.G.edges)}
-        self.arc_list = list(self.G.edges)
-        self.origins = [
-            origin for service in self.services for origin in service.origin_nodes
-        ]
-        self.min_flows = [
-            min_flow for service in self.services for min_flow in service.min_flows
-        ]
-        self.max_flows = [
-            max_flow for service in self.services for max_flow in service.max_flows
-        ]
-        self.latencies = [
-            latency for service in self.services for latency in service.max_latencies
-        ]
-        self.resources = [
-            resources
-            for service in self.services
-            for resources in service.needed_resources
-        ]
-        self.alpha = [self.G.edges[edge]["alpha"] for edge in self.G.edges]
-        self.beta = [self.G.edges[edge]["beta"] for edge in self.G.edges]
+        # Service parameters
+        self.number_of_services = self.problem_instance.number_of_service
+        self.demand_per_service = self.problem_instance.demand_per_service
+        self.total_number_of_demands = self.problem_instance.total_number_of_demands
+        self.needed_resources = self.problem_instance.needed_resources
+
+        self.origins = self.problem_instance.origins
+        self.min_flows = self.problem_instance.min_flows
+        self.max_flows = self.problem_instance.max_flows
+        self.latencies = self.problem_instance.latencies
+
+        # Graph parameters
+        self.arc_index_dictionary = self.network_graph.arc_index_dictionary
+        self.arc_list = self.network_graph.arc_list
+        self.alphas = self.network_graph.alphas
+        self.betas = self.network_graph.betas
+        self.node_number = self.nx_graph.number_of_nodes()
+        self.arc_number = self.nx_graph.number_of_edges()
+        self.capacities = self.network_graph.capacities
+        self.available_resources = self.network_graph.available_resources
 
     def _build_model(self):
         self.model = pyo.ConcreteModel()
 
     def _build_sets(self):
-        self.model.total_demands = pyo.Set(initialize=range(self.total_demands))
+        self.model.total_demands = pyo.Set(
+            initialize=range(self.total_number_of_demands)
+        )
         self.model.number_of_services = pyo.Set(
             initialize=range(self.number_of_services)
         )
@@ -85,45 +83,55 @@ class Solver(InstanceSolver):
     def _build_params(self):
         self.model.origins = pyo.Param(
             self.model.total_demands,
-            initialize={d: self.origins[d] for d in range(self.total_demands)},
+            initialize={
+                d: self.origins[d] for d in range(self.total_number_of_demands)
+            },
             mutable=False,
             within=pyo.NonNegativeIntegers,
         )
         self.model.Pdmin = pyo.Param(
             self.model.total_demands,
-            initialize={d: self.min_flows[d] for d in range(self.total_demands)},
+            initialize={
+                d: self.min_flows[d] for d in range(self.total_number_of_demands)
+            },
             mutable=False,
             within=pyo.NonNegativeIntegers,
         )
         self.model.Pdmax = pyo.Param(
             self.model.total_demands,
-            initialize={d: self.max_flows[d] for d in range(self.total_demands)},
+            initialize={
+                d: self.max_flows[d] for d in range(self.total_number_of_demands)
+            },
             mutable=False,
             within=pyo.NonNegativeIntegers,
         )
         self.model.latencies = pyo.Param(
             self.model.total_demands,
-            initialize={d: self.latencies[d] for d in range(self.total_demands)},
+            initialize={
+                d: self.latencies[d] for d in range(self.total_number_of_demands)
+            },
             mutable=False,
             within=pyo.NonNegativeReals,
         )
         self.model.resources = pyo.Param(
             self.model.number_of_services,
-            initialize={s: self.resources[s] for s in range(self.number_of_services)},
+            initialize={
+                s: self.available_resources[s] for s in range(self.number_of_services)
+            },
             mutable=False,
             within=pyo.NonNegativeIntegers,
         )
 
         self.model.alpha = pyo.Param(
             self.model.arc_number,
-            initialize={edge: self.alpha[edge] for edge in self.model.arc_number},  # type: ignore
+            initialize={edge: self.alphas[edge] for edge in self.model.arc_number},  # type: ignore
             mutable=False,
             within=pyo.NonNegativeReals,
         )
 
         self.model.beta = pyo.Param(
             self.model.arc_number,
-            initialize={edge: self.beta[edge] for edge in self.model.arc_number},  # type: ignore
+            initialize={edge: self.betas[edge] for edge in self.model.arc_number},  # type: ignore
             mutable=False,
             within=pyo.NonNegativeReals,
         )
@@ -142,7 +150,7 @@ class Solver(InstanceSolver):
         self.model.out_arcs = pyo.Param(
             self.model.node_number,
             initialize={
-                u: get_encoded_outgoing_arc(self.G, self.arc_dic, u)
+                u: get_encoded_outgoing_arc(self.G, self.arc_index_dictionary, u)
                 for u in range(self.node_number)
             },
             mutable=False,
@@ -151,7 +159,7 @@ class Solver(InstanceSolver):
         self.model.inc_arcs = pyo.Param(
             self.model.node_number,
             initialize={
-                u: get_encoded_incoming_arc(self.G, self.arc_dic, u)
+                u: get_encoded_incoming_arc(self.G, self.arc_index_dictionary, u)
                 for u in range(self.node_number)
             },
             mutable=False,
@@ -163,7 +171,7 @@ class Solver(InstanceSolver):
             initialize={
                 (u, d): int(u == self.model.origins[d])
                 for u in range(self.node_number)
-                for d in range(self.total_demands)
+                for d in range(self.total_number_of_demands)
             },
             mutable=False,
             within=pyo.Binary,
@@ -171,9 +179,7 @@ class Solver(InstanceSolver):
 
         self.model.node_resources = pyo.Param(
             self.model.node_number,
-            initialize={
-                u: self.G.nodes[u]["resources"] for u in range(self.node_number)
-            },
+            initialize=self.available_resources,
             mutable=False,
             within=pyo.NonNegativeIntegers,
         )

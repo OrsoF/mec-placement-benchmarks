@@ -167,10 +167,11 @@ def generate_one_service_for_three_levels_graph(
             flow_min=1.0,
             flow_max=flow,
             max_latency=latency,
-            resources_needed=resources,
         )
         task_list.append(task)
-    return Service(task_list=task_list, network_graph=network_graph)
+    return Service(
+        task_list=task_list, network_graph=network_graph, resources_needed=resources
+    )
 
 
 def generate_service_package_for_three_levels_graph(

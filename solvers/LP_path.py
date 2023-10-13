@@ -43,9 +43,9 @@ class Solver(InstanceSolver):
             latency for service in self.services for latency in service.max_latencies
         ]
         self.resources = [
-            resources
+            service.needed_resources
             for service in self.services
-            for resources in service.needed_resources
+            for _ in service.task_list
         ]
         self.alpha = [self.G.edges[edge]["alpha"] for edge in self.G.edges]
         self.beta = [self.G.edges[edge]["beta"] for edge in self.G.edges]
@@ -143,7 +143,9 @@ class Solver(InstanceSolver):
         )
         self.model.node_resources = pyo.Param(
             self.model.U,
-            initialize={u: self.G.nodes[u]["resources"] for u in range(self.U)},
+            initialize={
+                u: self.G.nodes[u]["available_resources"] for u in range(self.U)
+            },
             mutable=False,
             within=pyo.NonNegativeIntegers,
         )

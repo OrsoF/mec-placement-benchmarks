@@ -16,7 +16,7 @@ def greedy_server_allocation(
     server_priority: list[float],
 ):
     """
-    Associated a list of services with needed_resources to a list of server with resources following a given priority.
+    Associated a list of services with needed_resources to a list of server with available resources following a given priority.
     """
     assert len(server_priority) == len(
         available_resources_in_servers
@@ -42,7 +42,7 @@ def greedy_server_allocation(
         for server_index in server_indices_sorted_by_priority:
             server_resources = available_resources_in_servers[server_index]
 
-            # Check if the server has enough resources for the service
+            # Check if the server has enough available resources for the service
             if server_resources >= service_resources:
                 if best_server is None:
                     best_server = server_index
@@ -80,58 +80,56 @@ class Solver(InstanceSolver):
     def __init__(self, problem_instance: ProblemInstance, limit_shortest_path: int = 1):
         self.problem_instance = problem_instance
         self.services: list[Service] = self.problem_instance.service_package.services
-        self.nx_graph: nx.DiGraph = self.problem_instance.network_graph.nx_graph
+        self.service_package = self.problem_instance.service_package
+
+        self.network_graph = self.problem_instance.network_graph
+        self.nx_graph: nx.DiGraph = self.network_graph.nx_graph
+
         self.limit_shortest_path = limit_shortest_path
         self.solver_name = "base_heuristic"
 
-        self.service_node_matrix: np.ndarray
-        self.quantity_matrix: np.ndarray
+        self.service_node_matrix: np.ndarray  # y matrix
+        self.quantity_matrix: np.ndarray  # q matrix
+        self.demand_arc_transit: np.ndarray  # x matrix
 
     def _model_parameters(self):
         self.weight_nodes = [1] * len(self.nx_graph.nodes)
         self.weight_edges = [1] * len(self.nx_graph.edges)
 
-        self.service_number = len(self.services)
+        # Service parameters
+        self.number_of_services = self.problem_instance.number_of_service
+        self.demand_per_service = self.problem_instance.demand_per_service
+        self.total_number_of_demands = self.problem_instance.total_number_of_demands
+        self.needed_resources = self.problem_instance.needed_resources
 
+        self.origins = self.problem_instance.origins
+        self.min_flows = self.problem_instance.min_flows
+        self.max_flows = self.problem_instance.max_flows
+        self.latencies = self.problem_instance.latencies
+
+        # Graph parameters
+        self.arc_index_dictionary = self.network_graph.arc_index_dictionary
+        self.arc_list = self.network_graph.arc_list
+        self.alphas = self.network_graph.alphas
+        self.betas = self.network_graph.betas
         self.node_number = self.nx_graph.number_of_nodes()
         self.edge_number = self.nx_graph.number_of_edges()
-        self.arc_dic = {elem: i for i, elem in enumerate(self.nx_graph.edges)}
-        self.arc_list = list(self.nx_graph.edges)
-        self.origins = [
-            origin for service in self.services for origin in service.origin_nodes
-        ]
-        self.min_flows = [
-            min_flow for service in self.services for min_flow in service.min_flows
-        ]
-        self.max_flows = [
-            max_flow for service in self.services for max_flow in service.max_flows
-        ]
-        self.latencies = [
-            latency for service in self.services for latency in service.max_latencies
-        ]
-        self.resources = [service.needed_resources[0] for service in self.services]
-        self.alpha = [
-            self.nx_graph.edges[edge]["alpha"] for edge in self.nx_graph.edges
-        ]
-        self.beta = [self.nx_graph.edges[edge]["beta"] for edge in self.nx_graph.edges]
+        self.capacities = self.network_graph.capacities
+        self.available_resources = self.network_graph.available_resources
+
+        # Processing graph for heuristic
+        for arc_index, arc in enumerate(self.nx_graph.edges):
+            self.nx_graph.edges[arc]["remaining_capacity"] = self.capacities[arc_index]
+            self.nx_graph.edges[arc]["latency"] = 0
 
         self.cumulative_demands: np.ndarray = None
 
-        self.demand_per_service = [service.task_number for service in self.services]
-        self.total_demands = sum(self.demand_per_service)
+        # Solutions matrices
         self.demand_arc_transit = np.zeros(
-            (self.total_demands, self.edge_number)
+            (self.total_number_of_demands, self.edge_number)
         )  # x matrix
-        self.quantity_matrix = np.zeros(self.total_demands)  # q matrix
-        self.service_node_matrix = np.zeros((self.service_number, self.node_number))
-
-        for arc in self.nx_graph.edges:
-            self.nx_graph.edges[arc]["remaining_capacity"] = self.nx_graph.edges[arc][
-                "capacity"
-            ]
-            self.nx_graph.edges[arc]["latency"] = 0
-
-        self.quantity_matrix = self.min_flows.copy()
+        self.quantity_matrix = self.min_flows.copy()  # q matrix
+        self.service_node_matrix = np.zeros((self.number_of_services, self.node_number))
 
     def serv_number(self, d: int) -> tuple[int, int]:
         """
@@ -186,8 +184,8 @@ class Solver(InstanceSolver):
                 self.nx_graph.edges[arc]["latency"] for arc in used_edges
             )
             additional_latency = sum(
-                self.alpha[self.arc_dic[edge]] * quantity
-                + self.beta[self.arc_dic[edge]]
+                self.alphas[self.arc_index_dictionary[edge]] * quantity
+                + self.betas[self.arc_index_dictionary[edge]]
                 * int(self.nx_graph.edges[edge]["latency"] == 0)
                 for edge in used_edges
             )
@@ -198,11 +196,9 @@ class Solver(InstanceSolver):
         Given services, it associate a node to each service.
         """
 
-        available_resources = [
-            self.nx_graph.nodes[node]["resources"] for node in self.nx_graph.nodes
-        ]
+        available_resources = self.available_resources
         allocations = greedy_server_allocation(
-            available_resources, np.copy(self.resources), self.weight_nodes
+            available_resources, np.copy(self.needed_resources), self.weight_nodes
         )
         service_node_matrix = server_allocations_to_matrix(
             allocations, self.node_number
@@ -224,11 +220,11 @@ class Solver(InstanceSolver):
             self.nx_graph.edges[edge]["weight"] = weight_edges[i]
 
         service_number = np.array(
-            [self.serv_number(d) for d in range(self.total_demands)]
+            [self.serv_number(d) for d in range(self.total_number_of_demands)]
         )
 
-        used_paths = [[]] * self.total_demands
-        for d in range(self.total_demands):
+        used_paths = [[]] * self.total_number_of_demands
+        for d in range(self.total_number_of_demands):
             s, _ = service_number[d]
             origin, destination = self.origins[d], chosen_nodes[s]
             shortest_paths = islice(
@@ -245,11 +241,11 @@ class Solver(InstanceSolver):
                     used_paths[d] = path
                     for i in range(len(path) - 1):
                         arc = (path[i], path[i + 1])
-                        demand_arc_transit[d, self.arc_dic[arc]] = 1
+                        demand_arc_transit[d, self.arc_index_dictionary[arc]] = 1
                         self.nx_graph.edges[arc]["remaining_capacity"] -= quantity
                         self.nx_graph.edges[arc]["latency"] += (
-                            self.alpha[self.arc_dic[arc]] * quantity
-                            + self.beta[self.arc_dic[arc]]
+                            self.alphas[self.arc_index_dictionary[arc]] * quantity
+                            + self.betas[self.arc_index_dictionary[arc]]
                         )
                     flag = True
                     break
@@ -270,7 +266,7 @@ class Solver(InstanceSolver):
         """
         paths_len = [
             sum(
-                weight_edges[self.arc_dic[(path[i], path[i + 1])]]
+                weight_edges[self.arc_index_dictionary[(path[i], path[i + 1])]]
                 for i in range(len(path) - 1)
             )
             for path in used_paths
@@ -292,8 +288,8 @@ class Solver(InstanceSolver):
                 path = used_paths[considered_demand]
                 for i in range(len(path) - 1):
                     edge = (path[i], path[i + 1])
-                    self.nx_graph.edges[edge]["latency"] += self.alpha[
-                        self.arc_dic[edge]
+                    self.nx_graph.edges[edge]["latency"] += self.alphas[
+                        self.arc_index_dictionary[edge]
                     ]
                     self.nx_graph.edges[edge]["remaining_capacity"] -= 1
             else:

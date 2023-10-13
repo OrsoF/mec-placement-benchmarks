@@ -22,7 +22,32 @@ class Solver(InstanceSolver):
         self.maximum_path_number = maximum_path_number
         self.solver_name = "ILP_path"
 
+        # Graphs
+        self.network_graph = self.problem_instance.network_graph
+        self.nx_graph = self.network_graph.nx_graph
+
     def _model_parameters(self):
+        # Service parameters
+        self.number_of_services = self.problem_instance.number_of_service
+        self.demand_per_service = self.problem_instance.demand_per_service
+        self.total_number_of_demands = self.problem_instance.total_number_of_demands
+        self.needed_resources = self.problem_instance.needed_resources
+
+        self.origins = self.problem_instance.origins
+        self.min_flows = self.problem_instance.min_flows
+        self.max_flows = self.problem_instance.max_flows
+        self.latencies = self.problem_instance.latencies
+
+        # Graph parameters
+        self.arc_index_dictionary = self.network_graph.arc_index_dictionary
+        self.arc_list = self.network_graph.arc_list
+        self.alphas = self.network_graph.alphas
+        self.betas = self.network_graph.betas
+        self.node_number = self.nx_graph.number_of_nodes()
+        self.arc_number = self.nx_graph.number_of_edges()
+        self.capacities = self.network_graph.capacities
+        self.available_resources = self.network_graph.available_resources
+
         self.S = len(self.services)
         self.Sd = [service.task_number for service in self.services]
         self.D = sum(self.Sd)
@@ -43,9 +68,9 @@ class Solver(InstanceSolver):
             latency for service in self.services for latency in service.max_latencies
         ]
         self.resources = [
-            resources
+            service.needed_resources
             for service in self.services
-            for resources in service.needed_resources
+            for _ in service.task_list
         ]
         self.alpha = [self.G.edges[edge]["alpha"] for edge in self.G.edges]
         self.beta = [self.G.edges[edge]["beta"] for edge in self.G.edges]
@@ -143,7 +168,9 @@ class Solver(InstanceSolver):
         )
         self.model.node_resources = pyo.Param(
             self.model.U,
-            initialize={u: self.G.nodes[u]["resources"] for u in range(self.U)},
+            initialize={
+                u: self.G.nodes[u]["available_resources"] for u in range(self.U)
+            },
             mutable=False,
             within=pyo.NonNegativeIntegers,
         )

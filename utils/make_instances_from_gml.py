@@ -43,12 +43,18 @@ def make_services(
                 / len(network_graph.nx_graph.edges)
                 + beta_moyen
             ),
-            resources_needed=5000 // number_of_services,
         )
         for _ in range(number_of_demands_per_service)
     ]
 
-    services = [Service(demands, network_graph) for _ in range(number_of_services)]
+    services = [
+        Service(
+            demands,
+            network_graph,
+            resources_needed=5000 // number_of_services,
+        )
+        for _ in range(number_of_services)
+    ]
 
     service_package = ServicePackage(services, instance_name)
 

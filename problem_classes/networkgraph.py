@@ -25,10 +25,28 @@ class NetworkGraph:
 
         check_network_graph(self.nx_graph)
 
-        self.set_node_attribute(node_resources, "resources")
+        self.set_node_attribute(node_resources, "available_resources")
         self.set_edge_attribute(edge_capacity, "capacity")
         self.set_edge_attribute(latency_alpha_factor, "alpha")
         self.set_edge_attribute(latency_beta_factor, "beta")
+
+        self.alphas: list[float] = [
+            self.nx_graph.edges[edge]["alpha"] for edge in self.nx_graph.edges
+        ]
+        self.betas: list[float] = [
+            self.nx_graph.edges[edge]["beta"] for edge in self.nx_graph.edges
+        ]
+        self.capacities = [
+            self.nx_graph.edges[edge]["capacity"] for edge in self.nx_graph.edges
+        ]
+        self.available_resources = [
+            self.nx_graph.nodes[node]["available_resources"]
+            for node in self.nx_graph.nodes
+        ]
+        self.arc_index_dictionary = {
+            arc: i for i, arc in enumerate(self.nx_graph.edges)
+        }
+        self.arc_list = list(self.nx_graph.edges)
 
     def set_node_attribute(self, attributes: list[float], name: str):
         assert (

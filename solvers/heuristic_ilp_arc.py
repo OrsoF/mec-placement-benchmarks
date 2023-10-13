@@ -20,42 +20,37 @@ class Solver(InstanceSolver):
     def __init__(self, problem_instance: ProblemInstance):
         self.problem_instance = problem_instance
         self.services: list[Service] = self.problem_instance.service_package.services
-        self.nx_graph: nx.DiGraph = self.problem_instance.network_graph.nx_graph
+        self.service_package = self.problem_instance.service_package
+
+        self.network_graph = self.problem_instance.network_graph
+        self.nx_graph: nx.DiGraph = self.network_graph.nx_graph
+
         self.solver_name = "heuristic_ilp_arc"
 
         self._model_parameters()
 
     def _model_parameters(self):
-        self.service_number = len(self.services)
-        self.demand_per_service = [service.task_number for service in self.services]
-        self.total_demands = sum(self.demand_per_service)
+        # Service parameters
+        self.number_of_services = self.problem_instance.number_of_service
+        self.demand_per_service = self.problem_instance.demand_per_service
+        self.total_number_of_demands = self.problem_instance.total_number_of_demands
+        self.needed_resources = self.problem_instance.needed_resources
+
+        self.origins = self.problem_instance.origins
+        self.min_flows = self.problem_instance.min_flows
+        self.max_flows = self.problem_instance.max_flows
+        self.latencies = self.problem_instance.latencies
+
+        # Graph parameters
+        self.arc_index_dictionary = self.network_graph.arc_index_dictionary
+        self.arc_list = self.network_graph.arc_list
+        self.alphas = self.network_graph.alphas
+        self.betas = self.network_graph.betas
         self.node_number = self.nx_graph.number_of_nodes()
         self.edge_number = self.nx_graph.number_of_edges()
-        self.arc_dic = {elem: i for i, elem in enumerate(self.nx_graph.edges)}
-        self.arc_list = list(self.nx_graph.edges)
-        self.origins = [
-            origin for service in self.services for origin in service.origin_nodes
-        ]
-        self.min_flows = [
-            min_flow for service in self.services for min_flow in service.min_flows
-        ]
-        self.max_flows = [
-            max_flow for service in self.services for max_flow in service.max_flows
-        ]
-        self.latencies = [
-            latency for service in self.services for latency in service.max_latencies
-        ]
-        self.needed_resources = [
-            service.needed_resources[0] for service in self.services
-        ]
-        self.alpha = [
-            self.nx_graph.edges[edge]["alpha"] for edge in self.nx_graph.edges
-        ]
-        self.beta = [self.nx_graph.edges[edge]["beta"] for edge in self.nx_graph.edges]
-        self.available_resources = [
-            self.problem_instance.network_graph.nx_graph.nodes[node]["resources"]
-            for node in self.problem_instance.network_graph.nx_graph.nodes
-        ]
+        self.capacities = self.network_graph.capacities
+        self.available_resources = self.network_graph.available_resources
+
         self.cumulative_demands: np.ndarray = None
 
     def run(
@@ -87,7 +82,7 @@ class Solver(InstanceSolver):
         ilp_solver_arc._build_variables()
 
         # Fixer ici la variable y
-        for service_index in range(self.service_number):
+        for service_index in range(self.number_of_services):
             for server_index in range(self.nx_graph.number_of_nodes()):
                 if server_index == service_server_association[service_index]:
                     ilp_solver_arc.model.y[service_index, server_index].fix(1)

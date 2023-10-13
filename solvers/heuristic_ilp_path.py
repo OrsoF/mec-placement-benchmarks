@@ -45,15 +45,15 @@ class Solver(InstanceSolver):
         self.latencies = [
             latency for service in self.services for latency in service.max_latencies
         ]
-        self.needed_resources = [
-            service.needed_resources[0] for service in self.services
-        ]
+        self.needed_resources = [service.needed_resources for service in self.services]
         self.alpha = [
             self.nx_graph.edges[edge]["alpha"] for edge in self.nx_graph.edges
         ]
         self.beta = [self.nx_graph.edges[edge]["beta"] for edge in self.nx_graph.edges]
         self.available_resources = [
-            self.problem_instance.network_graph.nx_graph.nodes[node]["resources"]
+            self.problem_instance.network_graph.nx_graph.nodes[node][
+                "available_resources"
+            ]
             for node in self.problem_instance.network_graph.nx_graph.nodes
         ]
         self.cumulative_demands: np.ndarray = None
