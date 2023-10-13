@@ -11,6 +11,7 @@ import time
 from networkx.readwrite.gml import read_gml
 import networkx as nx
 import os
+import numpy as np
 
 
 class Solver(InstanceSolver):
@@ -44,11 +45,16 @@ class Solver(InstanceSolver):
         self.capacities = self.network_graph.capacities
         self.available_resources = self.network_graph.available_resources
 
+        # Solution matrices
+        self.demand_arc_transit: np.ndarray  # x matrix
+        self.service_node_matrix: np.ndarray  # y matrix
+        self.quantity_matrix: np.ndarray  # q matrix
+
     def _build_model(self):
         self.model = pyo.ConcreteModel()
 
     def _build_sets(self):
-        self.model.total_demands = pyo.Set(
+        self.model.total_number_of_demands = pyo.Set(
             initialize=range(self.total_number_of_demands)
         )
         self.model.number_of_services = pyo.Set(
@@ -58,31 +64,33 @@ class Solver(InstanceSolver):
         self.model.arc_number = pyo.Set(initialize=range(self.arc_number))
 
     def _build_variables(self):
-        self.model.x = pyo.Var(
-            self.model.total_demands, self.model.arc_number, within=pyo.Binary
+        self.model.demand_arc_transit = pyo.Var(
+            self.model.total_number_of_demands, self.model.arc_number, within=pyo.Binary
         )
 
         self.model.y = pyo.Var(
             self.model.number_of_services, self.model.node_number, within=pyo.Binary
         )
 
-        self.model.p = pyo.Var(self.model.total_demands, within=pyo.NonNegativeIntegers)
+        self.model.p = pyo.Var(
+            self.model.total_number_of_demands, within=pyo.NonNegativeIntegers
+        )
 
         self.model.P = pyo.Var(
-            self.model.total_demands,
+            self.model.total_number_of_demands,
             self.model.arc_number,
             within=pyo.NonNegativeIntegers,
         )
 
         self.model.L = pyo.Var(
-            self.model.total_demands,
+            self.model.total_number_of_demands,
             self.model.arc_number,
             within=pyo.NonNegativeIntegers,
         )
 
     def _build_params(self):
         self.model.origins = pyo.Param(
-            self.model.total_demands,
+            self.model.total_number_of_demands,
             initialize={
                 d: self.origins[d] for d in range(self.total_number_of_demands)
             },
@@ -90,7 +98,7 @@ class Solver(InstanceSolver):
             within=pyo.NonNegativeIntegers,
         )
         self.model.Pdmin = pyo.Param(
-            self.model.total_demands,
+            self.model.total_number_of_demands,
             initialize={
                 d: self.min_flows[d] for d in range(self.total_number_of_demands)
             },
@@ -98,7 +106,7 @@ class Solver(InstanceSolver):
             within=pyo.NonNegativeIntegers,
         )
         self.model.Pdmax = pyo.Param(
-            self.model.total_demands,
+            self.model.total_number_of_demands,
             initialize={
                 d: self.max_flows[d] for d in range(self.total_number_of_demands)
             },
@@ -106,7 +114,7 @@ class Solver(InstanceSolver):
             within=pyo.NonNegativeIntegers,
         )
         self.model.latencies = pyo.Param(
-            self.model.total_demands,
+            self.model.total_number_of_demands,
             initialize={
                 d: self.latencies[d] for d in range(self.total_number_of_demands)
             },
@@ -137,7 +145,7 @@ class Solver(InstanceSolver):
         )
 
         self.model.serv_number = pyo.Param(
-            self.model.total_demands,
+            self.model.total_number_of_demands,
             initialize={
                 sum(service.task_number for service in self.services[:service_index])
                 + j: service_index
@@ -167,7 +175,7 @@ class Solver(InstanceSolver):
         )
         self.model.ind_u_origin = pyo.Param(
             self.model.node_number,
-            self.model.total_demands,
+            self.model.total_number_of_demands,
             initialize={
                 (u, d): int(u == self.model.origins[d])
                 for u in range(self.node_number)
@@ -205,23 +213,25 @@ class Solver(InstanceSolver):
 
     def _build_constraints(self):
         self.model.valeurs_p = pyo.Constraint(
-            self.model.total_demands,
+            self.model.total_number_of_demands,
             rule=lambda model, d: pyo.inequality(
                 model.Pdmin[d], model.p[d], model.Pdmax[d]
             ),
         )
 
         self.model.valeurs_P = pyo.Constraint(
-            self.model.total_demands,
+            self.model.total_number_of_demands,
             self.model.arc_number,
             rule=lambda model, d, a: model.P[d, a] <= model.Pdmax[d],
         )
 
         self.model.conservation_constraint = pyo.Constraint(
-            self.model.total_demands,
+            self.model.total_number_of_demands,
             self.model.node_number,
-            rule=lambda model, d, u: sum(model.x[d, arc] for arc in model.out_arcs[u])
-            - sum(model.x[d, arc] for arc in model.inc_arcs[u])
+            rule=lambda model, d, u: sum(
+                model.demand_arc_transit[d, arc] for arc in model.out_arcs[u]
+            )
+            - sum(model.demand_arc_transit[d, arc] for arc in model.inc_arcs[u])
             == model.ind_u_origin[u, d] - model.y[model.serv_number[d], u],
         )
 
@@ -235,54 +245,60 @@ class Solver(InstanceSolver):
 
         self.model.capacity_constraint = pyo.Constraint(
             self.model.arc_number,
-            rule=lambda model, a: sum([model.P[d, a] for d in model.total_demands])
+            rule=lambda model, a: sum(
+                [model.P[d, a] for d in self.model.total_number_of_demands]
+            )
             <= model.arc_capacity[a],
         )
 
         self.model.latency_arc_1 = pyo.Constraint(
-            self.model.total_demands,
+            self.model.total_number_of_demands,
             rule=lambda model, d: sum(model.L[d, ap] for ap in model.arc_number)
             <= model.latencies[d],
         )
         self.model.latency_arc_2 = pyo.Constraint(
-            self.model.total_demands,
+            self.model.total_number_of_demands,
             self.model.arc_number,
             rule=lambda model, d, a: model.L[d, a]
-            <= model.alpha[a] * sum(model.P[dp, a] for dp in model.total_demands)
+            <= model.alpha[a]
+            * sum(model.P[dp, a] for dp in self.model.total_number_of_demands)
             + model.beta[a],
         )
 
         self.model.latency_arc_3 = pyo.Constraint(
-            self.model.total_demands,
+            self.model.total_number_of_demands,
             self.model.arc_number,
             rule=lambda model, d, a: model.L[d, a]
-            >= model.alpha[a] * sum(model.P[dp, a] for dp in model.total_demands)
+            >= model.alpha[a]
+            * sum(model.P[dp, a] for dp in self.model.total_number_of_demands)
             + model.beta[a]
-            - model.N * (1 - model.x[d, a]),
+            - model.N * (1 - model.demand_arc_transit[d, a]),
         )
         self.model.latency_arc_4 = pyo.Constraint(
-            self.model.total_demands,
+            self.model.total_number_of_demands,
             self.model.arc_number,
-            rule=lambda model, d, a: model.L[d, a] <= model.N * model.x[d, a],
+            rule=lambda model, d, a: model.L[d, a]
+            <= model.N * model.demand_arc_transit[d, a],
         )
 
         self.model.power_1 = pyo.Constraint(
-            self.model.total_demands,
+            self.model.total_number_of_demands,
             self.model.arc_number,
             rule=lambda model, d, a: model.P[d, a] <= model.p[d],
         )
 
         self.model.power_2 = pyo.Constraint(
-            self.model.total_demands,
+            self.model.total_number_of_demands,
             self.model.arc_number,
             rule=lambda model, d, a: model.P[d, a]
-            >= model.p[d] - model.M * (1 - model.x[d, a]),
+            >= model.p[d] - model.M * (1 - model.demand_arc_transit[d, a]),
         )
 
         self.model.power_3 = pyo.Constraint(
-            self.model.total_demands,
+            self.model.total_number_of_demands,
             self.model.arc_number,
-            rule=lambda model, d, a: model.P[d, a] <= model.M * model.x[d, a],
+            rule=lambda model, d, a: model.P[d, a]
+            <= model.M * model.demand_arc_transit[d, a],
         )
 
     def _build_objective(self):
@@ -320,6 +336,16 @@ class Solver(InstanceSolver):
                 self.upper_bound,
                 self.solving_status,
             ) = get_result_informations(solver_result)
+            self.demand_arc_transit, self.service_node_matrix, self.quantity_matrix = (
+                self.model.demand_arc_transit,
+                self.model.y,
+                self.model.p,
+            )
 
         except ValueError:
             self.runtime, self.lower_bound, self.upper_bound = solving_time_limit, 0, 0
+            self.demand_arc_transit, self.service_node_matrix, self.quantity_matrix = (
+                0,
+                0,
+                0,
+            )
