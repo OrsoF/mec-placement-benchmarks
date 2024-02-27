@@ -95,7 +95,22 @@ class EnvSP(gym.Env):
         return obs, info
 
     def step(self, action):
+        reward = 0
         selected_service, choosen_node, selected_demand, action_q, action_sp = action
+
+        if (
+            selected_service >= self.problem_instance.number_of_service
+            or choosen_node >= self.graph.number_of_nodes()
+            or selected_demand >= self.problem_instance.total_number_of_demands
+            or action_q >= 3
+            or action_sp >= 3
+        ):
+            reward -= 10
+
+        if np.random.random() > 1e-3:
+            selected_service = 0
+            choosen_node = self.service_placement[0]
+            action_sp = 1
 
         selected_service = int(
             np.clip(selected_service, 0, self.problem_instance.number_of_service - 1)
@@ -152,6 +167,7 @@ class EnvSP(gym.Env):
                             1, self.paths_used[selected_demand]
                         )
             elif action_sp == 0:  # Shortest path changée
+                reward -= 1
                 if self.sp_indices[selected_demand] > 1:
                     self.sp_indices[selected_demand] -= 1
                     self.choosen_quantities[selected_demand] = 1
@@ -166,6 +182,7 @@ class EnvSP(gym.Env):
                         1, self.paths_used[selected_demand]
                     )
             else:
+                reward -= 1
                 if self.sp_indices[selected_demand] < self.sp_number:
                     self.sp_indices[selected_demand] += 1
                     self.choosen_quantities[selected_demand] = 1
@@ -180,6 +197,8 @@ class EnvSP(gym.Env):
                         1, self.paths_used[selected_demand]
                     )
         else:
+            reward -= 10
+
             # Placement changé
             self.service_placement[selected_service] = choosen_node
             # Ideal : pour chaque demande du service, mettre des indices 1
@@ -208,13 +227,12 @@ class EnvSP(gym.Env):
         )
 
         obs = self.state
-        reward = self.choosen_quantities.sum()
+        reward += self.choosen_quantities.sum()
 
-        if reward > self.max_q_reached:
-            self.max_q_reached = reward
+        if self.choosen_quantities.sum() > self.max_q_reached:
+            self.max_q_reached = self.choosen_quantities.sum()
             print(self.max_q_reached)
 
-        reward -= self.max_q_reached
         reward /= 100
 
         return obs, reward, done, terminated, info
