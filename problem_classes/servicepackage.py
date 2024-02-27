@@ -3,6 +3,8 @@ import networkx as nx
 
 
 class ServicePackage:
+    """A list of Services."""
+
     def __init__(self, services: list[Service], instance_name: str) -> None:
         assert len(services), "services should not be empty."
 
