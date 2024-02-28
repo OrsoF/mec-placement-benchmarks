@@ -92,17 +92,103 @@ class EnvSP(gym.Env):
         info = {}
         return obs, info
 
+    def _update_placement(self, selected_service, choosen_node):
+        old_choosen_node = self.service_placement[selected_service]
+
+        self.service_placement[selected_service] = choosen_node
+        # Ideal : pour chaque demande du service, mettre des indices 0 au sp
+        for demand_index in range(self.problem_instance.total_number_of_demands):
+            if (
+                self.problem_instance.demand_to_service[demand_index]
+                == selected_service
+            ):
+                old_sp_index = self.sp_indices[demand_index]
+                old_choosen_quantities = self.choosen_quantities[demand_index]
+                old_path_used = self.paths_used[demand_index]
+
+                self.sp_indices[demand_index] = 0
+                self.choosen_quantities[demand_index] = 1
+                origin = self.problem_instance.origins[demand_index]
+                target = choosen_node
+                index = 0
+                self.paths_used[demand_index] = self._select_shortest_path(
+                    origin, target, index
+                )
+
+                try:
+                    self._test_solution()
+                except AssertionError:
+                    self.service_placement[selected_service] = old_choosen_node
+
+                    self.sp_indices[demand_index] = old_sp_index
+                    self.choosen_quantities[demand_index] = old_choosen_quantities
+                    self.paths_used[demand_index] = old_path_used
+                    continue
+
+    def _reroute(self, selected_demand, action_sp):
+        if action_sp == 0:  # Rerouting -1
+            self.sp_indices[selected_demand] = max(
+                0, self.sp_indices[selected_demand] - 1
+            )
+            old_path = self.paths_used[selected_demand]
+
+            origin = self.problem_instance.origins[selected_demand]
+            target = self.service_placement[
+                self.problem_instance.demand_to_service[selected_demand]
+            ]
+            index = self.sp_indices[selected_demand]
+            self.paths_used[selected_demand] = self._select_shortest_path(
+                origin, target, index
+            )
+            try:
+                self._test_solution()
+            except AssertionError:
+                self.paths_used[selected_demand] = old_path
+                self.sp_indices[selected_demand] += 1
+        else:
+            self.sp_indices[selected_demand] = max(
+                0, self.sp_indices[selected_demand] + 1
+            )
+            old_path = self.paths_used[selected_demand]
+
+            origin = self.problem_instance.origins[selected_demand]
+            target = self.service_placement[
+                self.problem_instance.demand_to_service[selected_demand]
+            ]
+            index = self.sp_indices[selected_demand]
+            self.paths_used[selected_demand] = self._select_shortest_path(
+                origin, target, index
+            )
+            try:
+                self._test_solution()
+            except AssertionError:
+                self.paths_used[selected_demand] = old_path
+                self.sp_indices[selected_demand] -= 1
+
+    def _update_quantity(self, selected_demand, action_q):
+        if action_q == 0:  # On baisse Q
+            self.choosen_quantities[selected_demand] = max(
+                1, self.choosen_quantities[selected_demand] - 1
+            )
+            self._test_solution()  # En baissant les quantités, normalement rien n'arrive.
+
+        else:  # On augmente Q
+            self.choosen_quantities[selected_demand] = min(
+                self.problem_instance.max_flows[selected_demand],
+                self.choosen_quantities[selected_demand] + 1,
+            )
+            try:
+                self._test_solution()
+            except AssertionError:
+                self.choosen_quantities[selected_demand] -= 1
+
     def step(self, action):
         self.steps_done += 1
-        selected_service, choosen_node, selected_demand, action_q, action_sp = action
+        done = False
+        terminated = self.steps_done >= self.limit_step
+        info = {}
 
-        if (
-            selected_service >= self.problem_instance.number_of_service
-            or choosen_node >= self.graph.number_of_nodes()
-            or selected_demand >= self.problem_instance.total_number_of_demands
-            or action_q >= 3
-            or action_sp >= 3
-        ):
+        if not self._is_action_legit(action):
             obs = self.state
             reward = -1
             done = False
@@ -110,114 +196,38 @@ class EnvSP(gym.Env):
             info = {}
             return obs, reward, done, terminated, info
 
-        elif self.service_placement[selected_service] != choosen_node:
-            reward = -0.2
-        elif action_sp != -1:
-            reward = -0.1
-        else:
-            reward = 0
-
         if np.random.random() > 1e-3:
             selected_service = 0
             choosen_node = self.service_placement[0]
             action_sp = 1
 
-        action = self._clip_action(action)
         selected_service, choosen_node, selected_demand, action_q, action_sp = action
 
-        if (
-            self.service_placement[selected_service] == choosen_node
-        ):  # Placement inchangé
-            if action_sp == 0:  # Rerouting -1
-                self.sp_indices[selected_demand] = max(
-                    0, self.sp_indices[selected_demand] - 1
-                )
-                old_path = self.paths_used[demand_index]
+        # Trois possibilités :
+        # - On change le placement
+        # - On change le routage
+        # - On change les quantités
 
-                origin = self.problem_instance.origins[selected_demand]
-                target = self.service_placement[
-                    self.problem_instance.demand_to_service[selected_demand]
-                ]
-                index = self.sp_indices[selected_demand]
-                self.paths_used[selected_demand] = self._select_shortest_path(
-                    origin, target, index
-                )
-                try:
-                    self._test_solution()
-                except AssertionError:
-                    self.paths_used[demand_index] = old_path
-                    self.sp_indices[selected_demand] += 1
+        placement_is_changing = self.service_placement[selected_service] == choosen_node
+        rerouting = action_sp != 1
+        changing_quantity = action_q != 1
 
-            elif action_sp == 1:  # Pas de rerouting
-                if action_q == 1:  # Q change pas
-                    pass
-                elif action_q == 0:  # On baisse Q
-                    self.choosen_quantities[selected_demand] = max(
-                        1, self.choosen_quantities[selected_demand] - 1
-                    )
-                    self._test_solution()  # En baissant les quantités, normalement rien n'arrive.
-
-                else:  # On augmente Q
-                    self.choosen_quantities[selected_demand] = min(
-                        self.problem_instance.max_flows[selected_demand],
-                        self.choosen_quantities[selected_demand] + 1,
-                    )
-                    try:
-                        self._test_solution()
-                    except AssertionError:
-                        self.choosen_quantities[selected_demand] -= 1
-            else:  # Rerouting +1
-                self.sp_indices[selected_demand] = max(
-                    0, self.sp_indices[selected_demand] + 1
-                )
-                old_path = self.paths_used[demand_index]
-
-                origin = self.problem_instance.origins[selected_demand]
-                target = self.service_placement[
-                    self.problem_instance.demand_to_service[selected_demand]
-                ]
-                index = self.sp_indices[selected_demand]
-                self.paths_used[selected_demand] = self._select_shortest_path(
-                    origin, target, index
-                )
-                try:
-                    self._test_solution()
-                except AssertionError:
-                    self.paths_used[demand_index] = old_path
-                    self.sp_indices[selected_demand] -= 1
-
-        else:  # Placement changé
-            old_choosen_node = self.service_placement[selected_service]
-
-            self.service_placement[selected_service] = choosen_node
-            # Ideal : pour chaque demande du service, mettre des indices 0 au sp
-            for demand_index in range(self.problem_instance.total_number_of_demands):
-                if (
-                    self.problem_instance.demand_to_service[demand_index]
-                    == selected_service
-                ):
-                    old_sp_index = self.sp_indices[demand_index]
-                    old_choosen_quantities = self.choosen_quantities[demand_index]
-                    old_path_used = self.paths_used[demand_index]
-
-                    self.sp_indices[demand_index] = 0
-                    self.choosen_quantities[demand_index] = 1
-                    origin = self.problem_instance.origins[demand_index]
-                    target = choosen_node
-                    index = 0
-                    self.paths_used[demand_index] = self._select_shortest_path(
-                        origin, target, index
-                    )
-
-                    try:
-                        self._test_solution()
-                    except AssertionError:
-                        self.service_placement[selected_service] = old_choosen_node
-
-                        self.sp_indices[demand_index] = old_sp_index
-                        self.choosen_quantities[demand_index] = old_choosen_quantities
-                        self.paths_used[demand_index] = old_path_used
-                        continue
+        if placement_is_changing:
+            self._update_placement(selected_service, choosen_node)
+            reward = -2
+        elif rerouting:
+            reward = -1
+            self._reroute(selected_demand, action_sp)
+        elif changing_quantity:
+            self._update_quantity(selected_demand, action_q)
+            reward = self.choosen_quantities.sum()
+        else:
+            obs = self.state
+            reward = 0
+            done = False
+            terminated = self.steps_done >= self.limit_step
+            info = {}
+            return obs, reward, done, terminated, info
 
         self._test_solution()
 
@@ -230,7 +240,7 @@ class EnvSP(gym.Env):
         )
 
         obs = self.state
-        reward += self.choosen_quantities.sum() / 100
+        reward += self.choosen_quantities.sum()
 
         if self.choosen_quantities.sum() > self.max_q_reached:
             self.max_q_reached = self.choosen_quantities.sum()
@@ -352,6 +362,16 @@ class EnvSP(gym.Env):
         action = selected_service, choosen_node, selected_demand, action_q, action_sp
         return action
 
+    def _is_action_legit(self, action):
+        selected_service, choosen_node, selected_demand, action_q, action_sp = action
+        return not (
+            selected_service >= self.problem_instance.number_of_service
+            or choosen_node >= self.graph.number_of_nodes()
+            or selected_demand >= self.problem_instance.total_number_of_demands
+            or action_q >= 3
+            or action_sp >= 3
+        )
+
 
 from utils.data_management import (
     get_instance_list,
@@ -364,6 +384,6 @@ env = EnvSP(instance)
 env.reset()
 
 
-for _ in range(1000):
+for _ in range(10000):
     action = env.action_space.sample()
     env.step(action)
