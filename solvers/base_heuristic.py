@@ -70,7 +70,7 @@ def server_allocations_to_matrix(
     """
     Transform a list of size |services| with the number of the given server into a matrix of size (services, servers) with zeros and ones.
     """
-    service_node_matrix = np.zeros((len(service_server_association), number_of_servers))
+    service_node_matrix =. np.zeros((len(service_server_association), number_of_servers))
     for service_index, server in enumerate(service_server_association):
         service_node_matrix[service_index, server] = 1.0
     return service_node_matrix
