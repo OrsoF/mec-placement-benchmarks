@@ -68,25 +68,21 @@ class EnvSP(gym.Env):
             (self.problem_instance.total_number_of_demands)
         )  # We chose one as quantity for each demand
         self.paths_used = [
-            nx.shortest_path(
-                self.graph,
+            self._select_shortest_path(
                 self.problem_instance.origins[demand_index],
                 self.service_placement[
                     self.problem_instance.demand_to_service[demand_index]
                 ],
+                0,
             )
             for demand_index in range(self.problem_instance.total_number_of_demands)
         ]
-        self.latencies = [
-            self._compute_latency_on_path(
-                self.choosen_quantities[demand_index], self.paths_used[demand_index]
-            )
-            for demand_index in range(self.problem_instance.total_number_of_demands)
-        ]
-        self.quantity_by_edge = {edge: 0.0 for edge in self.graph.edges}
-        self._update_quantity_by_edge()
 
-        self._compute_remaining_capacities()
+        self._reset_edge_attributes()
+        self._reset_node_attributes()
+        self._update_edge_attributes()
+        self._update_node_attributes()
+        self._assert_all_constraints()
 
     def reset(self, seed=0):
         # Placement aléatoire, PCC0 et quantités 1
@@ -101,7 +97,7 @@ class EnvSP(gym.Env):
         return obs, info
 
     def step(self, action):
-        reward = 0
+        self.steps_done += 1
         selected_service, choosen_node, selected_demand, action_q, action_sp = action
 
         if (
@@ -111,7 +107,19 @@ class EnvSP(gym.Env):
             or action_q >= 3
             or action_sp >= 3
         ):
-            reward -= 10
+            obs = env.state
+            reward = -1
+            done = False
+            terminated = self.steps_done >= self.limit_step
+            info = {}
+
+            return obs, reward, done, terminated, info
+        elif self.service_placement[selected_service] != choosen_node:
+            reward = -0.2
+        elif action_sp != -1:
+            reward = -0.1
+        else:
+            reward = 0
 
         # if np.random.random() > 1e-3:
         #     selected_service = 0
@@ -130,119 +138,101 @@ class EnvSP(gym.Env):
         action_q = int(np.clip(action_q, 0, 2))
         action_sp = int(np.clip(action_sp, 0, 2))
 
-        done = False
-        self.steps_done += 1
-        terminated = self.steps_done >= self.limit_step
-        info = {}
+        if (
+            self.service_placement[selected_service] == choosen_node
+        ):  # Placement inchangé
+            if action_sp == 0:  # Rerouting -1
+                self.sp_indices[selected_demand] = max(
+                    0, self.sp_indices[selected_demand] - 1
+                )
+                old_path = self.paths_used[demand_index]
 
-        # Contraintes à respecter : latence de chaque demande, quantité maximum de chaque demande
-
-        # Question : est-ce qu'on change le placement de ce service ?
-        if self.service_placement[selected_service] == choosen_node:
-            # Placement pas changé. On peut changer le PCC
-            if self.verbose:
-                print("Placement du service {} non changée.".format(selected_service))
-
-            if (
-                action_sp == 1
-            ):  # PCC pas changé, on peut changer la quantité d'une demande
-
-                if self.verbose:
-                    print("PCC de la demande {} non changé.".format(selected_demand))
-
-                if action_q == 1:  # Q change pas
-                    if self.verbose:
-                        print("Quantité inchangée.")
-                elif action_q == 0:  # On baisse Q
-                    if self.verbose:
-                        print("Quantité diminuée.")
-                    if self.choosen_quantities[selected_demand] > 1:
-                        self.choosen_quantities[selected_demand] -= 1
-                        self.latencies[
-                            selected_demand
-                        ] -= self._compute_latency_on_path(
-                            1, self.paths_used[selected_demand]
-                        )
-
-                else:  # Si on ne depasse pas Q, et que la latence sur le chemin ne dépasse pas la limite et qu'on a une capacité restant sur chaque arc, on peut augmenter Q
-
-                    capacity_condition = self._update_remaining_capacities_demand(
-                        1, self.paths_used[selected_demand]
-                    )
-                    max_flow_condition = (
-                        self.choosen_quantities[selected_demand]
-                        < self.problem_instance.max_flows[selected_demand]
-                    )
-                    latency_condition = (
-                        self.latencies[selected_demand]
-                        + self._compute_latency_on_path(
-                            1, self.paths_used[selected_demand]
-                        )
-                        < self.problem_instance.latencies[selected_demand]
-                    )
-
-                    print(capacity_condition, max_flow_condition, latency_condition)
-
-                    if max_flow_condition and latency_condition and capacity_condition:
-                        if self.verbose:
-                            print("Quantité augmentée de 1.")
-                        self.choosen_quantities[selected_demand] += 1
-                        self.latencies[
-                            selected_demand
-                        ] += self._compute_latency_on_path(
-                            1, self.paths_used[selected_demand]
-                        )
-            elif action_sp == 0:  # Shortest path changée
-                reward -= 1
-                if self.sp_indices[selected_demand] > 1:
-                    self.sp_indices[selected_demand] -= 1
-                    self.choosen_quantities[selected_demand] = 1
-                    self.paths_used[selected_demand] = self._select_shortest_path(
-                        self.problem_instance.origins[selected_demand],
-                        self.service_placement[
-                            self.problem_instance.demand_to_service[selected_demand]
-                        ],
-                        self.sp_indices[selected_demand],
-                    )
-                    self.latencies[selected_demand] = self._compute_latency_on_path(
-                        1, self.paths_used[selected_demand]
-                    )
-            else:
-                reward -= 1
-                if self.sp_indices[selected_demand] < self.sp_number:
+                origin = self.problem_instance.origins[selected_demand]
+                target = self.service_placement[
+                    self.problem_instance.demand_to_service[selected_demand]
+                ]
+                index = self.sp_indices[selected_demand]
+                self.paths_used[selected_demand] = self._select_shortest_path(
+                    origin, target, index
+                )
+                try:
+                    self._test_solution()
+                except AssertionError:
+                    self.paths_used[demand_index] = old_path
                     self.sp_indices[selected_demand] += 1
-                    self.choosen_quantities[selected_demand] = 1
-                    self.paths_used[selected_demand] = self._select_shortest_path(
-                        self.problem_instance.origins[selected_demand],
-                        self.service_placement[
-                            self.problem_instance.demand_to_service[selected_demand]
-                        ],
-                        self.sp_indices[selected_demand],
-                    )
-                    self.latencies[selected_demand] = self._compute_latency_on_path(
-                        1, self.paths_used[selected_demand]
-                    )
-        else:
-            reward -= 10
 
-            # Placement changé
+            elif action_sp == 1:  # Pas de rerouting
+                if action_q == 1:  # Q change pas
+                    pass
+                elif action_q == 0:  # On baisse Q
+                    self.choosen_quantities[selected_demand] = max(
+                        1, self.choosen_quantities[selected_demand] - 1
+                    )
+                    self._test_solution()  # En baissant les quantités, normalement rien n'arrive.
+
+                else:  # On augmente Q
+                    self.choosen_quantities[selected_demand] = min(
+                        self.problem_instance.max_flows[selected_demand],
+                        self.choosen_quantities[selected_demand] + 1,
+                    )
+                    try:
+                        self._test_solution()
+                    except AssertionError:
+                        self.choosen_quantities[selected_demand] -= 1
+            else:  # Rerouting +1
+                self.sp_indices[selected_demand] = max(
+                    0, self.sp_indices[selected_demand] + 1
+                )
+                old_path = self.paths_used[demand_index]
+
+                origin = self.problem_instance.origins[selected_demand]
+                target = self.service_placement[
+                    self.problem_instance.demand_to_service[selected_demand]
+                ]
+                index = self.sp_indices[selected_demand]
+                self.paths_used[selected_demand] = self._select_shortest_path(
+                    origin, target, index
+                )
+                try:
+                    self._test_solution()
+                except AssertionError:
+                    self.paths_used[demand_index] = old_path
+                    self.sp_indices[selected_demand] -= 1
+
+        else:  # Placement changé
+            old_choosen_node = self.service_placement[selected_service]
+
             self.service_placement[selected_service] = choosen_node
-            # Ideal : pour chaque demande du service, mettre des indices 1
+            # Ideal : pour chaque demande du service, mettre des indices 0 au sp
             for demand_index in range(self.problem_instance.total_number_of_demands):
                 if (
                     self.problem_instance.demand_to_service[demand_index]
                     == selected_service
                 ):
+                    old_sp_index = self.sp_indices[demand_index]
+                    old_choosen_quantities = self.choosen_quantities[demand_index]
+                    old_path_used = self.paths_used[demand_index]
+
                     self.sp_indices[demand_index] = 0
                     self.choosen_quantities[demand_index] = 1
-                    self.paths_used[demand_index] = nx.shortest_path(
-                        self.graph,
-                        self.problem_instance.origins[demand_index],
-                        choosen_node,
+                    origin = self.problem_instance.origins[demand_index]
+                    target = choosen_node
+                    index = 0
+                    self.paths_used[demand_index] = self._select_shortest_path(
+                        origin, target, index
                     )
-                    self.latencies[demand_index] = self._compute_latency_on_path(
-                        1, self.paths_used[demand_index]
-                    )
+
+                    try:
+                        self._test_solution()
+                    except AssertionError:
+                        self.service_placement[selected_service] = old_choosen_node
+
+                        self.sp_indices[demand_index] = old_sp_index
+                        self.choosen_quantities[demand_index] = old_choosen_quantities
+                        self.paths_used[demand_index] = old_path_used
+                        continue
+
+        self._test_solution()
 
         self.state = np.concatenate(
             (
@@ -253,49 +243,13 @@ class EnvSP(gym.Env):
         )
 
         obs = self.state
-        reward += self.choosen_quantities.sum()
+        reward += self.choosen_quantities.sum() / 100
 
         if self.choosen_quantities.sum() > self.max_q_reached:
             self.max_q_reached = self.choosen_quantities.sum()
             print(self.max_q_reached)
 
-        reward /= 100
-
         return obs, reward, done, terminated, info
-
-    def render(self):
-        print()
-        print("Number of services : {}".format(self.problem_instance.number_of_service))
-        print(
-            "Number of demands : {}".format(
-                self.problem_instance.total_number_of_demands
-            )
-        )
-        print()
-        print("Service placement : ")
-        print(self.service_placement)
-        print()
-        print("Shortest paths indices :")
-        print(self.sp_indices)
-        print()
-        print("Choosen quantities :")
-        print(self.choosen_quantities)
-        print()
-        # print("Path used :")
-        # for path in self.paths_used:
-        #     print(path)
-        # print()
-        print("Latencies :")
-        print(np.round(self.latencies, 2))
-        print()
-
-    def _compute_latency_on_path(self, quantity: int, path: List[int]):
-        return sum(
-            self.graph.edges[(path[path_index], path[path_index + 1])]["alpha"]
-            * quantity
-            + self.graph.edges[(path[path_index], path[path_index + 1])]["beta"]
-            for path_index in range(len(path) - 1)
-        )
 
     def _select_shortest_path(self, source: int, destination: int, index: int):
         index = int(index)
@@ -310,31 +264,7 @@ class EnvSP(gym.Env):
             last_visited_path = path
         return last_visited_path
 
-    def _reset_remaining_capacities(self):
-        for edge in self.graph.edges:
-            self.graph.edges[edge]["remaining_capacity"] = self.graph.edges[edge][
-                "capacity"
-            ]
-
-    def _update_remaining_capacities_demand(
-        self, quantity: int, path: List[int]
-    ) -> bool:
-        for index in range(len(path) - 1):
-            edge = (path[index], path[index + 1])
-            self.graph.edges[edge]["remaining_capacity"] -= quantity
-            if self.graph.edges[edge]["remaining_capacity"] < 0:
-                return False
-        return True
-
-    def _compute_remaining_capacities(self):
-        self._reset_remaining_capacities()
-        for demand_index in range(self.problem_instance.total_number_of_demands):
-            path = self.paths_used[demand_index]
-            quantity = self.choosen_quantities[demand_index]
-            updated = self._update_remaining_capacities_demand(quantity, path)
-            assert updated, "The capacity condition is not ensured."
-
-    def _update_edges_attributes(self):
+    def _update_edge_attributes(self):
         # Sur chaque Edge : quantité, latence, remaining quantity
         for demand_index in range(self.problem_instance.total_number_of_demands):
             for node_index in range(len(self.paths_used[demand_index]) - 1):
@@ -357,24 +287,81 @@ class EnvSP(gym.Env):
                 self.graph.edges[edge]["capacity"] - self.graph.edges[edge]["quantity"]
             )
 
-    def reset_edge_attributes(self):
+    def _reset_edge_attributes(self):
         for edge in self.graph.edges:
             # Reset Q, l
             self.graph.edges[edge]["quantity"] = 0
             self.graph.edges[edge]["latency"] = self.graph.edges[edge]["beta"]
 
+    def _update_node_attributes(self):
+        for service_index in range(self.problem_instance.number_of_service):
+            target_node = self.service_placement[service_index]
+            required_resources = self.problem_instance.needed_resources[service_index]
+            self.graph.nodes[target_node]["remaining_resources"] -= required_resources
 
-from utils.data_management import (
-    get_instance_list,
-)
+    def _reset_node_attributes(self):
+        for node in self.graph.nodes:
+            # Update remaining resources
+            self.graph.nodes[node]["remaining_resources"] = self.graph.nodes[node][
+                "available_resources"
+            ]
 
-instance_list = get_instance_list()
-instance = instance_list[0]
+    def _assert_all_constraints(self):
+        # Contraintes :
+        # - Capacité pour chaque arc
+        # - Pour chaque demande, quantité et latence limite
+        # - Ressource pour chaque noeud
+        for edge in self.graph.edges:
+            assert (
+                self.graph.edges[edge]["remaining_capacity"] >= 0
+            ), "Capacité non respectée."
 
-env = EnvSP(instance)
-env.reset()
+        for demand_index in range(self.problem_instance.total_number_of_demands):
+            assert (
+                self.choosen_quantities[demand_index]
+                <= self.problem_instance.max_flows[demand_index]
+            ), "Max flow exceeded."
+            latency = 0
+            for node_index in range(len(self.paths_used[demand_index]) - 1):
+                edge = (
+                    self.paths_used[demand_index][node_index],
+                    self.paths_used[demand_index][node_index + 1],
+                )
+                latency += self.graph.edges[edge]["latency"]
+            assert (
+                latency <= self.problem_instance.latencies[demand_index]
+            ), "Latency exceeded."
 
-action = (0, env.service_placement[0], 0, 2, 1)
+        for node in self.graph.nodes:
+            assert (
+                self.graph.nodes[node]["remaining_resources"] >= 0
+            ), "No enough resources."
 
-for _ in range(10):
-    env.step(action)
+    def _test_solution(self):
+        self._reset_edge_attributes()
+        self._reset_node_attributes()
+        self._update_edge_attributes()
+        self._update_node_attributes()
+        self._assert_all_constraints()
+
+
+# from utils.data_management import (
+#     get_instance_list,
+# )
+
+# instance_list = get_instance_list()
+# instance = instance_list[1]
+
+# env = EnvSP(instance)
+# env.reset()
+
+# print(env.problem_instance.needed_resources)
+# print([env.graph.nodes[node]["available_resources"] for node in env.graph.nodes])
+
+# print([env.graph.edges[edge]["latency"] for edge in env.graph.edges])
+# print([env.graph.edges[edge]["quantity"] for edge in env.graph.edges])
+# print(env.problem_instance.min_flows)
+# action = (0, env.service_placement[0], 0, 2, 1)
+
+# for _ in range(10):
+#     env.step(action)

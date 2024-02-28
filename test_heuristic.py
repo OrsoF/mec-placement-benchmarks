@@ -3,10 +3,9 @@ from utils.data_management import (
 )
 
 instance_list = get_instance_list()
-instance = instance_list[3]
+instance = instance_list[0]
 
 from solvers.base_heuristic import Solver
 
 sol = Solver(instance, 1)
 sol.run()
-print(sol.upper_bound)
