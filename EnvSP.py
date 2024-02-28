@@ -12,7 +12,7 @@ class EnvSP(gym.Env):
         self,
         problem_instance: ProblemInstance,
         sp_number: int = 3,
-        limit_step: int = 10000,
+        limit_step: int = 1000,
         verbose: bool = True,
     ):
         # Problem data
@@ -78,11 +78,7 @@ class EnvSP(gym.Env):
             for demand_index in range(self.problem_instance.total_number_of_demands)
         ]
 
-        self._reset_edge_attributes()
-        self._reset_node_attributes()
-        self._update_edge_attributes()
-        self._update_node_attributes()
-        self._assert_all_constraints()
+        self._test_solution()
 
     def reset(self, seed=0):
         # Placement aléatoire, PCC0 et quantités 1
@@ -107,13 +103,13 @@ class EnvSP(gym.Env):
             or action_q >= 3
             or action_sp >= 3
         ):
-            obs = env.state
+            obs = self.state
             reward = -1
             done = False
             terminated = self.steps_done >= self.limit_step
             info = {}
-
             return obs, reward, done, terminated, info
+
         elif self.service_placement[selected_service] != choosen_node:
             reward = -0.2
         elif action_sp != -1:
@@ -121,22 +117,13 @@ class EnvSP(gym.Env):
         else:
             reward = 0
 
-        # if np.random.random() > 1e-3:
-        #     selected_service = 0
-        #     choosen_node = self.service_placement[0]
-        #     action_sp = 1
+        if np.random.random() > 1e-3:
+            selected_service = 0
+            choosen_node = self.service_placement[0]
+            action_sp = 1
 
-        selected_service = int(
-            np.clip(selected_service, 0, self.problem_instance.number_of_service - 1)
-        )
-        choosen_node = int(np.clip(choosen_node, 0, self.graph.number_of_nodes() - 1))
-        selected_demand = int(
-            np.clip(
-                selected_demand, 0, self.problem_instance.total_number_of_demands - 1
-            )
-        )
-        action_q = int(np.clip(action_q, 0, 2))
-        action_sp = int(np.clip(action_sp, 0, 2))
+        action = self._clip_action(action)
+        selected_service, choosen_node, selected_demand, action_q, action_sp = action
 
         if (
             self.service_placement[selected_service] == choosen_node
@@ -249,6 +236,9 @@ class EnvSP(gym.Env):
             self.max_q_reached = self.choosen_quantities.sum()
             print(self.max_q_reached)
 
+        done = False
+        terminated = self.steps_done >= self.limit_step
+        info = {}
         return obs, reward, done, terminated, info
 
     def _select_shortest_path(self, source: int, destination: int, index: int):
@@ -344,24 +334,36 @@ class EnvSP(gym.Env):
         self._update_node_attributes()
         self._assert_all_constraints()
 
+    def _clip_action(self, action: tuple) -> tuple:
+        selected_service, choosen_node, selected_demand, action_q, action_sp = action
 
-# from utils.data_management import (
-#     get_instance_list,
-# )
+        selected_service = int(
+            np.clip(selected_service, 0, self.problem_instance.number_of_service - 1)
+        )
+        choosen_node = int(np.clip(choosen_node, 0, self.graph.number_of_nodes() - 1))
+        selected_demand = int(
+            np.clip(
+                selected_demand, 0, self.problem_instance.total_number_of_demands - 1
+            )
+        )
+        action_q = int(np.clip(action_q, 0, 2))
+        action_sp = int(np.clip(action_sp, 0, 2))
 
-# instance_list = get_instance_list()
-# instance = instance_list[1]
+        action = selected_service, choosen_node, selected_demand, action_q, action_sp
+        return action
 
-# env = EnvSP(instance)
-# env.reset()
 
-# print(env.problem_instance.needed_resources)
-# print([env.graph.nodes[node]["available_resources"] for node in env.graph.nodes])
+from utils.data_management import (
+    get_instance_list,
+)
 
-# print([env.graph.edges[edge]["latency"] for edge in env.graph.edges])
-# print([env.graph.edges[edge]["quantity"] for edge in env.graph.edges])
-# print(env.problem_instance.min_flows)
-# action = (0, env.service_placement[0], 0, 2, 1)
+instance_list = get_instance_list()
+instance = instance_list[1]
 
-# for _ in range(10):
-#     env.step(action)
+env = EnvSP(instance)
+env.reset()
+
+
+for _ in range(1000):
+    action = env.action_space.sample()
+    env.step(action)
