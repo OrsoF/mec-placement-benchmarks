@@ -43,8 +43,10 @@ def generate_experimental_service_package(
     average_beta = sum(nx_graph.edges[edge]["beta"] for edge in nx_graph.edges) / len(
         nx_graph.edges
     )
-    max_latency = 7.0 * (
-        average_alpha * 5.0 * service_number**2 / len(nx_graph.edges) + average_beta
+    max_latency = (
+        7.0
+        * (average_alpha * 5.0 * service_number**2 / len(nx_graph.edges) + average_beta)
+        * 1e3
     )
     services = [
         generate_one_service(
@@ -104,9 +106,7 @@ def add_two_levels_to_base_graph(network_graph: NetworkGraph) -> NetworkGraph:
     base_nx_graph.add_edges_from(new_connections)
 
     resources = (
-        [10**6] * node_number
-        + [10**4] * 10 * node_number
-        + [10**2] * 20 * node_number
+        [10**6] * node_number + [10**4] * 10 * node_number + [10**2] * 20 * node_number
     )
 
     capacities = [0] * len(base_nx_graph.edges)

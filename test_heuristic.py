@@ -3,7 +3,7 @@ from utils.data_management import (
 )
 
 instance_list = get_instance_list()
-instance = instance_list[50]
+instance = instance_list[35]
 
 from solvers.base_heuristic import Solver
 

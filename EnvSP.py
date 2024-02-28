@@ -149,16 +149,21 @@ class EnvSP(gym.Env):
                         )
 
                     obs = self.state
-                else:  # Si on ne depasse pas Q, et que la latence sur le chemin ne dépasse pas la limite, on peut augmenter Q
+                else:  # Si on ne depasse pas Q, et que la latence sur le chemin ne dépasse pas la limite et qu'on a une capacité restant sur chaque arc, on peut augmenter Q
+                    capacity_condition = True
                     if (
-                        self.choosen_quantities[selected_demand]
-                        < self.problem_instance.max_flows[selected_demand]
-                    ) and (
-                        self.latencies[selected_demand]
-                        + self._compute_latency_on_path(
-                            1, self.paths_used[selected_demand]
+                        (
+                            self.choosen_quantities[selected_demand]
+                            < self.problem_instance.max_flows[selected_demand]
                         )
-                        < self.problem_instance.latencies[selected_demand]
+                        and (
+                            self.latencies[selected_demand]
+                            + self._compute_latency_on_path(
+                                1, self.paths_used[selected_demand]
+                            )
+                            < self.problem_instance.latencies[selected_demand]
+                        )
+                        and capacity_condition
                     ):
                         self.choosen_quantities[selected_demand] += 1
                         self.latencies[
