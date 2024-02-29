@@ -183,6 +183,9 @@ class EnvSP(gym.Env):
         terminated = self.steps_done >= self.limit_step
         info = {}
 
+        if terminated:
+            print(self.max_q_reached)
+
         # if not self._is_action_legit(action):
         #     # print("Action not legit.")
         #     obs = self.state
@@ -257,12 +260,13 @@ class EnvSP(gym.Env):
 
         if self.choosen_quantities.sum() > self.max_q_reached:
             self.max_q_reached = self.choosen_quantities.sum()
-            if terminated:
-                print(self.max_q_reached)
 
         return obs, reward / 100, done, terminated, info
 
     def _select_shortest_path(self, source: int, destination: int, index: int):
+        """
+        Returns the index-th shortest path from source to destination.
+        """
         index = int(index)
         shortest_paths = nx.algorithms.simple_paths.shortest_simple_paths(
             self.graph,

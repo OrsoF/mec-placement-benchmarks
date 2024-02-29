@@ -159,10 +159,62 @@ class Solver(InstanceSolver):
         objective_value = np.sum(self.choosen_quantities)
 
         print(objective_value)
+        print()
+        self._render_solution()
 
         self.runtime = time.time() - start_time
         self.lower_bound = objective_value
         self.upper_bound = objective_value
+
+    def _render_solution(self):
+        for node_index in self.graph.nodes:
+            node = self.graph.nodes[node_index]
+            print(
+                "Node {} remaining resources : {} / {}".format(
+                    node_index,
+                    node["remaining_resources"],
+                    node["available_resources"],
+                )
+            )
+        print()
+        for edge_index in self.graph.edges:
+            edge = self.graph.edges[edge_index]
+            print(
+                "Edge {} remaining capacity : {} / {}".format(
+                    edge_index, edge["remaining_capacity"], edge["capacity"]
+                )
+            )
+
+        print()
+        for demand_index in range(self.problem_instance.total_number_of_demands):
+            latency = 0
+            for node_index in range(len(self.paths_used[demand_index]) - 1):
+                edge = (
+                    self.paths_used[demand_index][node_index],
+                    self.paths_used[demand_index][node_index + 1],
+                )
+                latency += self.graph.edges[edge]["latency"]
+            print(
+                "Latency for demand {} : {} / {}".format(
+                    demand_index, latency, self.problem_instance.latencies[demand_index]
+                )
+            )
+        print()
+        for demand_index in range(self.problem_instance.total_number_of_demands):
+            print(
+                "Path for demand {} : {}".format(
+                    demand_index, self.paths_used[demand_index]
+                )
+            )
+        print()
+        for demand_index in range(self.problem_instance.total_number_of_demands):
+            print(
+                "Quantity for demand {} : {} / {}".format(
+                    demand_index,
+                    self.choosen_quantities[demand_index],
+                    self.problem_instance.max_flows[demand_index],
+                )
+            )
 
     def _services_nodes_association(self):
         pass
