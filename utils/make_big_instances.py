@@ -120,7 +120,7 @@ def add_two_levels_to_base_graph(network_graph: NetworkGraph) -> NetworkGraph:
         elif node1 < node_number or node2 < node_number:
             capacities[arc_dic[(node1, node2)]] = 3000
         else:
-            capacities[arc_dic[(node1, node2)]] = 100
+            capacities[arc_dic[(node1, node2)]] = 500
 
     beta = [0] * len(base_nx_graph.edges)
 
@@ -190,7 +190,7 @@ def generate_service_package_for_three_levels_graph(
         service = generate_one_service_for_three_levels_graph(
             network_graph=network_graph,
             task_number=service_number,
-            latency=5.0
+            latency=25.0
             * (
                 average_alpha * 5.0 * service_number**2 / len(nx_graph.edges)
                 + average_beta

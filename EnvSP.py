@@ -53,6 +53,26 @@ class EnvSP(gym.Env):
         self.service_placement = np.random.randint(
             self.graph.number_of_nodes(), size=self.problem_instance.number_of_service
         )  # Where is placed each service
+        needed_resources = sorted(
+            [
+                (service_index, res)
+                for service_index, res in enumerate(
+                    self.problem_instance.needed_resources
+                )
+            ],
+            key=lambda elem: elem[1],
+        )
+        av_resources = [
+            self.graph.nodes[node]["available_resources"] for node in self.graph.nodes
+        ]
+        for service_index, needed_res in needed_resources:
+            selected_node = np.argmax(av_resources)
+            av_resources[selected_node] -= needed_res
+            assert (
+                av_resources[selected_node] >= 0
+            ), "Greedy node-service association failed."
+            self.service_placement[service_index] = selected_node
+
         self.sp_indices = np.zeros(
             (self.problem_instance.total_number_of_demands)
         )  # The shortest path indice for each demand

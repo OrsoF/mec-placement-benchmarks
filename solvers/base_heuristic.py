@@ -47,7 +47,7 @@ class Solver(InstanceSolver):
             for demand_index in range(self.problem_instance.total_number_of_demands)
         ]
 
-        self._test_solution()
+        # self._test_solution()
 
     def _update_edge_attributes(self):
         # Sur chaque Edge : quantité, latence, remaining quantity
@@ -155,6 +155,8 @@ class Solver(InstanceSolver):
         # Augmentation des quantités
         self._update_quantities()
 
+        self._test_solution()
+
         self.runtime = time.time() - start_time
         objective_value = np.sum(self.choosen_quantities)
 
@@ -215,16 +217,36 @@ class Solver(InstanceSolver):
                     self.problem_instance.max_flows[demand_index],
                 )
             )
+        print()
+        print("Solution reached : {}".format(self.choosen_quantities.sum()))
 
     def _services_nodes_association(self):
-        pass
+        needed_resources = sorted(
+            [
+                (service_index, res)
+                for service_index, res in enumerate(
+                    self.problem_instance.needed_resources
+                )
+            ],
+            key=lambda elem: elem[1],
+        )
+        av_resources = [
+            self.graph.nodes[node]["available_resources"] for node in self.graph.nodes
+        ]
+        for service_index, needed_res in needed_resources:
+            selected_node = np.argmax(av_resources)
+            av_resources[selected_node] -= needed_res
+            assert (
+                av_resources[selected_node] >= 0
+            ), "Greedy node-service association failed."
+            self.service_placement[service_index] = selected_node
 
     def _routing(self):
         pass
 
     def _update_quantities(self):
 
-        max_iter = 1000
+        max_iter = 100
         for _ in range(max_iter):
             demand_index = np.random.randint(
                 self.problem_instance.total_number_of_demands
@@ -234,6 +256,10 @@ class Solver(InstanceSolver):
                 self._test_solution()
             except:
                 self.choosen_quantities[demand_index] -= 1
+                self._reset_edge_attributes()
+                self._reset_node_attributes()
+                self._update_edge_attributes()
+                self._update_node_attributes()
 
     def _test_solution(self):
         self._reset_edge_attributes()
