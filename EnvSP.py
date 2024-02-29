@@ -13,7 +13,7 @@ class EnvSP(gym.Env):
         problem_instance: ProblemInstance,
         sp_number: int = 3,
         limit_step: int = 1000,
-        verbose: bool = True,
+        verbose: bool = False,
     ):
         # Problem data
         self.problem_instance = problem_instance
@@ -24,16 +24,9 @@ class EnvSP(gym.Env):
         self.network_graph = self.problem_instance.network_graph
         self.graph = self.network_graph.nx_graph
 
+        # self.max_q_reached = 0
+
         # Action : Choix_Service x Placement x Choix_Demande x Changement_Quantité x Changement PCC
-        # self.action_space = Tuple(
-        #     (
-        #         Discrete(self.problem_instance.number_of_service),
-        #         Discrete(self.graph.number_of_nodes()),
-        #         Discrete(self.problem_instance.total_number_of_demands),
-        #         Discrete(3),
-        #         Discrete(3),
-        #     )
-        # )
         self.action_space = MultiDiscrete(
             [
                 max(
@@ -47,7 +40,6 @@ class EnvSP(gym.Env):
         )
 
         # State : Ou sont placés les services x Quel est le numéro du PCC pour chaque demande x Quantité de chaque demande
-        # Vecteur de taille : Serv + Dem + Dem
         self.observation_space = Box(
             low=0.0,
             high=np.inf,
@@ -182,55 +174,78 @@ class EnvSP(gym.Env):
             except AssertionError:
                 self.choosen_quantities[selected_demand] -= 1
 
+    def render(self):
+        print(self.state)
+
     def step(self, action):
         self.steps_done += 1
         done = False
         terminated = self.steps_done >= self.limit_step
         info = {}
 
-        if not self._is_action_legit(action):
-            obs = self.state
-            reward = -1
-            done = False
-            terminated = self.steps_done >= self.limit_step
-            info = {}
-            return obs, reward, done, terminated, info
+        # if not self._is_action_legit(action):
+        #     # print("Action not legit.")
+        #     obs = self.state
+        #     reward = -1
+        #     info = {}
+        #     return obs, reward, done, terminated, info
+
+        selected_service, choosen_node, selected_demand, action_q, action_sp = action
+
+        selected_service = selected_service % self.problem_instance.number_of_service
+        choosen_node = choosen_node % self.graph.number_of_nodes()
+        selected_demand = (
+            selected_demand % self.problem_instance.total_number_of_demands
+        )
+        action_q = action_q % 3
+        action_sp = action_sp % 3
 
         if np.random.random() > 1e-3:
             selected_service = 0
             choosen_node = self.service_placement[0]
             action_sp = 1
 
-        selected_service, choosen_node, selected_demand, action_q, action_sp = action
-
         # Trois possibilités :
         # - On change le placement
         # - On change le routage
         # - On change les quantités
 
-        placement_is_changing = self.service_placement[selected_service] == choosen_node
+        placement_is_changing = self.service_placement[selected_service] != choosen_node
         rerouting = action_sp != 1
         changing_quantity = action_q != 1
 
         if placement_is_changing:
+            if self.verbose:
+                print(
+                    "Changing placement for service {} from node {} to node {}.".format(
+                        selected_service,
+                        self.service_placement[selected_service],
+                        choosen_node,
+                    )
+                )
             self._update_placement(selected_service, choosen_node)
             reward = -2
         elif rerouting:
+            if self.verbose:
+                print(
+                    "Rerouting demand {} with path number {}.".format(
+                        selected_demand, self.sp_indices[selected_demand]
+                    )
+                )
             reward = -1
             self._reroute(selected_demand, action_sp)
         elif changing_quantity:
+            if self.verbose:
+                print("Updating quantity.")
             self._update_quantity(selected_demand, action_q)
-            reward = self.choosen_quantities.sum()
-        else:
+            reward = max(self.choosen_quantities.sum() - self.max_q_reached, 0)
+        else:  # Nothing changed during action
             obs = self.state
             reward = 0
-            done = False
-            terminated = self.steps_done >= self.limit_step
             info = {}
             return obs, reward, done, terminated, info
 
         self._test_solution()
-
         self.state = np.concatenate(
             (
                 self.service_placement,
@@ -238,18 +253,14 @@ class EnvSP(gym.Env):
                 self.choosen_quantities,
             )
         )
-
         obs = self.state
-        reward += self.choosen_quantities.sum()
 
         if self.choosen_quantities.sum() > self.max_q_reached:
             self.max_q_reached = self.choosen_quantities.sum()
-            print(self.max_q_reached)
+            if terminated:
+                print(self.max_q_reached)
 
-        done = False
-        terminated = self.steps_done >= self.limit_step
-        info = {}
-        return obs, reward, done, terminated, info
+        return obs, reward / 100, done, terminated, info
 
     def _select_shortest_path(self, source: int, destination: int, index: int):
         index = int(index)
@@ -265,29 +276,35 @@ class EnvSP(gym.Env):
         return last_visited_path
 
     def _update_edge_attributes(self):
-        # Sur chaque Edge : quantité, latence, remaining quantity
+        """
+        Update the edge attributes quantity, latency and remaining capacity.
+        """
         for demand_index in range(self.problem_instance.total_number_of_demands):
             for node_index in range(len(self.paths_used[demand_index]) - 1):
                 edge = (
                     self.paths_used[demand_index][node_index],
                     self.paths_used[demand_index][node_index + 1],
                 )
-                # Update Q
+                # Update quantity
                 self.graph.edges[edge]["quantity"] += self.choosen_quantities[
                     demand_index
                 ]
-                # Update latence
+                # Update latency
                 self.graph.edges[edge]["latency"] += (
                     self.choosen_quantities[demand_index]
                     * self.graph.edges[edge]["alpha"]
                 )
 
         for edge in self.graph.edges:
+            # Update remaining capacity
             self.graph.edges[edge]["remaining_capacity"] = (
                 self.graph.edges[edge]["capacity"] - self.graph.edges[edge]["quantity"]
             )
 
     def _reset_edge_attributes(self):
+        """
+        Set edge["quantity"] to 0 and edge["latency"] to edge["beta"], the base latency.
+        """
         for edge in self.graph.edges:
             # Reset Q, l
             self.graph.edges[edge]["quantity"] = 0
@@ -338,31 +355,23 @@ class EnvSP(gym.Env):
             ), "No enough resources."
 
     def _test_solution(self):
+        """
+        Test if a given solution (self.service_placement, self.sp_indices, self.choosen_q) is doable or not.
+        - Capacity conditions
+        - Latency conditions
+        - Max flow conditions
+        - Resources conditions
+        """
         self._reset_edge_attributes()
         self._reset_node_attributes()
         self._update_edge_attributes()
         self._update_node_attributes()
         self._assert_all_constraints()
 
-    def _clip_action(self, action: tuple) -> tuple:
-        selected_service, choosen_node, selected_demand, action_q, action_sp = action
-
-        selected_service = int(
-            np.clip(selected_service, 0, self.problem_instance.number_of_service - 1)
-        )
-        choosen_node = int(np.clip(choosen_node, 0, self.graph.number_of_nodes() - 1))
-        selected_demand = int(
-            np.clip(
-                selected_demand, 0, self.problem_instance.total_number_of_demands - 1
-            )
-        )
-        action_q = int(np.clip(action_q, 0, 2))
-        action_sp = int(np.clip(action_sp, 0, 2))
-
-        action = selected_service, choosen_node, selected_demand, action_q, action_sp
-        return action
-
     def _is_action_legit(self, action):
+        """
+        Checks if a given action tuple match a real action on the model.
+        """
         selected_service, choosen_node, selected_demand, action_q, action_sp = action
         return not (
             selected_service >= self.problem_instance.number_of_service
@@ -373,17 +382,19 @@ class EnvSP(gym.Env):
         )
 
 
-from utils.data_management import (
-    get_instance_list,
-)
+# from utils.data_management import (
+#     get_instance_list,
+# )
 
-instance_list = get_instance_list()
-instance = instance_list[1]
+# instance_list = get_instance_list()
+# instance = instance_list[1]
 
-env = EnvSP(instance)
-env.reset()
+# env = EnvSP(instance)
+# env.reset()
 
 
-for _ in range(10000):
-    action = env.action_space.sample()
-    env.step(action)
+# for _ in range(10):
+#     action = (0, 0, 0, 2, 1)
+#     action = env.action_space.sample()
+#     obs, reward, done, terminated, info = env.step(action)
+#     # print(reward)
