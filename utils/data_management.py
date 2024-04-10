@@ -2,6 +2,7 @@ import os
 import importlib
 import pandas as pd
 import pickle as pkl
+from problem_classes.probleminstance import ProblemInstance
 
 
 def pickle_save(object_instance: object, file_name: str):
@@ -49,7 +50,7 @@ def reset(verbose: bool = True):
         os.remove(current_instance_path)
 
 
-def get_instance_list() -> list:
+def get_instance_list() -> list[ProblemInstance]:
     all_instances = []
 
     instance_path = "instances"

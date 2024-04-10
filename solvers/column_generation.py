@@ -3,6 +3,8 @@ from gurobipy import GRB
 import gurobipy as gp
 import numpy as np
 from solvers.base_heuristic import Solver as base_heuristic
+from utils.service_placement import greedy_service_placement
+from solvers.LP_arc import Solver as lp_arc_Solver
 
 np.random.seed(0)
 import math
@@ -62,17 +64,31 @@ class Solver:
 
     def generate_initial_patterns(self):
         """
-        We generate a subset of solutions (like a set of pregenerated placement)
+        We generate a part of the variables : some service placement.
         """
-        pass
+        # Variables : x, y, p, P, L. P c'est la quantité par arc, L la latence par arc.
+        # x_d^a : la demande d utilise l'arc a
+        # y_S^e : le service S utilise le noeud e
+        # p_d : la quantité utilisée par la demande d
 
-    def master_problem(self, instance, pattern):
+        # Générer un placement est un problème à part entière, on va générer un seul placement de service. Question : est-ce qu'on peut laisser des variables non fixées ?
+        # On va essayer en générant juste l'attribution greedy des serveurs.
+        service_placement = greedy_service_placement(
+            self.available_resources, self.needed_resources
+        )
+        return [service_placement]
+
+    def define_master_problem(self, pattern):
         """
         For the given instance, we solve the problem for the given pattern/service placement.
         """
-        pass
+        lp_arc_solver = lp_arc_Solver(self.problem_instance)
+        lp_arc_solver._build_whole_problem()
+        lp_arc_solver.model.y.fixed = True
+        lp_arc_solver.model.y.value = np.array(pattern)
+        return lp_arc_solver.model
 
-    def subproblem(self, instance, pattern):
+    def define_subproblem(self, duals):
         """
         Now, we price the pattern. Most difficult part.
         """

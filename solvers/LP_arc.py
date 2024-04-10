@@ -255,6 +255,15 @@ class Solver(InstanceSolver):
             sense=pyo.maximize, rule=lambda model: sum(model.p.values())
         )
 
+    def _build_whole_problem(self):
+        self._model_parameters()
+        self._build_model()
+        self._build_sets()
+        self._build_variables()
+        self._build_params()
+        self._build_constraints()
+        self._build_objective()
+
     def run(
         self,
         options: dict = None,
