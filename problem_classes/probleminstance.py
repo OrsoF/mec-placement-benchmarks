@@ -42,3 +42,8 @@ class ProblemInstance:
         self.needed_resources = [
             service.needed_resources for service in self.service_package.services
         ]
+        self.demand_to_service = [
+            service_index
+            for service_index in range(self.number_of_service)
+            for _ in range(self.demand_per_service[service_index])
+        ]
