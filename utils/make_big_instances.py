@@ -104,9 +104,7 @@ def add_two_levels_to_base_graph(network_graph: NetworkGraph) -> NetworkGraph:
     base_nx_graph.add_edges_from(new_connections)
 
     resources = (
-        [10**6] * node_number
-        + [10**4] * 10 * node_number
-        + [10**2] * 20 * node_number
+        [10**6] * node_number + [10**4] * 10 * node_number + [10**2] * 20 * node_number
     )
 
     capacities = [0] * len(base_nx_graph.edges)
@@ -212,7 +210,7 @@ def make_big_instances():
     instance_path = "instances"
     files = os.listdir(gml_path)
 
-    for gml_graph_name in files:
+    for gml_graph_name in files[:1]:
         gml_path = "gml_graphs"
 
         gml_path = os.path.join(gml_path, gml_graph_name)
@@ -222,7 +220,7 @@ def make_big_instances():
 
         three_levels_network_graph = add_two_levels_to_base_graph(network_graph)
 
-        for number_of_service in range(1, 11):
+        for number_of_service in [5]:
             service_package = generate_service_package_for_three_levels_graph(
                 three_levels_network_graph, number_of_service, graph_name
             )

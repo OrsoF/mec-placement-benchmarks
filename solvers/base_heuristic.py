@@ -314,7 +314,7 @@ class Solver(InstanceSolver):
         start_time = time.time()
         self._model_parameters()
 
-        # Résolution = (x, y, q)
+        # Résolution : (x, y, q)
 
         # Association noeuds/services
         self.service_node_matrix, chosen_nodes = self.services_nodes_association()

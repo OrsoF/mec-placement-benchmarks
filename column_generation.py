@@ -50,12 +50,21 @@ class Solver:
         self.quantity_matrix: np.ndarray  # q matrix
 
     def generate_initial_solution(self):
+        """
+        Generate an initial solution to the problem.
+        """
         base_heuristic_solver = base_heuristic(self.problem_instance)
         base_heuristic_solver.run()
         service_node_matrix: np.ndarray = base_heuristic_solver.service_node_matrix  # y
         demand_arc_transit: np.ndarray = base_heuristic_solver.demand_arc_transit  # x
         quantity_matrix: np.ndarray = base_heuristic_solver.quantity_matrix  # p
         return service_node_matrix, demand_arc_transit, quantity_matrix
+
+    def generate_initial_patterns(self):
+        """
+        We generate a subset of solutions (like a set of pregenerated paths)
+        """
+        pass
 
     def master_problem(self, instance, pattern):
         pass

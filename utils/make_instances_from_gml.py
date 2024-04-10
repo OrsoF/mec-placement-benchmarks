@@ -70,7 +70,7 @@ def make_instance_from_gml(
 ):
     gml_list_original = os.listdir(all_gml_path)
 
-    for gml_graph_name in gml_list_original:
+    for gml_graph_name in gml_list_original[:1]:
         gml_path = os.path.join(all_gml_path, gml_graph_name)
         graph_name = gml_graph_name[:-4]  # france.gml -> france
 
@@ -78,7 +78,7 @@ def make_instance_from_gml(
         network_graph: NetworkGraph = make_graph_from_gml(gml_path)
 
         # Building services
-        for number_of_service in range(1, 11):
+        for number_of_service in [2, 8]:
             number_of_demands_per_service = number_of_service
 
             instance_name = "{}_{}_instance_{}_{}_{}".format(
