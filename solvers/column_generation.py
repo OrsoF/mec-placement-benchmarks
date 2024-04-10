@@ -62,14 +62,20 @@ class Solver:
 
     def generate_initial_patterns(self):
         """
-        We generate a subset of solutions (like a set of pregenerated paths)
+        We generate a subset of solutions (like a set of pregenerated placement)
         """
         pass
 
     def master_problem(self, instance, pattern):
+        """
+        For the given instance, we solve the problem for the given pattern/service placement.
+        """
         pass
 
     def subproblem(self, instance, pattern):
+        """
+        Now, we price the pattern. Most difficult part.
+        """
         pass
 
     def col_gen(self):
