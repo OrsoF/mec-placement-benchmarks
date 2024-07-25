@@ -47,3 +47,8 @@ class ProblemInstance:
             for service_index in range(self.number_of_service)
             for _ in range(self.demand_per_service[service_index])
         ]
+
+class ToyInstance(ProblemInstance):
+    def __init__(self) -> None:
+        """Toy Instance"""
+        pass

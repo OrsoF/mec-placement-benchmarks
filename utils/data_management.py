@@ -2,8 +2,12 @@ import os
 import importlib
 import pandas as pd
 import pickle as pkl
-from problem_classes.probleminstance import ProblemInstance
+from problem_classes.probleminstance import ProblemInstance, ToyInstance
+from importlib.util import spec_from_file_location, module_from_spec
 
+INSTANCES_PATH = os.path.join(os.getcwd(), 'instances')
+SOLVER_PATH = os.path.join(os.getcwd(), 'solvers')
+CURRENT_FOLDER = os.getcwd()
 
 def pickle_save(object_instance: object, file_name: str):
     with open(file_name, "wb") as handle:
@@ -16,22 +20,19 @@ def pickle_load(file_name):
     return python_variable
 
 
-current_folder = os.getcwd()
-
-
 def folder_management():
     assert "gml_graphs" in os.listdir(
-        current_folder
+        CURRENT_FOLDER
     ), "There is not simple instances folder."
     assert os.listdir(
-        os.path.join(current_folder, "gml_graphs")
+        os.path.join(CURRENT_FOLDER, "gml_graphs")
     ), "There is not simple instances."
     try:
-        os.mkdir(os.path.join(current_folder, "results"))
+        os.mkdir(os.path.join(CURRENT_FOLDER, "results"))
     except FileExistsError:
         pass
     try:
-        os.mkdir(os.path.join(current_folder, "instances"))
+        os.mkdir(os.path.join(CURRENT_FOLDER, "instances"))
     except FileExistsError:
         pass
 
@@ -149,3 +150,42 @@ def get_info_from_results(result_type: str, info_string: str):
         value = value + str(result_type)[i]
         i += 1
     return value
+
+
+
+def import_instance_from_file(instance_name : str) -> ProblemInstance:
+    instance_name = instance_name+'.pkl' if not instance_name.endswith('.pkl') else instance_name
+    instance_path = os.path.join(INSTANCES_PATH, instance_name)
+    return pickle_load(instance_path)
+
+def import_solver_from_file(solver_name: str):
+    """
+    Given a file (as "q_learning.py")
+    returns the associated_solver.
+    """
+    solver_name = solver_name+'.py' if not solver_name.endswith(".py") else solver_name
+    spec = spec_from_file_location(
+        "__temp_module__", os.path.join(SOLVER_PATH, solver_name)
+    )
+    module = module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.Solver(ToyInstance())
+
+def solve(
+    instance_name: str,
+    solver_name: str,
+    repeat: int = 1,
+) -> float:
+    instance = import_instance_from_file(instance_name)
+    solver = import_solver_from_file(solver_name)(instance)
+    solver.__init__(instance)
+
+    if repeat == 1:
+        solver.run()
+    else:
+        runtime = 0.0
+        for _ in range(repeat):
+            solver.run()
+            runtime += solver.runtime
+        solver.runtime = runtime / repeat
+    return solver.runtime

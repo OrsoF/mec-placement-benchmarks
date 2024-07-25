@@ -14,16 +14,6 @@ from utils.instance_solver import InstanceSolver
 from utils.check_network_graph import check_network_graph
 import multiprocessing
 
-
-def execute_with_timeout(target_function, args, timeout):
-    process = multiprocessing.Process(target=target_function, args=args)
-    process.start()
-    process.join(timeout)
-    if process.is_alive():
-        process.terminate()
-        process.join()
-
-
 # Delete all files, create folders
 reset()
 folder_management()
