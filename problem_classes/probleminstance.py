@@ -1,6 +1,7 @@
 from problem_classes.networkgraph import NetworkGraph
 from problem_classes.servicepackage import ServicePackage
-
+import numpy as np
+import networkx as nx
 
 class ProblemInstance:
     def __init__(
@@ -48,21 +49,43 @@ class ProblemInstance:
             for _ in range(self.demand_per_service[service_index])
         ]
 
-        self.create_solving_variables()
+    def set_arc_solution(self, x_variable:np.ndarray, y_variable:np.ndarray, q_variable:np.ndarray):
+        assert x_variable.shape == (self.total_number_of_demands, self.network_graph.nx_graph.number_of_edges())
+        assert y_variable.shape == (self.number_of_service, self.network_graph.nx_graph.number_of_nodes())
+        assert q_variable.shape[0] == self.total_number_of_demands
+        self.x_variable, self.y_variable, self.q_variable = x_variable, y_variable, q_variable
 
-    def create_solving_variables():
-        pass
+    def check_current_solution(self):
+        """
+        In this function, we check the differents contraints:
+        - Service assignment and resources on nodes
+        - Edge capacities
+        - Routing
+        - Latencies
+        """
+        assert np.linalg.norm(self.y_variable.sum(axis=1) - 1) < 1e-2 # Service assignment
+        for node in range(self.network_graph.nx_graph.number_of_nodes()): # Resources on each node
+            used_resources = [self.y_variable[service_index, node] * self.needed_resources[service_index] for service_index in range(self.number_of_service)]
+            assert used_resources <= self.network_graph.available_resources[node]
 
-    def set_solution():
-        pass
+        assert np.all(self.x_variable.T.dot(self.q_variable) <= np.array(self.network_graph.capacities)) # Check edges capacities
 
-    def check_current_solution():
-        self.check_service_assignment()
-        self.check_node_resources()
+        for demand_index in range(self.total_number_of_demands): # Check routing
+            service_index = demand_index % self.service_package.number_of_demand_per_service
+            demand_origin = self.origins[demand_index]
+            demand_destination = np.nonzero(self.y_variable[service_index])
+            unordered_path = [self.network_graph.nx_graph.edges[edge_index] for edge_index in np.nonzero(self.x_variable[demand_index, :])]
+            ordered_path = nx.dag_longest_path(nx.DiGraph(unordered_path))
+            assert (ordered_path[0] == demand_origin) and (ordered_path[-1] == demand_destination)
+
+        # Build latencies
+        
+        # Check latencies per demand
+
+
+
         self.check_routing()
-        self.check_capacities()
         self.check_latencies()
-
 
 
 class ToyInstance(ProblemInstance):
