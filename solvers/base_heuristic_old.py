@@ -7,7 +7,7 @@ import os
 from problem_classes.service import Service
 from itertools import islice
 from problem_classes.probleminstance import ProblemInstance
-from utils.instance_solver import InstanceSolver
+from utils.generic_solver import GenericSolver
 from utils.service_placement import greedy_service_placement
 
 
@@ -23,7 +23,7 @@ def server_allocations_to_matrix(
     return service_node_matrix
 
 
-class Solver(InstanceSolver):
+class Solver(GenericSolver):
     def __init__(self, problem_instance: ProblemInstance, limit_shortest_path: int = 1):
         self.problem_instance = problem_instance
         self.services: list[Service] = self.problem_instance.service_package.services

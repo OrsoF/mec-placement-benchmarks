@@ -48,6 +48,23 @@ class ProblemInstance:
             for _ in range(self.demand_per_service[service_index])
         ]
 
+        self.create_solving_variables()
+
+    def create_solving_variables():
+        pass
+
+    def set_solution():
+        pass
+
+    def check_current_solution():
+        self.check_service_assignment()
+        self.check_node_resources()
+        self.check_routing()
+        self.check_capacities()
+        self.check_latencies()
+
+
+
 class ToyInstance(ProblemInstance):
     def __init__(self) -> None:
         """Toy Instance"""

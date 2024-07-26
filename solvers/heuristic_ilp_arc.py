@@ -1,4 +1,4 @@
-from utils.instance_solver import InstanceSolver
+from utils.generic_solver import GenericSolver
 from problem_classes.servicepackage import ServicePackage
 from problem_classes.networkgraph import NetworkGraph
 from problem_classes.service import Service
@@ -16,7 +16,7 @@ import os
 import numpy as np
 
 
-class Solver(InstanceSolver):
+class Solver(GenericSolver):
     def __init__(self, problem_instance: ProblemInstance):
         self.problem_instance = problem_instance
         self.services: list[Service] = self.problem_instance.service_package.services

@@ -1,7 +1,7 @@
 from problem_classes.probleminstance import ProblemInstance
 
 
-class InstanceSolver:
+class GenericSolver:
     def __init__(self, problem_instance: ProblemInstance, **args) -> None:
         self.problem_instance = problem_instance
         self.runtime: float

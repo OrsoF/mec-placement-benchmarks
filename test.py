@@ -4,7 +4,7 @@ from utils.get_all_instances import all_instances
 from utils.get_all_solvers import all_solvers
 
 from problem_classes.probleminstance import ProblemInstance
-from utils.instance_solver import InstanceSolver
+from utils.generic_solver import GenericSolver
 from utils.pandas_util import create_dataframe_from_dict, reorder_columns
 from utils.check_network_graph import check_network_graph
 from utils.experience_utils import experience_index
@@ -20,7 +20,7 @@ objectives = {}
 for solver in all_solvers:
     for instance in all_instances:
         instance: ProblemInstance
-        sol: InstanceSolver = solver(instance)
+        sol: GenericSolver = solver(instance)
 
         check_network_graph(instance.network_graph.nx_graph)
 
