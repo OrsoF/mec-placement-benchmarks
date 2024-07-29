@@ -66,12 +66,13 @@ class ProblemInstance:
         """
         assert np.linalg.norm(self.y_variable.sum(axis=1) - 1) < 1e-2 # Service assignment
         for node in range(self.network_graph.nx_graph.number_of_nodes()): # Resources on each node
-            used_resources = [self.y_variable[service_index, node] * self.needed_resources[service_index] for service_index in range(self.number_of_service)]
+            used_resources = sum([self.y_variable[service_index, node] * self.needed_resources[service_index] for service_index in range(self.number_of_service)])
             assert used_resources <= self.network_graph.available_resources[node]
 
         assert np.all(self.x_variable.T.dot(self.q_variable) <= np.array(self.network_graph.capacities)) # Check edges capacities
 
         for demand_index in range(self.total_number_of_demands): # Check routing
+            print(np.nonzero(self.x_variable[demand_index, :]))
             service_index = demand_index % self.service_package.number_of_demand_per_service
             demand_origin = self.origins[demand_index]
             demand_destination = np.nonzero(self.y_variable[service_index])

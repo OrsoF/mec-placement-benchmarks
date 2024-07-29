@@ -336,15 +336,28 @@ class Solver(GenericSolver):
                 self.upper_bound,
                 self.solving_status,
             ) = get_result_informations(solver_result)
-            self.demand_arc_transit, self.service_node_matrix, self.quantity_matrix = (
-                self.model.demand_arc_transit,
-                self.model.y,
-                self.model.p,
+            self.x_variable = np.array(
+                [
+                    [
+                        self.model.demand_arc_transit[i, j].value
+                        for j in range(self.arc_number)
+                    ]
+                    for i in range(self.total_number_of_demands)
+                ]
+            )
+            self.y_variable = np.array(
+                [
+                    [self.model.y[i, j].value for j in range(self.node_number)]
+                    for i in range(self.number_of_services)
+                ]
+            )
+            self.q_variable = np.array(
+                [self.model.p[dd].value for dd in range(self.total_number_of_demands)]
             )
 
         except ValueError:
             self.runtime, self.lower_bound, self.upper_bound = solving_time_limit, 0, 0
-            self.demand_arc_transit, self.service_node_matrix, self.quantity_matrix = (
+            self.x_variable, self.y_variable, self.q_variable = (
                 0,
                 0,
                 0,
