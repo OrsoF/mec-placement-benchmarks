@@ -129,15 +129,15 @@ def reorder_columns(df1, df2):
         raise TypeError("Input arguments must be Pandas DataFrames.")
 
 
-def get_result_informations(solver_result) -> tuple:
-    tuple_of_results = [0, 0, 0, 0]
-    tuple_of_results[0] = get_info_from_results(solver_result, "Time: ")
-    tuple_of_results[1] = get_info_from_results(solver_result, "Lower bound: ")
-    tuple_of_results[2] = get_info_from_results(solver_result, "Upper bound: ")
-    tuple_of_results[3] = get_info_from_results(
+def get_result_informations(solver_result) -> list:
+    results = [0, 0, 0, 0]
+    results[0] = get_info_from_results(solver_result, "Time: ")
+    results[1] = get_info_from_results(solver_result, "Lower bound: ")
+    results[2] = get_info_from_results(solver_result, "Upper bound: ")
+    results[3] = get_info_from_results(
         solver_result, "Termination condition: "
     )
-    return tuple_of_results
+    return results
 
 
 def get_info_from_results(result_type: str, info_string: str):
@@ -152,17 +152,12 @@ def get_info_from_results(result_type: str, info_string: str):
     return value
 
 
-
 def import_instance_from_file(instance_name : str) -> ProblemInstance:
     instance_name = instance_name+'.pkl' if not instance_name.endswith('.pkl') else instance_name
     instance_path = os.path.join(INSTANCES_PATH, instance_name)
     return pickle_load(instance_path)
 
 def import_solver_from_file(solver_name: str):
-    """
-    Given a file (as "q_learning.py")
-    returns the associated_solver.
-    """
     solver_name = solver_name+'.py' if not solver_name.endswith(".py") else solver_name
     spec = spec_from_file_location(
         "__temp_module__", os.path.join(SOLVER_PATH, solver_name)

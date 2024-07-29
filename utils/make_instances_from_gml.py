@@ -10,6 +10,7 @@ import os
 from utils.data_management import pickle_save
 from utils.graph_utils import make_graph_from_gml
 
+rnd_gen = np.random.default_rng(0)
 
 def make_services(
     network_graph: NetworkGraph,
@@ -32,7 +33,7 @@ def make_services(
 
     demands = [
         Demand(
-            origin_node_index=np.random.choice(network_graph.nx_graph.nodes),
+            origin_node_index=rnd_gen.choice(network_graph.nx_graph.nodes),
             flow_min=1,
             flow_max=100,
             max_latency=7.0
@@ -61,12 +62,12 @@ def make_services(
     return service_package
 
 
-all_gml_path = os.path.join(os.getcwd(), "gml_graphs")
-instance_path = os.path.join(os.getcwd(), "instances")
+ALL_GML_PATH = os.path.join(os.getcwd(), "gml_graphs")
+INSTANCE_PATH = os.path.join(os.getcwd(), "instances")
 
 
 def make_instance_from_gml(
-    all_gml_path: str = all_gml_path, instance_path: str = instance_path
+    all_gml_path: str = ALL_GML_PATH, instance_path: str = INSTANCE_PATH
 ):
     gml_list_original = os.listdir(all_gml_path)
 

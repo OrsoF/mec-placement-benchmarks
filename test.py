@@ -1,32 +1,50 @@
-# This code is there to test all solvers on all instances of problem.
-
-from utils.get_all_instances import all_instances
-from utils.get_all_solvers import all_solvers
-
+from networkx.readwrite.gml import read_gml
+import networkx as nx
+from problem_classes.networkgraph import NetworkGraph
+from problem_classes.demand import Demand
+from problem_classes.service import Service
+from problem_classes.servicepackage import ServicePackage
 from problem_classes.probleminstance import ProblemInstance
-from utils.generic_solver import GenericSolver
-from utils.pandas_util import create_dataframe_from_dict, reorder_columns
-from utils.check_network_graph import check_network_graph
-from utils.experience_utils import experience_index
 import numpy as np
+import os
+from utils.pickle import pickle_save
+from utils.graph_utils import make_graph_from_gml
+import matplotlib.pyplot as plt
 
-number_of_services = 1
+# Build graph
 
-all_instances = all_instances[number_of_services : number_of_services + 1]
+nx_graph = nx.Graph([(0, 1), (1, 2), (1, 3)])
+network_graph = NetworkGraph(
+    base_graph=nx_graph,
+    node_resources=[1000, 100, 10, 10],
+    edge_capacity=[1000, 1000, 100, 100, 20, 20],
+    latency_alpha_factor=[1] * 6,
+    latency_beta_factor=[1] * 6,
+)
 
-runtimes = {}
-objectives = {}
+# Create services
+# service_1
 
-for solver in all_solvers:
-    for instance in all_instances:
-        instance: ProblemInstance
-        sol: GenericSolver = solver(instance)
+service_1 = Service(
+    task_list=[Demand(0, 0, 20, 2), Demand(2, 0, 20, 2)],
+    network_graph=network_graph,
+    resources_needed=50,
+)
 
-        check_network_graph(instance.network_graph.nx_graph)
+service_2 = Service(
+    task_list=[Demand(0, 0, 20, 2), Demand(3, 0, 20, 2)],
+    network_graph=network_graph,
+    resources_needed=50,
+)
 
-        sol.run(options={"time": 3600, "threads": 1})
-        result_name = (instance.problem_name, sol.solver_name)
-        runtimes[result_name] = np.round(float(sol.runtime), 2)
-        objectives[result_name] = np.round(float(sol.objective_value), 2)
+PROBLEM_NAME = "tree_0"
 
-print("Success")
+service_package = ServicePackage([service_1, service_2], PROBLEM_NAME)
+
+# Create instances
+
+problem_instance = ProblemInstance(network_graph, service_package, PROBLEM_NAME)
+
+pickle_save(
+    problem_instance, os.path.join(os.getcwd(), "instances", PROBLEM_NAME + ".pkl")
+)

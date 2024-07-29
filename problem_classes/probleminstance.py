@@ -2,6 +2,7 @@ from problem_classes.networkgraph import NetworkGraph
 from problem_classes.servicepackage import ServicePackage
 import numpy as np
 import networkx as nx
+from utils.pickle import pickle_save
 
 class ProblemInstance:
     def __init__(
@@ -48,7 +49,7 @@ class ProblemInstance:
             for service_index in range(self.number_of_service)
             for _ in range(self.demand_per_service[service_index])
         ]
-
+        
     def set_arc_solution(self, x_variable:np.ndarray, y_variable:np.ndarray, q_variable:np.ndarray):
         assert x_variable.shape == (self.total_number_of_demands, self.network_graph.nx_graph.number_of_edges())
         assert y_variable.shape == (self.number_of_service, self.network_graph.nx_graph.number_of_nodes())
