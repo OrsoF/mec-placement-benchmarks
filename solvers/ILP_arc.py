@@ -235,6 +235,8 @@ class Solver(GenericSolver):
             == model.ind_u_origin[u, d] - model.y[model.serv_number[d], u],
         )
 
+
+
         self.model.resources_constraint = pyo.Constraint(
             self.model.node_number,
             rule=lambda model, u: sum(

@@ -26,15 +26,18 @@ network_graph = NetworkGraph(
 # service_1
 
 service_1 = Service(
-    task_list=[Demand(0, 0, 20, 2), Demand(2, 0, 20, 2)],
+    task_list=[
+        Demand(origin_node_index=0, flow_min=1, flow_max=20, max_latency=4),
+        Demand(origin_node_index=2, flow_min=1, flow_max=20, max_latency=4),
+    ],
     network_graph=network_graph,
-    resources_needed=50,
+    resources_needed=5,
 )
 
 service_2 = Service(
-    task_list=[Demand(0, 0, 20, 2), Demand(3, 0, 20, 2)],
+    task_list=[Demand(0, 1, 20, 4), Demand(3, 1, 20, 4)],
     network_graph=network_graph,
-    resources_needed=50,
+    resources_needed=5,
 )
 
 PROBLEM_NAME = "tree_0"
@@ -46,6 +49,4 @@ service_package = ServicePackage([service_1, service_2], PROBLEM_NAME)
 
 problem_instance = ProblemInstance(network_graph, service_package, PROBLEM_NAME)
 
-pickle_save(
-    problem_instance, INSTANCE_PATH
-)
+pickle_save(problem_instance, INSTANCE_PATH)

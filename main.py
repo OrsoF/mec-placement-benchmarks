@@ -1,3 +1,1 @@
-from utils.data_management import solve
-
-solve()
+from utils.make_tree_instance import *
