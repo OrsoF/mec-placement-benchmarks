@@ -1,5 +1,5 @@
 from problem_classes.probleminstance import ProblemInstance
-
+import numpy as np
 
 class GenericSolver:
     def __init__(self, problem_instance: ProblemInstance, **args) -> None:
@@ -8,6 +8,10 @@ class GenericSolver:
         self.lower_bound: float
         self.upper_bound: float
         self.solver_name = ""
+
+        self.x_variable:np.ndarray
+        self.y_variable:np.ndarray
+        self.q_variable:np.ndarray
 
     def run(
         self,

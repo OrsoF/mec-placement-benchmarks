@@ -57,9 +57,9 @@ class Solver:
         """
         base_heuristic_solver = base_heuristic(self.problem_instance)
         base_heuristic_solver.run()
-        service_node_matrix: np.ndarray = base_heuristic_solver.service_node_matrix  # y
-        demand_arc_transit: np.ndarray = base_heuristic_solver.demand_arc_transit  # x
-        quantity_matrix: np.ndarray = base_heuristic_solver.quantity_matrix  # p
+        service_node_matrix: np.ndarray = base_heuristic_solver.y_variable  # y
+        demand_arc_transit: np.ndarray = base_heuristic_solver.self.x_variable  # x
+        quantity_matrix: np.ndarray = base_heuristic_solver.q_variable  # p
         return service_node_matrix, demand_arc_transit, quantity_matrix
 
     def generate_initial_patterns(self):

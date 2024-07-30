@@ -11,25 +11,22 @@ from utils.generic_solver import GenericSolver
 
 rnd_gen = np.random.default_rng(0)
 
+
 class Solver(GenericSolver):
     def __init__(self, problem_instance: ProblemInstance, limit_shortest_path: int = 1):
         self.problem_instance = problem_instance
-        self.services: list[Service] = self.problem_instance.service_package.services
-        self.service_package = self.problem_instance.service_package
-
-        self.network_graph = self.problem_instance.network_graph
-        self.graph: nx.DiGraph = self.network_graph.nx_graph
-
         self.limit_shortest_path = limit_shortest_path
+
+        self.nx_graph: nx.DiGraph = self.problem_instance.network_graph.nx_graph
         self.solver_name = "base_heuristic"
 
-        self.service_node_matrix: np.ndarray  # y matrix
+        self.y_variable: np.ndarray  # y matrix
         self.quantity_matrix: np.ndarray  # q matrix
         self.demand_arc_transit: np.ndarray  # x matrix
 
         # Useful quantities
         self.service_placement = rnd_gen.integers(
-            self.graph.number_of_nodes(), size=self.problem_instance.number_of_service
+            self.nx_graph.number_of_nodes(), size=self.problem_instance.number_of_service
         )  # Where is placed each service
         self.sp_indices = np.zeros(
             (self.problem_instance.total_number_of_demands)
@@ -50,6 +47,9 @@ class Solver(GenericSolver):
 
         # self._test_solution()
 
+    def _generate_random_server_attribution(self) -> list:
+        return rnd_gen.integers(low=0, high=self.problem_instance.network_graph.nx_graph.number_of_nodes(), size=self.problem_instance.number_of_service)
+
     def _update_edge_attributes(self):
         # Sur chaque Edge : quantité, latence, remaining quantity
         for demand_index in range(self.problem_instance.total_number_of_demands):
@@ -59,36 +59,36 @@ class Solver(GenericSolver):
                     self.paths_used[demand_index][node_index + 1],
                 )
                 # Update Q
-                self.graph.edges[edge]["quantity"] += self.choosen_quantities[
+                self.nx_graph.edges[edge]["quantity"] += self.choosen_quantities[
                     demand_index
                 ]
                 # Update latence
-                self.graph.edges[edge]["latency"] += (
+                self.nx_graph.edges[edge]["latency"] += (
                     self.choosen_quantities[demand_index]
-                    * self.graph.edges[edge]["alpha"]
+                    * self.nx_graph.edges[edge]["alpha"]
                 )
 
-        for edge in self.graph.edges:
-            self.graph.edges[edge]["remaining_capacity"] = (
-                self.graph.edges[edge]["capacity"] - self.graph.edges[edge]["quantity"]
+        for edge in self.nx_graph.edges:
+            self.nx_graph.edges[edge]["remaining_capacity"] = (
+                self.nx_graph.edges[edge]["capacity"] - self.nx_graph.edges[edge]["quantity"]
             )
 
     def _reset_edge_attributes(self):
-        for edge in self.graph.edges:
+        for edge in self.nx_graph.edges:
             # Reset Q, l
-            self.graph.edges[edge]["quantity"] = 0
-            self.graph.edges[edge]["latency"] = self.graph.edges[edge]["beta"]
+            self.nx_graph.edges[edge]["quantity"] = 0
+            self.nx_graph.edges[edge]["latency"] = self.nx_graph.edges[edge]["beta"]
 
     def _update_node_attributes(self):
         for service_index in range(self.problem_instance.number_of_service):
             target_node = self.service_placement[service_index]
             required_resources = self.problem_instance.needed_resources[service_index]
-            self.graph.nodes[target_node]["remaining_resources"] -= required_resources
+            self.nx_graph.nodes[target_node]["remaining_resources"] -= required_resources
 
     def _reset_node_attributes(self):
-        for node in self.graph.nodes:
+        for node in self.nx_graph.nodes:
             # Update remaining resources
-            self.graph.nodes[node]["remaining_resources"] = self.graph.nodes[node][
+            self.nx_graph.nodes[node]["remaining_resources"] = self.nx_graph.nodes[node][
                 "available_resources"
             ]
 
@@ -97,9 +97,9 @@ class Solver(GenericSolver):
         # - Capacité pour chaque arc
         # - Pour chaque demande, quantité et latence limite
         # - Ressource pour chaque noeud
-        for edge in self.graph.edges:
+        for edge in self.nx_graph.edges:
             assert (
-                self.graph.edges[edge]["remaining_capacity"] >= 0
+                self.nx_graph.edges[edge]["remaining_capacity"] >= 0
             ), "Capacité non respectée."
 
         for demand_index in range(self.problem_instance.total_number_of_demands):
@@ -113,20 +113,20 @@ class Solver(GenericSolver):
                     self.paths_used[demand_index][node_index],
                     self.paths_used[demand_index][node_index + 1],
                 )
-                latency += self.graph.edges[edge]["latency"]
+                latency += self.nx_graph.edges[edge]["latency"]
             assert (
                 latency <= self.problem_instance.latencies[demand_index]
             ), "Latency exceeded."
 
-        for node in self.graph.nodes:
+        for node in self.nx_graph.nodes:
             assert (
-                self.graph.nodes[node]["remaining_resources"] >= 0
+                self.nx_graph.nodes[node]["remaining_resources"] >= 0
             ), "No enough resources."
 
     def _select_shortest_path(self, source: int, destination: int, index: int):
         index = int(index)
         shortest_paths = nx.algorithms.simple_paths.shortest_simple_paths(
-            self.graph,
+            self.nx_graph,
             source,
             destination,
         )
@@ -148,7 +148,8 @@ class Solver(GenericSolver):
         # Résolution : (x, y, q)
 
         # Association noeuds/services
-        self._services_nodes_association()
+        # self._services_nodes_association()
+        self.service_placement = self._generate_random_server_attribution()
 
         # Calcul des shortest paths
         self._routing()
@@ -170,8 +171,8 @@ class Solver(GenericSolver):
         self.upper_bound = objective_value
 
     def _render_solution(self):
-        for node_index in self.graph.nodes:
-            node = self.graph.nodes[node_index]
+        for node_index in self.nx_graph.nodes:
+            node = self.nx_graph.nodes[node_index]
             print(
                 "Node {} remaining resources : {} / {}".format(
                     node_index,
@@ -180,8 +181,8 @@ class Solver(GenericSolver):
                 )
             )
         print()
-        for edge_index in self.graph.edges:
-            edge = self.graph.edges[edge_index]
+        for edge_index in self.nx_graph.edges:
+            edge = self.nx_graph.edges[edge_index]
             print(
                 "Edge {} remaining capacity : {} / {}".format(
                     edge_index, edge["remaining_capacity"], edge["capacity"]
@@ -196,7 +197,7 @@ class Solver(GenericSolver):
                     self.paths_used[demand_index][node_index],
                     self.paths_used[demand_index][node_index + 1],
                 )
-                latency += self.graph.edges[edge]["latency"]
+                latency += self.nx_graph.edges[edge]["latency"]
             print(
                 "Latency for demand {} : {} / {}".format(
                     demand_index, latency, self.problem_instance.latencies[demand_index]
@@ -232,7 +233,7 @@ class Solver(GenericSolver):
             key=lambda elem: elem[1],
         )
         av_resources = [
-            self.graph.nodes[node]["available_resources"] for node in self.graph.nodes
+            self.nx_graph.nodes[node]["available_resources"] for node in self.nx_graph.nodes
         ]
         for service_index, needed_res in needed_resources:
             selected_node = np.argmax(av_resources)

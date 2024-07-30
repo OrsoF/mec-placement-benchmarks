@@ -70,7 +70,7 @@ class ProblemInstance:
             q_variable,
         )
 
-    def print_current_solution(self):
+    def print_current_solution(self, show_graph:bool=False):
 
         for service_index in range(self.number_of_service): # Print service placement
             node_placement = np.nonzero(self.y_variable[service_index])[0][0]
@@ -115,8 +115,9 @@ class ProblemInstance:
             print(CAPACITY_PRINT)
         print()
 
-        nx.draw(self.network_graph.nx_graph, with_labels=True, node_color='lightblue', node_size=2000, font_size=15, font_weight='bold', arrowsize=20)
-        plt.show()
+        if show_graph:
+            nx.draw(self.network_graph.nx_graph, with_labels=True, node_color='lightblue', node_size=2000, font_size=15, font_weight='bold', arrowsize=20)
+            plt.show()
 
     def check_current_solution(self):
         """

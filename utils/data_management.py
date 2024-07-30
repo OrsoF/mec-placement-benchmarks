@@ -178,6 +178,7 @@ def solve(
     instance_name: str,
     solver_name: str,
     repeat: int = 1,
+    check_solution:bool=False
 ) -> tuple[ProblemInstance, GenericSolver]:
     instance = import_instance_from_file(instance_name)
     solver = import_solver_from_file(solver_name, instance)
@@ -190,4 +191,7 @@ def solve(
             solver.run()
             runtime += solver.runtime
         solver.runtime = runtime / repeat
+    if check_solution:
+        instance.set_arc_solution(solver.x_variable, solver.y_variable, solver.q_variable)
+        instance.check_current_solution()
     return instance, solver
