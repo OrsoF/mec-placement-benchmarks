@@ -21,34 +21,35 @@ class Solver(GenericSolver):
         self.solver_name = "base_heuristic"
 
         self.y_variable: np.ndarray  # y matrix
-        self.quantity_matrix: np.ndarray  # q matrix
-        self.demand_arc_transit: np.ndarray  # x matrix
+        self.q_variable: np.ndarray  # q matrix
+        self.x_variable: np.ndarray  # x matrix
 
         # Useful quantities
-        self.service_placement = rnd_gen.integers(
-            self.nx_graph.number_of_nodes(), size=self.problem_instance.number_of_service
-        )  # Where is placed each service
-        self.sp_indices = np.zeros(
-            (self.problem_instance.total_number_of_demands)
-        )  # The shortest path indice for each demand
-        self.choosen_quantities = np.ones(
-            (self.problem_instance.total_number_of_demands)
-        )  # We chose one as quantity for each demand
-        self.paths_used = [
-            self._select_shortest_path(
-                self.problem_instance.origins[demand_index],
-                self.service_placement[
-                    self.problem_instance.demand_to_service[demand_index]
-                ],
-                0,
-            )
-            for demand_index in range(self.problem_instance.total_number_of_demands)
-        ]
-
-        # self._test_solution()
+        self.service_placement: list  # Service placement
+        self.sp_indices: list  # The shortest path indice for each demand
+        self.choosen_quantities: np.ndarray  # We chose one as quantity for each demand
 
     def _generate_random_server_attribution(self) -> list:
-        return rnd_gen.integers(low=0, high=self.problem_instance.network_graph.nx_graph.number_of_nodes(), size=self.problem_instance.number_of_service)
+        return rnd_gen.integers(
+            low=0,
+            high=self.problem_instance.network_graph.nx_graph.number_of_nodes(),
+            size=self.problem_instance.number_of_service,
+        )
+    
+    def run(
+        self,
+    ):
+        # On attribue les serveurs aléatoirement
+        self.service_placement = self._generate_random_server_attribution()
+
+        # Choix des chemins:
+        # On prends les plus courts. 
+        # Puis, tant qu'une demande pose problème en terme de capacitésou de latence, 
+        # on prends le chemins suivant
+
+        # Augmentation des capacités:
+        # On trouve le plus court chemin dont une augmentation est possible, puis on l'augmente
+        
 
     def _update_edge_attributes(self):
         # Sur chaque Edge : quantité, latence, remaining quantity
@@ -70,7 +71,8 @@ class Solver(GenericSolver):
 
         for edge in self.nx_graph.edges:
             self.nx_graph.edges[edge]["remaining_capacity"] = (
-                self.nx_graph.edges[edge]["capacity"] - self.nx_graph.edges[edge]["quantity"]
+                self.nx_graph.edges[edge]["capacity"]
+                - self.nx_graph.edges[edge]["quantity"]
             )
 
     def _reset_edge_attributes(self):
@@ -83,14 +85,16 @@ class Solver(GenericSolver):
         for service_index in range(self.problem_instance.number_of_service):
             target_node = self.service_placement[service_index]
             required_resources = self.problem_instance.needed_resources[service_index]
-            self.nx_graph.nodes[target_node]["remaining_resources"] -= required_resources
+            self.nx_graph.nodes[target_node][
+                "remaining_resources"
+            ] -= required_resources
 
     def _reset_node_attributes(self):
         for node in self.nx_graph.nodes:
             # Update remaining resources
-            self.nx_graph.nodes[node]["remaining_resources"] = self.nx_graph.nodes[node][
-                "available_resources"
-            ]
+            self.nx_graph.nodes[node]["remaining_resources"] = self.nx_graph.nodes[
+                node
+            ]["available_resources"]
 
     def _assert_all_constraints(self):
         # Contraintes :
@@ -233,7 +237,8 @@ class Solver(GenericSolver):
             key=lambda elem: elem[1],
         )
         av_resources = [
-            self.nx_graph.nodes[node]["available_resources"] for node in self.nx_graph.nodes
+            self.nx_graph.nodes[node]["available_resources"]
+            for node in self.nx_graph.nodes
         ]
         for service_index, needed_res in needed_resources:
             selected_node = np.argmax(av_resources)
@@ -243,11 +248,7 @@ class Solver(GenericSolver):
             ), "Greedy node-service association failed."
             self.service_placement[service_index] = selected_node
 
-    def _routing(self):
-        pass
-
     def _update_quantities(self):
-
         max_iter = 100
         for _ in range(max_iter):
             demand_index = rnd_gen.integers(
