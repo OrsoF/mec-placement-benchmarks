@@ -28,12 +28,7 @@ def get_encoded_incoming_arc(
     for elem in get_incoming_arc(nx_graph, node):
         try:
             result.append(arc_dic[elem])
-        except:
-            print(elem)
-            print(node)
-            print(nx_graph.neighbors(node))
-            print((9, 15) in nx_graph.edges)
-            print((15, 9) in nx_graph.edges)
+        except AttributeError:
             assert False
 
     return [arc_dic[elem] for elem in get_incoming_arc(nx_graph, node)]

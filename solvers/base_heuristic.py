@@ -9,6 +9,7 @@ from itertools import islice
 from problem_classes.probleminstance import ProblemInstance
 from utils.generic_solver import GenericSolver
 
+rnd_gen = np.random.default_rng(0)
 
 class Solver(GenericSolver):
     def __init__(self, problem_instance: ProblemInstance, limit_shortest_path: int = 1):
@@ -27,7 +28,7 @@ class Solver(GenericSolver):
         self.demand_arc_transit: np.ndarray  # x matrix
 
         # Useful quantities
-        self.service_placement = np.random.randint(
+        self.service_placement = rnd_gen.integers(
             self.graph.number_of_nodes(), size=self.problem_instance.number_of_service
         )  # Where is placed each service
         self.sp_indices = np.zeros(
@@ -248,13 +249,13 @@ class Solver(GenericSolver):
 
         max_iter = 100
         for _ in range(max_iter):
-            demand_index = np.random.randint(
+            demand_index = rnd_gen.integers(
                 self.problem_instance.total_number_of_demands
             )
             self.choosen_quantities[demand_index] += 1
             try:
                 self._test_solution()
-            except:
+            except AssertionError:
                 self.choosen_quantities[demand_index] -= 1
                 self._reset_edge_attributes()
                 self._reset_node_attributes()

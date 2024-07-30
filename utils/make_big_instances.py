@@ -11,6 +11,8 @@ from problem_classes.probleminstance import ProblemInstance
 from utils.data_management import pickle_save
 from utils.graph_utils import make_graph_from_gml
 
+rnd_gen = np.random.default_rng(0)
+
 
 def generate_one_service(
     network_graph: NetworkGraph,
@@ -21,7 +23,7 @@ def generate_one_service(
 ) -> Service:
     task_list = []
     for _ in range(demand_number):
-        origin_node = np.random.choice(network_graph.nx_graph.nodes)
+        origin_node = rnd_gen.choice(network_graph.nx_graph.nodes)
         task = Demand(
             origin_node_index=origin_node,
             flow_min=1,
@@ -84,7 +86,7 @@ def add_two_levels_to_base_graph(network_graph: NetworkGraph) -> NetworkGraph:
 
     # Connect each edge server to a given server
     server_edge_server_connection = [
-        (new_nodes_labels[i], np.random.randint(node_number))
+        (new_nodes_labels[i], rnd_gen.integers(node_number))
         for i in range(10 * node_number)
     ]
     server_edge_server_connection += [
@@ -98,7 +100,7 @@ def add_two_levels_to_base_graph(network_graph: NetworkGraph) -> NetworkGraph:
 
     # Connect each user with four random edges servers
     new_connections = [
-        (second_labels[i], np.random.randint(node_number, 11 * node_number))
+        (second_labels[i], rnd_gen.integers(node_number, 11 * node_number))
         for i in range(20 * node_number)
         for _ in range(4)
     ]
@@ -161,7 +163,7 @@ def generate_one_service_for_three_levels_graph(
     )
     task_list = []
     for _ in range(task_number):
-        origin_node = np.random.choice(possible_origins)
+        origin_node = rnd_gen.choice(possible_origins)
         task = Demand(
             origin_node_index=origin_node,
             flow_min=1.0,
