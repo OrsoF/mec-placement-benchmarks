@@ -160,7 +160,9 @@ def import_instance_from_file(instance_name: str) -> ProblemInstance:
     return pickle_load(instance_path)
 
 
-def import_solver_from_file(solver_name: str, instance: ProblemInstance) -> GenericSolver:
+def import_solver_from_file(
+    solver_name: str, instance: ProblemInstance
+) -> GenericSolver:
     solver_name = (
         solver_name + ".py" if not solver_name.endswith(".py") else solver_name
     )

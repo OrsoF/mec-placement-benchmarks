@@ -9,3 +9,6 @@ make_instance_from_gml()
 
 # Create big custom instances (1000 nodes or more)
 make_big_instances()
+
+# Create simple tree instance
+from utils.make_tree_instance import *

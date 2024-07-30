@@ -12,6 +12,7 @@ from utils.graph_utils import make_graph_from_gml
 
 rnd_gen = np.random.default_rng(0)
 
+
 def make_services(
     network_graph: NetworkGraph,
     number_of_demands_per_service: int,

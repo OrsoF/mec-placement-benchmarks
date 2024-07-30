@@ -3,6 +3,7 @@ from problem_classes.servicepackage import ServicePackage
 import numpy as np
 import networkx as nx
 from utils.pickle import pickle_save
+import matplotlib.pyplot as plt
 
 
 class ProblemInstance:
@@ -70,9 +71,7 @@ class ProblemInstance:
         )
 
     def print_current_solution(self):
-        print(self.x_variable)
-        print(self.y_variable)
-        print(self.q_variable)
+
         for service_index in range(self.number_of_service): # Print service placement
             node_placement = np.nonzero(self.y_variable[service_index])[0][0]
             PLACEMENT_SERVICE = 'Service {} is placed on node {}'.format(service_index, node_placement)
@@ -80,22 +79,44 @@ class ProblemInstance:
         print()
 
         for demand_index in range(self.total_number_of_demands): # Paths
-            service_index = demand_index % self.service_package.number_of_demand_per_service
+            service_index = demand_index // self.service_package.number_of_demand_per_service
             demand_origin = self.origins[demand_index]
             demand_destination = np.nonzero(self.y_variable[service_index])[0][0]
 
             edge_used_indices = np.nonzero(self.x_variable[demand_index])[0]
             edge_used = [self.network_graph.arc_list[edge_index] for edge_index in edge_used_indices]
+            print('Origine : {}, Destination : {}'.format(demand_origin, demand_destination))
             if not edge_used:
-                print('Origin {} and destination {}.'.format(demand_origin, demand_destination))
+                print('Chemin utilisé : {}'.format((demand_origin, demand_destination)))
             else:
                 ordered_path = nx.dag_longest_path(nx.DiGraph(edge_used))
                 print('Chemin utilisé : {}'.format(ordered_path))
         print()
 
         # Latencies
+        capacities_used = [0.0 for _ in range(self.network_graph.nx_graph.number_of_edges())]
+        for demand_index in range(self.total_number_of_demands): # Paths
+            service_index = demand_index // self.service_package.number_of_demand_per_service
+            quantity = self.q_variable[demand_index]
+
+            edge_used_indices = np.nonzero(self.x_variable[demand_index])[0]
+            for edge_index in edge_used_indices:
+                capacities_used[edge_index] += quantity
+            
+            latency = sum(self.network_graph.alphas[edge_index] * quantity + self.network_graph.betas[edge_index] for edge_index in edge_used_indices)
+
+            LATENCY_PRINT = "Real latency {} <= Maximum {}".format(latency, self.latencies[demand_index])
+            print(LATENCY_PRINT)
+        print()
 
         # Capacities
+        for edge_index, capa in enumerate(capacities_used):
+            CAPACITY_PRINT = "Capacity used {} <= Maximum {}".format(capa, self.network_graph.capacities[edge_index])
+            print(CAPACITY_PRINT)
+        print()
+
+        nx.draw(self.network_graph.nx_graph, with_labels=True, node_color='lightblue', node_size=2000, font_size=15, font_weight='bold', arrowsize=20)
+        plt.show()
 
     def check_current_solution(self):
         """
@@ -129,30 +150,34 @@ class ProblemInstance:
             if not len(np.nonzero(self.x_variable[demand_index, :])[0]):
                 continue
             else:
-                print(np.nonzero(self.x_variable[demand_index, :])[0])
-            service_index = (
-                demand_index % self.service_package.number_of_demand_per_service
-            )
-            demand_origin = self.origins[demand_index]
-            demand_destination = np.nonzero(self.y_variable[service_index])[0][0]
-            unordered_path = [
-                list(self.network_graph.nx_graph.edges)[edge_index]
-                for edge_index in np.nonzero(self.x_variable[demand_index, :])[0]
-            ]
-            print(unordered_path)
-            print(demand_origin, demand_destination)
-            ordered_path = nx.dag_longest_path(nx.DiGraph(unordered_path))
-            print(ordered_path)
-            assert (ordered_path[0] == demand_origin) and (
-                ordered_path[-1] == demand_destination
-            )
+                service_index = (
+                    demand_index // self.service_package.number_of_demand_per_service
+                )
+                demand_origin = self.origins[demand_index]
+                demand_destination = np.nonzero(self.y_variable[service_index])[0][0]
+                unordered_path = [
+                    list(self.network_graph.nx_graph.edges)[edge_index]
+                    for edge_index in np.nonzero(self.x_variable[demand_index, :])[0]
+                ]
+                ordered_path = nx.dag_longest_path(nx.DiGraph(unordered_path))
+                assert (ordered_path[0] == demand_origin) and (
+                    ordered_path[-1] == demand_destination
+                )
 
-        # Build latencies
 
-        # Check latencies per demand
+        # Latencies
+        capacities_used = [0.0 for _ in range(self.network_graph.nx_graph.number_of_edges())]
+        for demand_index in range(self.total_number_of_demands): # Paths
+            quantity = self.q_variable[demand_index]
+            edge_used_indices = np.nonzero(self.x_variable[demand_index])[0]
+            for edge_index in edge_used_indices:
+                capacities_used[edge_index] += quantity
+            latency = sum(self.network_graph.alphas[edge_index] * quantity + self.network_graph.betas[edge_index] for edge_index in edge_used_indices)
+            assert latency <= self.latencies[demand_index]
 
-        self.check_routing()
-        self.check_latencies()
+        # Capacities
+        for edge_index, capa in enumerate(capacities_used):
+            assert capa <= self.network_graph.capacities[edge_index]
 
 
 class ToyInstance(ProblemInstance):
