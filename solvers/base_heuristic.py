@@ -25,9 +25,11 @@ class Solver(GenericSolver):
         self.x_variable: np.ndarray  # x matrix
 
         # Useful quantities
-        self.service_placement: list  # Service placement
+        self.service_placement:list # Service placement
         self.sp_indices: list  # The shortest path indice for each demand
         self.choosen_quantities: np.ndarray  # We chose one as quantity for each demand
+
+
 
     def _generate_random_server_attribution(self) -> list:
         return rnd_gen.integers(
@@ -35,21 +37,108 @@ class Solver(GenericSolver):
             high=self.problem_instance.network_graph.nx_graph.number_of_nodes(),
             size=self.problem_instance.number_of_service,
         )
+
+    def current_solution_works(self):
+        self._reset_edge_attributes()
+        self._update_edge_attributes()
+        self._reset_node_attributes()
+        self._update_node_attributes()
+        try:
+            self._assert_all_constraints()
+            return True
+        except AssertionError:
+            return False
     
     def run(
         self,
     ):
-        # On attribue les serveurs aléatoirement
+        # On attribue les serveurs aléatoirement. Autre possibilité : on attribue les points milieus des services
         self.service_placement = self._generate_random_server_attribution()
+        self.paths_used = [
+            self._select_shortest_path(
+                self.problem_instance.origins[demand_index],
+                self.service_placement[
+                    self.problem_instance.demand_to_service[demand_index]
+                ],
+                0,
+            )
+            for demand_index in range(self.problem_instance.total_number_of_demands)
+        ]
 
         # Choix des chemins:
         # On prends les plus courts. 
-        # Puis, tant qu'une demande pose problème en terme de capacitésou de latence, 
+        # Puis, tant qu'une demande pose problème en terme de capacités ou de latence, 
         # on prends le chemins suivant
+        self.path_selection = [1 for _ in range(self.problem_instance.total_number_of_demands)]
+        self.choosen_quantities = [1 for _ in range(self.problem_instance.total_number_of_demands)]
+
+        while not self.current_solution_works():
+            problematic_path = self.find_problematic_demand_path()
+            self.path_selection[problematic_path] += 1
+            if rnd_gen.random() < 0.01:
+                self.service_placement = self._generate_random_server_attribution()
+                self.paths_used = [
+                    self._select_shortest_path(
+                        self.problem_instance.origins[demand_index],
+                        self.service_placement[
+                            self.problem_instance.demand_to_service[demand_index]
+                        ],
+                        0,
+                    )
+                    for demand_index in range(self.problem_instance.total_number_of_demands)
+                ]
 
         # Augmentation des capacités:
         # On trouve le plus court chemin dont une augmentation est possible, puis on l'augmente
+        demande_concernee = self.augmentation_possible()
+        while demande_concernee is not None:
+            self.choosen_quantities[demande_concernee] += 1
+
+    def augmentation_possible(self) -> int:
+        pass
         
+    def find_problematic_demand_path(self):
+        for demand_index in range(self.problem_instance.total_number_of_demands):
+            latency = 0
+            for node_index in range(len(self.paths_used[demand_index]) - 1):
+                edge = (
+                    self.paths_used[demand_index][node_index],
+                    self.paths_used[demand_index][node_index + 1],
+                )
+                latency += self.nx_graph.edges[edge]["latency"]
+            if latency > self.problem_instance.latencies[demand_index]:
+                return demand_index
+
+    def _assert_all_constraints(self):
+        # Contraintes :
+        # - Capacité pour chaque arc
+        # - Pour chaque demande, quantité et latence limite
+        # - Ressource pour chaque noeud
+        for edge in self.nx_graph.edges:
+            assert (
+                self.nx_graph.edges[edge]["remaining_capacity"] >= 0
+            ), "Capacité non respectée."
+
+        for demand_index in range(self.problem_instance.total_number_of_demands):
+            assert (
+                self.choosen_quantities[demand_index]
+                <= self.problem_instance.max_flows[demand_index]
+            ), "Max flow exceeded."
+            latency = 0
+            for node_index in range(len(self.paths_used[demand_index]) - 1):
+                edge = (
+                    self.paths_used[demand_index][node_index],
+                    self.paths_used[demand_index][node_index + 1],
+                )
+                latency += self.nx_graph.edges[edge]["latency"]
+            assert (
+                latency <= self.problem_instance.latencies[demand_index]
+            ), "Latency exceeded."
+
+        for node in self.nx_graph.nodes:
+            assert (
+                self.nx_graph.nodes[node]["remaining_resources"] >= 0
+            ), "No enough resources."
 
     def _update_edge_attributes(self):
         # Sur chaque Edge : quantité, latence, remaining quantity
@@ -96,36 +185,6 @@ class Solver(GenericSolver):
                 node
             ]["available_resources"]
 
-    def _assert_all_constraints(self):
-        # Contraintes :
-        # - Capacité pour chaque arc
-        # - Pour chaque demande, quantité et latence limite
-        # - Ressource pour chaque noeud
-        for edge in self.nx_graph.edges:
-            assert (
-                self.nx_graph.edges[edge]["remaining_capacity"] >= 0
-            ), "Capacité non respectée."
-
-        for demand_index in range(self.problem_instance.total_number_of_demands):
-            assert (
-                self.choosen_quantities[demand_index]
-                <= self.problem_instance.max_flows[demand_index]
-            ), "Max flow exceeded."
-            latency = 0
-            for node_index in range(len(self.paths_used[demand_index]) - 1):
-                edge = (
-                    self.paths_used[demand_index][node_index],
-                    self.paths_used[demand_index][node_index + 1],
-                )
-                latency += self.nx_graph.edges[edge]["latency"]
-            assert (
-                latency <= self.problem_instance.latencies[demand_index]
-            ), "Latency exceeded."
-
-        for node in self.nx_graph.nodes:
-            assert (
-                self.nx_graph.nodes[node]["remaining_resources"] >= 0
-            ), "No enough resources."
 
     def _select_shortest_path(self, source: int, destination: int, index: int):
         index = int(index)
@@ -139,40 +198,6 @@ class Solver(GenericSolver):
                 return path
             last_visited_path = path
         return last_visited_path
-
-    def run(
-        self,
-        options: dict = None,
-        solving_time_limit: float = 600,
-        thread_limit: int = 1,
-        solver: str = "gurobi",
-    ):
-        start_time = time.time()
-
-        # Résolution : (x, y, q)
-
-        # Association noeuds/services
-        # self._services_nodes_association()
-        self.service_placement = self._generate_random_server_attribution()
-
-        # Calcul des shortest paths
-        self._routing()
-
-        # Augmentation des quantités
-        self._update_quantities()
-
-        self._test_solution()
-
-        self.runtime = time.time() - start_time
-        objective_value = np.sum(self.choosen_quantities)
-
-        print(objective_value)
-        print()
-        self._render_solution()
-
-        self.runtime = time.time() - start_time
-        self.lower_bound = objective_value
-        self.upper_bound = objective_value
 
     def _render_solution(self):
         for node_index in self.nx_graph.nodes:
@@ -192,7 +217,6 @@ class Solver(GenericSolver):
                     edge_index, edge["remaining_capacity"], edge["capacity"]
                 )
             )
-
         print()
         for demand_index in range(self.problem_instance.total_number_of_demands):
             latency = 0
