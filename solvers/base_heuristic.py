@@ -27,17 +27,22 @@ class Solver(GenericSolver):
         self.choosen_quantities: list  # We chose one as quantity for each demand
 
     def _generate_random_server_attribution(self) -> list:
-        return rnd_gen.integers(
-            low=0,
-            high=self.problem_instance.network_graph.nx_graph.number_of_nodes(),
-            size=self.problem_instance.number_of_service,
-        )
-
+        number_of_nodes = self.problem_instance.network_graph.nx_graph.number_of_nodes()
+        p = [1] * (number_of_nodes - 2) + [100, 100]
+        p = [elem / sum(p) for elem in p]
+        service_placement = [
+            rnd_gen.choice(range(number_of_nodes), p=p)
+            for _ in range(self.problem_instance.number_of_service)
+        ]
+        print(service_placement)
+        return service_placement
+    
     def current_solution_works(self):
         self._reset_edge_attributes()
         self._update_edge_attributes()
         self._reset_node_attributes()
         self._update_node_attributes()
+
         try:
             self._assert_all_constraints()
             return True
@@ -96,6 +101,7 @@ class Solver(GenericSolver):
         while demande_concernee != -1:
             self.choosen_quantities[demande_concernee] += 1
             demande_concernee = self.augmentation_possible()
+            print(self.augmentation_possible())
 
         self.runtime = time.time() - start_time
         self.score = sum(self.choosen_quantities)
@@ -119,7 +125,9 @@ class Solver(GenericSolver):
         )
         for demand_index, path in enumerate(self.paths_used):
             for edge in path_node_to_path_tuple(path):
-                edge_index = self.problem_instance.network_graph.arc_index_dictionary[edge]
+                edge_index = self.problem_instance.network_graph.arc_index_dictionary[
+                    edge
+                ]
                 self.x_variable[demand_index, edge_index] = 1
 
         self.q_variable = np.array(self.choosen_quantities)

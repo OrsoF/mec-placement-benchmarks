@@ -138,6 +138,10 @@ class ProblemInstance:
             print(CAPACITY_PRINT)
         print()
 
+        for demand_index in range(self.total_number_of_demands):
+            print('Quantity {} <= Maximum {}'.format(self.q_variable[demand_index], self.max_flows[demand_index]))
+        print()
+
         if show_graph:
             nx.draw(
                 self.network_graph.nx_graph,

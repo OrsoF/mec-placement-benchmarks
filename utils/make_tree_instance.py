@@ -12,7 +12,7 @@ from utils.graph_utils import make_graph_from_gml
 import matplotlib.pyplot as plt
 
 
-def make_tree_instance(number_of_users: int = 3, neighbors_connection: int = 1):
+def make_tree_instance(number_of_users: int = 7, neighbors_connection: int = 2):
     nx_graph = nx.Graph()
     USER_NODE_NAME = "user_{}"
     WAP_NODE = "WAP"
@@ -59,13 +59,13 @@ def make_tree_instance(number_of_users: int = 3, neighbors_connection: int = 1):
     for user_index in range(number_of_users):
         service = Service(
             task_list=[
-                Demand(origin_node_index=0, flow_min=1, flow_max=20, max_latency=4),
-                Demand(origin_node_index=nx_graph.number_of_nodes()-1, flow_min=1, flow_max=20, max_latency=4),
+                Demand(origin_node_index=0, flow_min=1, flow_max=20, max_latency=20),
+                Demand(origin_node_index=nx_graph.number_of_nodes()-1, flow_min=1, flow_max=20, max_latency=20),
             ],
             network_graph=network_graph,
             resources_needed=5,
         )
-    services.append(service)
+        services.append(service)
 
     PROBLEM_NAME = "tree_{}_{}".format(number_of_users, neighbors_connection)
     INSTANCE_PATH = os.path.join(os.getcwd(), "instances", PROBLEM_NAME + ".pkl")
