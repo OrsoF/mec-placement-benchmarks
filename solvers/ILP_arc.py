@@ -337,7 +337,7 @@ class Solver(GenericSolver):
             self._set_initial_value(initial_value)
 
         opt = pyo.SolverFactory("gurobi")
-        opt.options["threads"] = thread_limit
+        opt.options["threads"] = 1
         opt.options['Heuristics'] = 0
         solver_result = opt.solve(self.model)
 
