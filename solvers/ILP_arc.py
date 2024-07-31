@@ -235,8 +235,6 @@ class Solver(GenericSolver):
             == model.ind_u_origin[u, d] - model.y[model.serv_number[d], u],
         )
 
-
-
         self.model.resources_constraint = pyo.Constraint(
             self.model.node_number,
             rule=lambda model, u: sum(
@@ -324,11 +322,8 @@ class Solver(GenericSolver):
         self._build_objective()
 
         opt = pyo.SolverFactory(solver)
-        if solver == "gurobi":
-            opt.options["TimeLimit"] = solving_time_limit
-            opt.options["threads"] = thread_limit
-        else:
-            assert False, "Not implemented yet."
+        opt.options["TimeLimit"] = solving_time_limit
+        opt.options["threads"] = thread_limit
 
         try:
             solver_result = opt.solve(self.model)

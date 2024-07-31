@@ -92,11 +92,11 @@ class ProblemInstance:
                 self.network_graph.arc_list[edge_index]
                 for edge_index in edge_used_indices
             ]
-            print(
-                "Origine : {}, Destination : {}".format(
-                    demand_origin, demand_destination
-                )
-            )
+            # print(
+            #     "Origine : {}, Destination : {}".format(
+            #         demand_origin, demand_destination
+            #     )
+            # )
             if not edge_used:
                 print("Chemin utilisé : {}".format((demand_origin, demand_destination)))
             else:

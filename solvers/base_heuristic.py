@@ -34,7 +34,6 @@ class Solver(GenericSolver):
             rnd_gen.choice(range(number_of_nodes), p=p)
             for _ in range(self.problem_instance.number_of_service)
         ]
-        print(service_placement)
         return service_placement
     
     def current_solution_works(self):
@@ -101,7 +100,6 @@ class Solver(GenericSolver):
         while demande_concernee != -1:
             self.choosen_quantities[demande_concernee] += 1
             demande_concernee = self.augmentation_possible()
-            print(self.augmentation_possible())
 
         self.runtime = time.time() - start_time
         self.score = sum(self.choosen_quantities)
