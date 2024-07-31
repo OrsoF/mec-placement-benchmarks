@@ -356,6 +356,7 @@ class Solver(GenericSolver):
             self.q_variable = np.array(
                 [self.model.p[dd].value for dd in range(self.total_number_of_demands)]
             )
+            self.score = sum(self.q_variable)
 
         except ValueError:
             self.runtime, self.lower_bound, self.upper_bound = solving_time_limit, 0, 0
