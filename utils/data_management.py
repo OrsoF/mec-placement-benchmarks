@@ -175,17 +175,27 @@ def import_solver_from_file(
 
 
 def solve(
-    instance_name: str, solver_name: str, repeat: int = 1, check_solution: bool = False
+    instance_name: str,
+    solver_name: str,
+    repeat: int = 1,
+    check_solution: bool = False,
+    initial_variable=None,
 ) -> tuple[ProblemInstance, GenericSolver]:
     instance = import_instance_from_file(instance_name)
     solver = import_solver_from_file(solver_name, instance)
 
     if repeat == 1:
-        solver.run()
+        if initial_variable is not None:
+            solver.run(initial_variable)
+        else:
+            solver.run()
     else:
         runtime = 0.0
         for _ in range(repeat):
-            solver.run()
+            if initial_variable is not None:
+                solver.run(initial_variable)
+            else:
+                solver.run()
             runtime += solver.runtime
         solver.runtime = runtime / repeat
 

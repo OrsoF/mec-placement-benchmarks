@@ -306,12 +306,24 @@ class Solver(GenericSolver):
             sense=pyo.maximize, rule=lambda model: sum(model.p.values())
         )
 
+    def _set_initial_value(self, initial_value: tuple):
+        x_variable, y_variable, q_variable = initial_value
+        for demand_index in range(self.total_number_of_demands):
+            self.model.p[demand_index].value = q_variable[demand_index]
+            for arc_index in range(self.arc_number):
+                self.model.demand_arc_transit[demand_index, arc_index].value = (
+                    x_variable[demand_index, arc_index]
+                )
+        for service_index in range(self.number_of_services):
+            for node_index in range(self.node_number):
+                self.model.y[service_index, node_index].value = y_variable[
+                    service_index, node_index
+                ]
+
     def run(
         self,
-        options: dict = None,
-        solving_time_limit: float = 600,
         thread_limit: int = 1,
-        solver: str = "gurobi",
+        initial_value=None,
     ):
         self._model_parameters()
         self._build_model()
@@ -321,42 +333,36 @@ class Solver(GenericSolver):
         self._build_constraints()
         self._build_objective()
 
-        opt = pyo.SolverFactory(solver)
-        opt.options["TimeLimit"] = solving_time_limit
-        opt.options["threads"] = thread_limit
+        if initial_value is not None:
+            self._set_initial_value(initial_value)
 
-        try:
-            solver_result = opt.solve(self.model)
-            (
-                self.runtime,
-                self.lower_bound,
-                self.upper_bound,
-                self.solving_status,
-            ) = get_result_informations(solver_result)
-            self.x_variable = np.array(
-                [
-                    [
-                        self.model.demand_arc_transit[i, j].value
-                        for j in range(self.arc_number)
-                    ]
-                    for i in range(self.total_number_of_demands)
-                ]
-            )
-            self.y_variable = np.array(
-                [
-                    [self.model.y[i, j].value for j in range(self.node_number)]
-                    for i in range(self.number_of_services)
-                ]
-            )
-            self.q_variable = np.array(
-                [self.model.p[dd].value for dd in range(self.total_number_of_demands)]
-            )
-            self.score = sum(self.q_variable)
+        opt = pyo.SolverFactory("gurobi")
+        # opt.options["threads"] = thread_limit
+        solver_result = opt.solve(self.model)
 
-        except ValueError:
-            self.runtime, self.lower_bound, self.upper_bound = solving_time_limit, 0, 0
-            self.x_variable, self.y_variable, self.q_variable = (
-                0,
-                0,
-                0,
-            )
+        (
+            self.runtime,
+            self.lower_bound,
+            self.upper_bound,
+            self.solving_status,
+        ) = get_result_informations(solver_result)
+
+        self.x_variable = np.array(
+            [
+                [
+                    self.model.demand_arc_transit[i, j].value
+                    for j in range(self.arc_number)
+                ]
+                for i in range(self.total_number_of_demands)
+            ]
+        )
+        self.y_variable = np.array(
+            [
+                [self.model.y[i, j].value for j in range(self.node_number)]
+                for i in range(self.number_of_services)
+            ]
+        )
+        self.q_variable = np.array(
+            [self.model.p[dd].value for dd in range(self.total_number_of_demands)]
+        )
+        self.score = sum(self.q_variable)
