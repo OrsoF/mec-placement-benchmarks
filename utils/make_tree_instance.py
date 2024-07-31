@@ -11,44 +11,68 @@ from utils.pickle import pickle_save
 from utils.graph_utils import make_graph_from_gml
 import matplotlib.pyplot as plt
 
-def make_tree_instance():
+
+def make_tree_instance(number_of_users: int = 3, neighbors_connection: int = 1):
+    nx_graph = nx.Graph()
+    USER_NODE_NAME = "user_{}"
+    WAP_NODE = "WAP"
+    CLOUD_NODE = "CLOUD"
+
+    nx_graph.add_nodes_from(
+        [USER_NODE_NAME.format(user_index) for user_index in range(number_of_users)]
+    )
+    for user_index in range(number_of_users):
+        for neighbor in range(-neighbors_connection, neighbors_connection + 1):
+            edge = (
+                USER_NODE_NAME.format(user_index),
+                USER_NODE_NAME.format(
+                    max(0, min(number_of_users - 1, user_index + neighbor))
+                ),
+            )
+            if edge[0] != edge[1]:
+                nx_graph.add_edge(*edge)
+
+    nx_graph.add_nodes_from([WAP_NODE, CLOUD_NODE])
+    
+    for user_index in range(number_of_users):
+        nx_graph.add_edge(WAP_NODE, USER_NODE_NAME.format(user_index))
+
+    nx_graph.add_edge(WAP_NODE, CLOUD_NODE)
+
+    resources = [10] * number_of_users + [100, 1000]
+    capacities = [20] * 2 * (nx_graph.number_of_edges() - number_of_users - 1) + [100] * 2 * number_of_users + [1000] * 2
+
+    # nx.draw(nx_graph, with_labels=True)
+    # plt.show()
 
     # Build graph
-
-    nx_graph = nx.Graph([(0, 1), (1, 2), (1, 3)])
     network_graph = NetworkGraph(
         base_graph=nx_graph,
-        node_resources=[1000, 100, 10, 10],
-        edge_capacity=[1000, 1000, 100, 100, 20, 20],
-        latency_alpha_factor=[1] * 6,
-        latency_beta_factor=[1] * 6,
+        node_resources=resources,
+        edge_capacity=capacities,
+        latency_alpha_factor=[1] * nx_graph.number_of_edges() *2,
+        latency_beta_factor=[1] * nx_graph.number_of_edges() *2,
     )
 
-    # Create services
-    # service_1
+    # Create services, one per user
+    services = []
+    for user_index in range(number_of_users):
+        service = Service(
+            task_list=[
+                Demand(origin_node_index=0, flow_min=1, flow_max=20, max_latency=4),
+                Demand(origin_node_index=nx_graph.number_of_nodes()-1, flow_min=1, flow_max=20, max_latency=4),
+            ],
+            network_graph=network_graph,
+            resources_needed=5,
+        )
+    services.append(service)
 
-    service_1 = Service(
-        task_list=[
-            Demand(origin_node_index=0, flow_min=1, flow_max=20, max_latency=4),
-            Demand(origin_node_index=2, flow_min=1, flow_max=20, max_latency=4),
-        ],
-        network_graph=network_graph,
-        resources_needed=5,
-    )
-
-    service_2 = Service(
-        task_list=[Demand(0, 1, 20, 4), Demand(3, 1, 20, 4)],
-        network_graph=network_graph,
-        resources_needed=5,
-    )
-
-    PROBLEM_NAME = "tree_0"
+    PROBLEM_NAME = "tree_{}_{}".format(number_of_users, neighbors_connection)
     INSTANCE_PATH = os.path.join(os.getcwd(), "instances", PROBLEM_NAME + ".pkl")
 
-    service_package = ServicePackage([service_1, service_2], PROBLEM_NAME)
-
+    service_package = ServicePackage(services, PROBLEM_NAME)
+    
     # Create instances
-
     problem_instance = ProblemInstance(network_graph, service_package, PROBLEM_NAME)
 
     pickle_save(problem_instance, INSTANCE_PATH)

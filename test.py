@@ -1,6 +1,3 @@
-from utils.data_management import solve
+from utils.make_tree_instance import make_tree_instance
 
-instance, solver = solve('tree_0', 'ilp_arc')
-print(solver.runtime)
-print(solver.score)
-instance.print_current_solution(show_graph=False)
+make_tree_instance()

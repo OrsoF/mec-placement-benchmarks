@@ -102,3 +102,6 @@ class NetworkGraph:
             for key in keys:
                 del self.nx_graph.edges[edge][key]
         return self.nx_graph
+    
+    def draw_graph(self):
+        nx.draw(self.nx_graph, with_labels = True)
