@@ -16,13 +16,13 @@ print(solver.score)
 variable = (solver.x_variable, solver.y_variable, solver.q_variable)
 
 
-instance, solver = solve(instance_name, "ilp_arc", initial_variable=variable)
+instance, solver = solve(instance_name, "ILP_arc", initial_variable=variable)
 print("Runtime with warm start : {}".format(solver.runtime))
 print(solver.score)
 # instance.print_current_solution(show_graph=False)
 
 
-instance, solver = solve(instance_name, "ilp_arc")
+instance, solver = solve(instance_name, "ILP_arc")
 print("Runtime with cold start : {}".format(solver.runtime))
 print(solver.score)
 # instance.print_current_solution(show_graph=False)
