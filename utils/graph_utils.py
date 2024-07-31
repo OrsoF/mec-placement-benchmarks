@@ -19,3 +19,11 @@ def make_graph_from_gml(graph_path: str) -> NetworkGraph:
     )
 
     return network_graph
+
+
+def path_node_to_path_tuple(path: list) -> list:
+    return [(path[i], path[i + 1]) for i in range(len(path) - 1)]
+
+
+def path_tuple_to_path_node(path: list) -> list:
+    return [elem[0] for elem in path] + [path[-1][1]]

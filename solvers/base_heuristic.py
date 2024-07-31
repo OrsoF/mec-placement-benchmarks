@@ -8,6 +8,7 @@ from problem_classes.service import Service
 from itertools import islice
 from problem_classes.probleminstance import ProblemInstance
 from utils.generic_solver import GenericSolver
+from utils.graph_utils import path_node_to_path_tuple, path_tuple_to_path_node
 
 rnd_gen = np.random.default_rng(0)
 
@@ -20,16 +21,10 @@ class Solver(GenericSolver):
         self.nx_graph: nx.DiGraph = self.problem_instance.network_graph.nx_graph
         self.solver_name = "base_heuristic"
 
-        self.y_variable: np.ndarray  # y matrix
-        self.q_variable: np.ndarray  # q matrix
-        self.x_variable: np.ndarray  # x matrix
-
         # Useful quantities
-        self.service_placement:list # Service placement
+        self.service_placement: list  # Service placement
         self.sp_indices: list  # The shortest path indice for each demand
-        self.choosen_quantities: np.ndarray  # We chose one as quantity for each demand
-
-
+        self.choosen_quantities: list  # We chose one as quantity for each demand
 
     def _generate_random_server_attribution(self) -> list:
         return rnd_gen.integers(
@@ -48,10 +43,11 @@ class Solver(GenericSolver):
             return True
         except AssertionError:
             return False
-    
+
     def run(
         self,
     ):
+        start_time = time.time()
         # On attribue les serveurs aléatoirement. Autre possibilité : on attribue les points milieus des services
         self.service_placement = self._generate_random_server_attribution()
         self.paths_used = [
@@ -66,11 +62,15 @@ class Solver(GenericSolver):
         ]
 
         # Choix des chemins:
-        # On prends les plus courts. 
-        # Puis, tant qu'une demande pose problème en terme de capacités ou de latence, 
+        # On prends les plus courts.
+        # Puis, tant qu'une demande pose problème en terme de capacités ou de latence,
         # on prends le chemins suivant
-        self.path_selection = [1 for _ in range(self.problem_instance.total_number_of_demands)]
-        self.choosen_quantities = [1 for _ in range(self.problem_instance.total_number_of_demands)]
+        self.path_selection = [
+            1 for _ in range(self.problem_instance.total_number_of_demands)
+        ]
+        self.choosen_quantities = [
+            1 for _ in range(self.problem_instance.total_number_of_demands)
+        ]
 
         while not self.current_solution_works():
             problematic_path = self.find_problematic_demand_path()
@@ -85,18 +85,88 @@ class Solver(GenericSolver):
                         ],
                         0,
                     )
-                    for demand_index in range(self.problem_instance.total_number_of_demands)
+                    for demand_index in range(
+                        self.problem_instance.total_number_of_demands
+                    )
                 ]
 
         # Augmentation des capacités:
         # On trouve le plus court chemin dont une augmentation est possible, puis on l'augmente
         demande_concernee = self.augmentation_possible()
-        while demande_concernee is not None:
+        while demande_concernee != -1:
             self.choosen_quantities[demande_concernee] += 1
+            demande_concernee = self.augmentation_possible()
+
+        self.runtime = time.time() - start_time
+        self.score = sum(self.choosen_quantities)
+
+        self.update_variables()
+
+    def update_variables(self):
+        self.y_variable = np.zeros(
+            (self.problem_instance.number_of_service, self.nx_graph.number_of_nodes()),
+            dtype=int,
+        )
+        for i, col_index in enumerate(self.service_placement):
+            self.y_variable[i, col_index] = 1
+
+        self.x_variable = np.zeros(
+            (
+                self.problem_instance.total_number_of_demands,
+                self.nx_graph.number_of_edges(),
+            ),
+            dtype=int,
+        )
+        for demand_index, path in enumerate(self.paths_used):
+            for edge in path_node_to_path_tuple(path):
+                edge_index = self.problem_instance.network_graph.arc_index_dictionary[edge]
+                self.x_variable[demand_index, edge_index] = 1
+
+        self.q_variable = np.array(self.choosen_quantities)
 
     def augmentation_possible(self) -> int:
-        pass
-        
+        """
+        Trouver la demande augmentable associée au plus court chemin.
+        On itère sur les demandes dans l'ordre des plus courts chemins
+        """
+        self._test_solution()
+        longueur_chemins = [len(path) for path in self.paths_used]
+        demand_indices = sorted(
+            range(self.problem_instance.total_number_of_demands),
+            key=lambda index: longueur_chemins[index],
+        )
+        for demand_index in demand_indices:
+            if (
+                self.choosen_quantities[demand_index]
+                >= self.problem_instance.max_flows[demand_index]
+            ):
+                continue
+            path_used = self.paths_used[demand_index]
+            if len(path_used) <= 1:
+                return demand_index
+            else:
+                path_used = path_node_to_path_tuple(path_used)
+                capacite_a_la_limite = np.all(
+                    [
+                        self.nx_graph.edges[edge]["remaining_capacity"] > 0
+                        for edge in path_used
+                    ]
+                )
+                latence_sur_le_chemin = sum(
+                    [self.nx_graph.edges[edge]["latency"] for edge in path_used]
+                )
+                latence_beta = sum(
+                    [self.nx_graph.edges[edge]["beta"] for edge in path_used]
+                )
+                latence_a_la_limite = (
+                    latence_sur_le_chemin
+                    <= self.problem_instance.latencies[demand_index] - latence_beta
+                )
+
+                if not capacite_a_la_limite and not latence_a_la_limite:
+                    return demand_index
+        return -1
+
     def find_problematic_demand_path(self):
         for demand_index in range(self.problem_instance.total_number_of_demands):
             latency = 0
@@ -185,7 +255,6 @@ class Solver(GenericSolver):
                 node
             ]["available_resources"]
 
-
     def _select_shortest_path(self, source: int, destination: int, index: int):
         index = int(index)
         shortest_paths = nx.algorithms.simple_paths.shortest_simple_paths(
@@ -248,7 +317,7 @@ class Solver(GenericSolver):
                 )
             )
         print()
-        print("Solution reached : {}".format(self.choosen_quantities.sum()))
+        print("Solution reached : {}".format(sum(self.choosen_quantities)))
 
     def _services_nodes_association(self):
         needed_resources = sorted(
