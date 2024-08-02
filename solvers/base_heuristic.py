@@ -35,7 +35,7 @@ class Solver(GenericSolver):
             for _ in range(self.problem_instance.number_of_service)
         ]
         return service_placement
-    
+
     def current_solution_works(self):
         self._reset_edge_attributes()
         self._update_edge_attributes()
@@ -174,19 +174,26 @@ class Solver(GenericSolver):
         return -1
 
     def find_problematic_demand_path(self):
-        assert False, "Fonction a checker"
+        """
+
+        Pour trouver une demand problématique, on itère sur d. On check ensuite si les capacités sont ok et si la latence est ok. On assert False à la fin car on est sûr qu'il existe une demande problématique.
+        """
         for demand_index in range(self.problem_instance.total_number_of_demands):
-            latency = 0
-            for node_index in range(len(self.paths_used[demand_index]) - 1):
-                edge = (
-                    self.paths_used[demand_index][node_index],
-                    self.paths_used[demand_index][node_index + 1],
-                )
-                latency += self.nx_graph.edges[edge]["latency"]
+            demand_path = self.paths_used[demand_index]
+            latency = sum(
+                [
+                    self.nx_graph.edges[edge]["latency"]
+                    for edge in path_node_to_path_tuple(demand_path)
+                ]
+            )
             if latency > self.problem_instance.latencies[demand_index]:
                 return demand_index
-            
-            
+            for edge in path_node_to_path_tuple(demand_path):
+                if self.nx_graph.edges[edge]["remaining_capacity"] < 0:
+                    return demand_index
+        assert False, "There should be at least one unfeasible demand."
+
+        assert False, "Fonction a checker"
 
     def _assert_all_constraints(self):
         # Contraintes :

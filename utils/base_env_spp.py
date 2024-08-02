@@ -5,6 +5,7 @@ from problem_classes.probleminstance import ProblemInstance
 import networkx as nx
 from typing import List
 import itertools
+from solvers.base_heuristic import Solver as HeuristicSolver
 
 
 class EnvSP(gym.Env):
@@ -37,38 +38,47 @@ class EnvSP(gym.Env):
             self.nx_graph.number_of_nodes()
             * np.ones((self.problem_instance.number_of_service))
         )
-        q_space = Box(np.array(self.problem_instance.max_flows))
-        self.action_space = Tuple(x_space, y_space, q_space)
+        q_space = MultiDiscrete(np.array(self.problem_instance.max_flows))
+
+        self.action_space = Tuple((x_space, y_space, q_space))
 
     def define_state_space(self):
-        pass
-
-        # Action : Choix_Service x Placement x Choix_Demande x Changement_Quantité x Changement PCC
-        self.action_space = MultiDiscrete(
-            [
-                max(
-                    3,
-                    self.problem_instance.number_of_service,
-                    self.graph.number_of_nodes(),
+        # We add : x, y, q, latency_proportion, capacity_proportion
+        feasible = Discrete(2)
+        x_space = MultiDiscrete(
+            2
+            * np.ones(
+                (
                     self.problem_instance.total_number_of_demands,
+                    self.nx_graph.number_of_edges(),
                 )
-                for _ in range(5)
-            ]
+            )
         )
+        y_space = MultiDiscrete(
+            self.nx_graph.number_of_nodes()
+            * np.ones((self.problem_instance.number_of_service))
+        )
+        q_space = MultiDiscrete(np.array(self.problem_instance.max_flows))
+        latency_proportion = Box(
+            high=np.ones((self.problem_instance.total_number_of_demands))
+        )
+        capacity_proportion = Box(high=np.ones((self.nx_graph.number_of_edges())))
 
-        # State : Ou sont placés les services x Quel est le numéro du PCC pour chaque demande x Quantité de chaque demande
-        self.observation_space = Box(
-            low=0.0,
-            high=np.inf,
-            shape=(
-                self.problem_instance.number_of_service
-                + 2 * self.problem_instance.total_number_of_demands,
-            ),
+        self.observation_space = Tuple(
+            (
+                feasible,
+                x_space,
+                y_space,
+                q_space,
+                latency_proportion,
+                capacity_proportion,
+            )
         )
 
         # Useful quantities
         self.service_placement = np.random.randint(
-            self.graph.number_of_nodes(), size=self.problem_instance.number_of_service
+            self.nx_graph.number_of_nodes(),
+            size=self.problem_instance.number_of_service,
         )  # Where is placed each service
         needed_resources = sorted(
             [
@@ -109,7 +119,21 @@ class EnvSP(gym.Env):
 
         self._test_solution()
 
-    def reset(self, seed=0):
+    def reset(self, seed: float = 0, heur_init: bool = False):
+        """
+        Si pas heuristic_init: placement aléatoire, plus CC, et quantités 1
+        Sinon, initialisation heuristique
+        """
+        if heur_init:
+            heuristic_solver = HeuristicSolver(self.problem_instance, 5)
+            heuristic_solver.run()
+            x, y, q = (
+                heuristic_solver.x_variable,
+                heuristic_solver.y_variable,
+                heuristic_solver.q_variable,
+            )
+        else:
+            return
         # Placement aléatoire, PCC0 et quantités 1
         self.state = np.concatenate(
             (self.service_placement, self.sp_indices, self.choosen_quantities)

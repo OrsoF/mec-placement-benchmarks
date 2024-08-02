@@ -98,7 +98,7 @@ class ProblemInstance:
             #     )
             # )
             if not edge_used:
-                print("Chemin utilisé : {}".format((demand_origin, demand_destination)))
+                print("Chemin utilisé : {}".format([demand_origin, demand_destination]))
             else:
                 ordered_path = nx.dag_longest_path(nx.DiGraph(edge_used))
                 print("Chemin utilisé : {}".format(ordered_path))
@@ -139,7 +139,11 @@ class ProblemInstance:
         print()
 
         for demand_index in range(self.total_number_of_demands):
-            print('Quantity {} <= Maximum {}'.format(self.q_variable[demand_index], self.max_flows[demand_index]))
+            print(
+                "Quantity {} <= Maximum {}".format(
+                    self.q_variable[demand_index], self.max_flows[demand_index]
+                )
+            )
         print()
 
         if show_graph:
