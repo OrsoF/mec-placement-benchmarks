@@ -309,14 +309,14 @@ class Solver(GenericSolver):
     def _set_initial_value(self, initial_value: tuple):
         x_variable, y_variable, q_variable = initial_value
         for demand_index in range(self.total_number_of_demands):
-            self.model.p[demand_index].value = q_variable[demand_index]
+            self.model.p[demand_index].Start = q_variable[demand_index]
             for arc_index in range(self.arc_number):
-                self.model.demand_arc_transit[demand_index, arc_index].value = (
+                self.model.demand_arc_transit[demand_index, arc_index].Start = (
                     x_variable[demand_index, arc_index]
                 )
         for service_index in range(self.number_of_services):
             for node_index in range(self.node_number):
-                self.model.y[service_index, node_index].value = y_variable[
+                self.model.y[service_index, node_index].Start = y_variable[
                     service_index, node_index
                 ]
 

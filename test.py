@@ -22,7 +22,10 @@ print(solver.score)
 # instance.print_current_solution(show_graph=False)
 
 
-instance, solver = solve(instance_name, "ILP_arc")
+instance, solver = solve(instance_name, "milp_arc_exact")
 print("Runtime with cold start : {}".format(solver.runtime))
 print(solver.score)
 # instance.print_current_solution(show_graph=False)
+instance.set_arc_solution(solver.x_variable, solver.y_variable, solver.q_variable)
+instance.check_current_solution()
+# instance.print_current_solution()

@@ -174,6 +174,7 @@ class Solver(GenericSolver):
         return -1
 
     def find_problematic_demand_path(self):
+        assert False, "Fonction a checker"
         for demand_index in range(self.problem_instance.total_number_of_demands):
             latency = 0
             for node_index in range(len(self.paths_used[demand_index]) - 1):
@@ -184,6 +185,8 @@ class Solver(GenericSolver):
                 latency += self.nx_graph.edges[edge]["latency"]
             if latency > self.problem_instance.latencies[demand_index]:
                 return demand_index
+            
+            
 
     def _assert_all_constraints(self):
         # Contraintes :

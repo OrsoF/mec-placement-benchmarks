@@ -39,7 +39,7 @@ def make_tree_instance(number_of_users: int = 7, neighbors_connection: int = 2):
 
     nx_graph.add_edge(WAP_NODE, CLOUD_NODE)
 
-    resources = [10] * number_of_users + [100, 1000]
+    resources = [10] * number_of_users + [10, 1000]
     capacities = [20] * 2 * (nx_graph.number_of_edges() - number_of_users - 1) + [100] * 2 * number_of_users + [1000] * 2
 
     # nx.draw(nx_graph, with_labels=True)
