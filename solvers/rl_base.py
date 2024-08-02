@@ -1,4 +1,4 @@
-class Sfrom utils.generic_solver import GenericSolver
+from utils.generic_solver import GenericSolver
 from problem_classes.servicepackage import ServicePackage
 from problem_classes.networkgraph import NetworkGraph
 from problem_classes.service import Service
