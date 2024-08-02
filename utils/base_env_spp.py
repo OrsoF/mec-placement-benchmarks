@@ -12,17 +12,36 @@ class EnvSP(gym.Env):
         self,
         problem_instance: ProblemInstance,
         max_steps: int = 1000,
-        verbose: bool = False,
     ):
         # Problem data
         self.problem_instance = problem_instance
         self.limit_step = max_steps
-        self.verbose = verbose
 
         self.network_graph = self.problem_instance.network_graph
-        self.graph = self.network_graph.nx_graph
+        self.nx_graph = self.network_graph.nx_graph
 
-        # self.max_q_reached = 0
+        self.define_action_space()
+        self.define_state_space()
+
+    def define_action_space(self):
+        x_space = MultiDiscrete(
+            2
+            * np.ones(
+                (
+                    self.problem_instance.total_number_of_demands,
+                    self.nx_graph.number_of_edges(),
+                )
+            )
+        )
+        y_space = MultiDiscrete(
+            self.nx_graph.number_of_nodes()
+            * np.ones((self.problem_instance.number_of_service))
+        )
+        q_space = Box(np.array(self.problem_instance.max_flows))
+        self.action_space = Tuple(x_space, y_space, q_space)
+
+    def define_state_space(self):
+        pass
 
         # Action : Choix_Service x Placement x Choix_Demande x Changement_Quantité x Changement PCC
         self.action_space = MultiDiscrete(
