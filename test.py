@@ -1,6 +1,6 @@
 from utils.make_tree_instance import make_tree_instance
 
-users = 5
+users = 6
 neighbors = 3
 instance_name = "tree_{}_{}".format(users, neighbors)
 solver_name = "base_heuristic"
