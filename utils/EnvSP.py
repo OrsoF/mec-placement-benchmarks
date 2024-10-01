@@ -11,8 +11,8 @@ class EnvSP(gym.Env):
     def __init__(
         self,
         problem_instance: ProblemInstance,
-        sp_number: int = 3,
-        limit_step: int = 1000,
+        sp_number: int = 10,  # Max number of explored shortest paths
+        limit_step: int = 1000,  # Limit of the number of evolving steps
         verbose: bool = False,
     ):
         # Problem data
@@ -24,35 +24,20 @@ class EnvSP(gym.Env):
         self.network_graph = self.problem_instance.network_graph
         self.graph = self.network_graph.nx_graph
 
+        self._make_action_observation_spaces()
+
         # self.max_q_reached = 0
 
-        # Action : Choix_Service x Placement x Choix_Demande x Changement_Quantité x Changement PCC
-        self.action_space = MultiDiscrete(
-            [
-                max(
-                    3,
-                    self.problem_instance.number_of_service,
-                    self.graph.number_of_nodes(),
-                    self.problem_instance.total_number_of_demands,
-                )
-                for _ in range(5)
-            ]
-        )
-
-        # State : Ou sont placés les services x Quel est le numéro du PCC pour chaque demande x Quantité de chaque demande
-        self.observation_space = Box(
-            low=0.0,
-            high=np.inf,
-            shape=(
-                self.problem_instance.number_of_service
-                + 2 * self.problem_instance.total_number_of_demands,
-            ),
-        )
-
         # Useful quantities
-        self.service_placement = np.random.randint(
-            self.graph.number_of_nodes(), size=self.problem_instance.number_of_service
-        )  # Where is placed each service
+        node_with_max_resources = np.argmax(
+            [self.graph.nodes[node]["available_resources"] for node in self.graph.nodes]
+        )
+        self.service_placement = [
+            node_with_max_resources
+            # np.random.randint(self.graph.number_of_nodes())
+            for _ in range(self.problem_instance.number_of_service)
+        ]  # Where is placed each service
+
         needed_resources = sorted(
             [
                 (service_index, res)
@@ -85,12 +70,42 @@ class EnvSP(gym.Env):
                 self.service_placement[
                     self.problem_instance.demand_to_service[demand_index]
                 ],
-                0,
+                # 0,
+                np.random.randint(self.sp_number),
             )
             for demand_index in range(self.problem_instance.total_number_of_demands)
         ]
 
         self._test_solution()
+
+    def _make_action_observation_spaces(self):
+        # Action : Choix_Service x Placement x Choix_Demande x Changement_Quantité x Changement PCC
+        self.action_space = MultiDiscrete(
+            [
+                self.problem_instance.number_of_service,
+                self.graph.number_of_nodes(),
+                self.problem_instance.total_number_of_demands,
+                3,
+                self.sp_number,
+            ]
+        )
+
+        # State : Ou sont placés les services (taille S, max n)
+        #       x Quel est le numéro du PCC pour chaque demande (taille d, max sp_number)
+        #       x Quantité de chaque demande (taille d, max q_dmax)
+        low_array = np.array(
+            [0]
+            * (
+                self.problem_instance.number_of_service
+                + 2 * self.problem_instance.total_number_of_demands
+            )
+        )
+        high_array = np.array(
+            [self.graph.number_of_nodes()] * self.problem_instance.number_of_service
+            + [self.sp_number] * self.problem_instance.total_number_of_demands
+            + self.problem_instance.max_flows
+        )
+        self.observation_space = Box(low=low_array, high=high_array)
 
     def reset(self, seed=0):
         # Placement aléatoire, PCC0 et quantités 1
@@ -404,21 +419,3 @@ class EnvSP(gym.Env):
             or action_q >= 3
             or action_sp >= 3
         )
-
-
-# from utils.data_management import (
-#     get_instance_list,
-# )
-
-# instance_list = get_instance_list()
-# instance = instance_list[1]
-
-# env = EnvSP(instance)
-# env.reset()
-
-
-# for _ in range(10):
-#     action = (0, 0, 0, 2, 1)
-#     action = env.action_space.sample()
-#     obs, reward, done, terminated, info = env.step(action)
-#     # print(reward)

@@ -33,14 +33,18 @@ def make_tree_instance(number_of_users: int = 7, neighbors_connection: int = 2):
                 nx_graph.add_edge(*edge)
 
     nx_graph.add_nodes_from([WAP_NODE, CLOUD_NODE])
-    
+
     for user_index in range(number_of_users):
         nx_graph.add_edge(WAP_NODE, USER_NODE_NAME.format(user_index))
 
     nx_graph.add_edge(WAP_NODE, CLOUD_NODE)
 
     resources = [10] * number_of_users + [10, 1000]
-    capacities = [20] * 2 * (nx_graph.number_of_edges() - number_of_users - 1) + [100] * 2 * number_of_users + [1000] * 2
+    capacities = (
+        [20] * 2 * (nx_graph.number_of_edges() - number_of_users - 1)
+        + [100] * 2 * number_of_users
+        + [1000] * 2
+    )
 
     # nx.draw(nx_graph, with_labels=True)
     # plt.show()
@@ -50,8 +54,8 @@ def make_tree_instance(number_of_users: int = 7, neighbors_connection: int = 2):
         base_graph=nx_graph,
         node_resources=resources,
         edge_capacity=capacities,
-        latency_alpha_factor=[1] * nx_graph.number_of_edges() *2,
-        latency_beta_factor=[1] * nx_graph.number_of_edges() *2,
+        latency_alpha_factor=[1] * nx_graph.number_of_edges() * 2,
+        latency_beta_factor=[1] * nx_graph.number_of_edges() * 2,
     )
 
     # Create services, one per user
@@ -60,7 +64,12 @@ def make_tree_instance(number_of_users: int = 7, neighbors_connection: int = 2):
         service = Service(
             task_list=[
                 Demand(origin_node_index=0, flow_min=1, flow_max=20, max_latency=20),
-                Demand(origin_node_index=nx_graph.number_of_nodes()-1, flow_min=1, flow_max=20, max_latency=20),
+                Demand(
+                    origin_node_index=nx_graph.number_of_nodes() - 1,
+                    flow_min=1,
+                    flow_max=20,
+                    max_latency=20,
+                ),
             ],
             network_graph=network_graph,
             resources_needed=5,
@@ -71,7 +80,7 @@ def make_tree_instance(number_of_users: int = 7, neighbors_connection: int = 2):
     INSTANCE_PATH = os.path.join(os.getcwd(), "instances", PROBLEM_NAME + ".pkl")
 
     service_package = ServicePackage(services, PROBLEM_NAME)
-    
+
     # Create instances
     problem_instance = ProblemInstance(network_graph, service_package, PROBLEM_NAME)
 
