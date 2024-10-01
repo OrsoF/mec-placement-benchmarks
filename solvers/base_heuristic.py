@@ -37,6 +37,9 @@ class Solver(GenericSolver):
         return service_placement
 
     def current_solution_works(self):
+        """
+        Checks if the current solution works.
+        """
         self._reset_edge_attributes()
         self._update_edge_attributes()
         self._reset_node_attributes()
@@ -78,21 +81,12 @@ class Solver(GenericSolver):
 
         while not self.current_solution_works():
             problematic_path = self.find_problematic_demand_path()
-            self.path_selection[problematic_path] += 1
+            if problematic_path == -1:
+                self._generate_random_server_attribution()
+            self.path_selection[problematic_path] += 1  # Change the path
             if rnd_gen.random() < 0.01:
                 self.service_placement = self._generate_random_server_attribution()
-                self.paths_used = [
-                    self._select_shortest_path(
-                        self.problem_instance.origins[demand_index],
-                        self.service_placement[
-                            self.problem_instance.demand_to_service[demand_index]
-                        ],
-                        0,
-                    )
-                    for demand_index in range(
-                        self.problem_instance.total_number_of_demands
-                    )
-                ]
+                self.paths_used = self.compute_first_shortest_path()
 
         # Augmentation des capacités:
         # On trouve le plus court chemin dont une augmentation est possible, puis on l'augmente
@@ -105,6 +99,18 @@ class Solver(GenericSolver):
         self.score = sum(self.choosen_quantities)
 
         self.update_variables()
+
+    def compute_first_shortest_path(self) -> list:
+        return [
+            self._select_shortest_path(
+                self.problem_instance.origins[demand_index],
+                self.service_placement[
+                    self.problem_instance.demand_to_service[demand_index]
+                ],
+                0,
+            )
+            for demand_index in range(self.problem_instance.total_number_of_demands)
+        ]
 
     def update_variables(self):
         self.y_variable = np.zeros(
@@ -175,8 +181,13 @@ class Solver(GenericSolver):
 
     def find_problematic_demand_path(self):
         """
+        On cherche le numéro de la demande qui pose problème.
 
-        Pour trouver une demand problématique, on itère sur d. On check ensuite si les capacités sont ok et si la latence est ok. On assert False à la fin car on est sûr qu'il existe une demande problématique.
+        Pour trouver une demand problématique, on itère sur d.
+        On check ensuite si les capacités sont ok
+        et si la latence est ok.
+        On assert False à la fin car on est sûr
+        qu'il existe une demande problématique.
         """
         for demand_index in range(self.problem_instance.total_number_of_demands):
             demand_path = self.paths_used[demand_index]
@@ -191,9 +202,8 @@ class Solver(GenericSolver):
             for edge in path_node_to_path_tuple(demand_path):
                 if self.nx_graph.edges[edge]["remaining_capacity"] < 0:
                     return demand_index
-        assert False, "There should be at least one unfeasible demand."
 
-        assert False, "Fonction a checker"
+        return -1  # Not a wrong demand path, but a service node wrong association
 
     def _assert_all_constraints(self):
         # Contraintes :
@@ -201,39 +211,36 @@ class Solver(GenericSolver):
         # - Pour chaque demande, quantité et latence limite
         # - Ressource pour chaque noeud
         for edge in self.nx_graph.edges:
-            assert (
-                self.nx_graph.edges[edge]["remaining_capacity"] >= 0
-            ), "Capacité non respectée."
+            capacity_condition = self.nx_graph.edges[edge]["remaining_capacity"] >= 0
+            assert capacity_condition, "Capacité non respectée."
 
         for demand_index in range(self.problem_instance.total_number_of_demands):
-            assert (
-                self.choosen_quantities[demand_index]
+            flows_limits_condition = (
+                self.problem_instance.min_flows[demand_index]
+                <= self.choosen_quantities[demand_index]
                 <= self.problem_instance.max_flows[demand_index]
-            ), "Max flow exceeded."
-            latency = 0
-            for node_index in range(len(self.paths_used[demand_index]) - 1):
-                edge = (
-                    self.paths_used[demand_index][node_index],
-                    self.paths_used[demand_index][node_index + 1],
-                )
-                latency += self.nx_graph.edges[edge]["latency"]
-            assert (
-                latency <= self.problem_instance.latencies[demand_index]
-            ), "Latency exceeded."
+            )
+            assert flows_limits_condition, "Max flow exceeded."
+
+            latency_demand = sum(
+                self.nx_graph.edges[edge]["latency"]
+                for edge in path_node_to_path_tuple(self.paths_used[demand_index])
+            )
+            latency_condition = (
+                latency_demand <= self.problem_instance.latencies[demand_index]
+            )
+            assert latency_condition, "Latency exceeded."
 
         for node in self.nx_graph.nodes:
-            assert (
+            remaining_resources_condition = (
                 self.nx_graph.nodes[node]["remaining_resources"] >= 0
-            ), "No enough resources."
+            )
+            assert remaining_resources_condition, "No enough resources."
 
     def _update_edge_attributes(self):
         # Sur chaque Edge : quantité, latence, remaining quantity
         for demand_index in range(self.problem_instance.total_number_of_demands):
-            for node_index in range(len(self.paths_used[demand_index]) - 1):
-                edge = (
-                    self.paths_used[demand_index][node_index],
-                    self.paths_used[demand_index][node_index + 1],
-                )
+            for edge in path_node_to_path_tuple(self.paths_used[demand_index]):
                 # Update Q
                 self.nx_graph.edges[edge]["quantity"] += self.choosen_quantities[
                     demand_index
@@ -244,6 +251,7 @@ class Solver(GenericSolver):
                     * self.nx_graph.edges[edge]["alpha"]
                 )
 
+        # Update remaining quantities using capacity and quantity.
         for edge in self.nx_graph.edges:
             self.nx_graph.edges[edge]["remaining_capacity"] = (
                 self.nx_graph.edges[edge]["capacity"]
@@ -334,6 +342,14 @@ class Solver(GenericSolver):
             )
         print()
         print("Solution reached : {}".format(sum(self.choosen_quantities)))
+
+    def _plot_solution(self):
+        """
+        Idée:
+        Plot le graphe avec ses attributs.
+        Plot la solution actuelle. Pourrait surcharger le graph
+        """
+        pass
 
     def _services_nodes_association(self):
         needed_resources = sorted(

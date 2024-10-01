@@ -55,6 +55,10 @@ class ProblemInstance:
     def set_arc_solution(
         self, x_variable: np.ndarray, y_variable: np.ndarray, q_variable: np.ndarray
     ):
+        """
+        Checks the provided variables shape
+        and sets them to the current solution.
+        """
         assert x_variable.shape == (
             self.total_number_of_demands,
             self.network_graph.nx_graph.number_of_edges(),
@@ -71,7 +75,6 @@ class ProblemInstance:
         )
 
     def print_current_solution(self, show_graph: bool = False):
-
         for service_index in range(self.number_of_service):  # Print service placement
             node_placement = np.nonzero(self.y_variable[service_index])[0][0]
             PLACEMENT_SERVICE = "Service {} is placed on node {}".format(
