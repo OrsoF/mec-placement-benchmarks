@@ -52,7 +52,7 @@ class ProblemInstance:
             for _ in range(self.demand_per_service[service_index])
         ]
 
-    def set_arc_solution(
+    def _set_arc_solution(
         self, x_variable: np.ndarray, y_variable: np.ndarray, q_variable: np.ndarray
     ):
         """
@@ -168,10 +168,13 @@ class ProblemInstance:
         - Edge capacities
         - Routing
         - Latencies
+
+        C'est quoi cette merde
         """
         assert (
-            np.linalg.norm(self.y_variable.sum(axis=1) - 1) < 1e-2
-        )  # Service assignment
+            (self.y_variable.sum(axis=1) - 1) ** 2
+        ).max() < 1e-2  # Service assignment
+
         for node in range(
             self.network_graph.nx_graph.number_of_nodes()
         ):  # Resources on each node
@@ -190,19 +193,22 @@ class ProblemInstance:
         )  # Check edges capacities
 
         for demand_index in range(self.total_number_of_demands):  # Check routing
-            if not len(np.nonzero(self.x_variable[demand_index, :])[0]):
+            if not len(
+                np.nonzero(self.x_variable[demand_index, :])[0]
+            ):  # Le chemin est de longueur 0, l'origine et la destination sont les mêmes
                 continue
             else:
-                service_index = (
-                    demand_index // self.service_package.number_of_demand_per_service
-                )
+                service_index = self.demand_to_service[demand_index]
                 demand_origin = self.origins[demand_index]
-                demand_destination = np.nonzero(self.y_variable[service_index])[0][0]
+                demand_destination = np.argmax(self.y_variable[service_index])
                 unordered_path = [
                     list(self.network_graph.nx_graph.edges)[edge_index]
                     for edge_index in np.nonzero(self.x_variable[demand_index, :])[0]
                 ]
                 ordered_path = nx.dag_longest_path(nx.DiGraph(unordered_path))
+                print(demand_index)
+                print(self.y_variable[service_index])
+                print(self.x_variable[demand_index])
                 assert (ordered_path[0] == demand_origin) and (
                     ordered_path[-1] == demand_destination
                 )

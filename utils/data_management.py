@@ -199,7 +199,7 @@ def solve(
             runtime += solver.runtime
         solver.runtime = runtime / repeat
 
-    instance.set_arc_solution(solver.x_variable, solver.y_variable, solver.q_variable)
+    instance._set_arc_solution(solver.x_variable, solver.y_variable, solver.q_variable)
     if check_solution:
         instance.check_current_solution()
     return instance, solver

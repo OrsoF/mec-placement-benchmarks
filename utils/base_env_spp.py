@@ -18,6 +18,7 @@ class EnvSP(gym.Env):
         self.problem_instance = problem_instance
         self.limit_step = max_steps
         self.graph = self.problem_instance.network_graph.nx_graph
+        self.verbose = True
 
         self.network_graph = self.problem_instance.network_graph
         self.nx_graph = self.network_graph.nx_graph
@@ -41,7 +42,12 @@ class EnvSP(gym.Env):
         )
         q_space = MultiDiscrete(np.array(self.problem_instance.max_flows))
 
-        self.action_space = Tuple((x_space, y_space, q_space))
+        action_q_space = Discrete(3)
+        action_sp_space = Discrete(3)
+
+        self.action_space = Tuple(
+            (x_space, y_space, q_space, action_q_space, action_sp_space)
+        )
 
     def define_state_space(self):
         # We add : x, y, q, latency_proportion, capacity_proportion
@@ -134,8 +140,7 @@ class EnvSP(gym.Env):
                 heuristic_solver.y_variable,
                 heuristic_solver.q_variable,
             )
-        else:
-            return
+
         # Placement aléatoire, PCC0 et quantités 1
         self.state = np.concatenate(
             (self.service_placement, self.sp_indices, self.choosen_quantities)
@@ -220,8 +225,10 @@ class EnvSP(gym.Env):
                 self.paths_used[selected_demand] = old_path
                 self.sp_indices[selected_demand] -= 1
 
-    def _update_quantity(self, selected_demand, action_q):
+    def _update_quantity(self, selected_demand: int, action_q: int):
+        print(type(selected_demand))
         if action_q == 0:  # On baisse Q
+            print(self.choosen_quantities[selected_demand] - 1)
             self.choosen_quantities[selected_demand] = max(
                 1, self.choosen_quantities[selected_demand] - 1
             )
