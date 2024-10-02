@@ -55,6 +55,7 @@ class SPPGym(gym.Env):
         self.problem_instance._set_arc_solution(
             *self.observation_to_variables(observation)
         )
+
         self.problem_instance.check_current_solution()
 
         return observation
@@ -79,7 +80,7 @@ class SPPGym(gym.Env):
         for demand_index in range(self.problem_instance.total_number_of_demands):
             service_index = self.problem_instance.demand_to_service[demand_index]
             origin = self.problem_instance.origins[demand_index]
-            target = np.argmax(service_placement[service_index])
+            target = service_placement[service_index]
             demand_path = path_node_to_path_tuple(
                 self._select_shortest_path(origin, target, sp_indices[demand_index])
             )
@@ -233,15 +234,13 @@ class SPPGym(gym.Env):
         info = {}
         self._test_solution()
 
-        if (
-            np.sum(self.state[-self.problem_instance.total_number_of_demands :])
-            > self.max_q_reached
-        ):
-            self.max_q_reached = np.sum(
-                self.state[-self.problem_instance.total_number_of_demands :]
-            )
+        objective = np.sum(self.state[-self.problem_instance.total_number_of_demands :])
+
+        if objective > self.max_q_reached:
+            self.max_q_reached = objective
             self.best_solution = self.state
             print(self.max_q_reached)
+            print("ok")
 
         return obs, reward / 100, done, terminated, info
 
@@ -320,6 +319,11 @@ class SPPGym(gym.Env):
         # - Capacité pour chaque arc
         # - Pour chaque demande, quantité et latence limite
         # - Ressource pour chaque noeud
+
+        service_placement, sp_indices, quantities = self.observation_to_components(
+            self.state
+        )
+
         for edge in self.graph.edges:
             assert (
                 self.graph.edges[edge]["remaining_capacity"] >= 0
@@ -327,15 +331,17 @@ class SPPGym(gym.Env):
 
         for demand_index in range(self.problem_instance.total_number_of_demands):
             assert (
-                self.choosen_quantities[demand_index]
+                quantities[demand_index]
                 <= self.problem_instance.max_flows[demand_index]
             ), "Max flow exceeded."
             latency = 0
-            for node_index in range(len(self.paths_used[demand_index]) - 1):
-                edge = (
-                    self.paths_used[demand_index][node_index],
-                    self.paths_used[demand_index][node_index + 1],
-                )
+            service_index = self.problem_instance.demand_to_service[demand_index]
+            origin = self.problem_instance.origins[demand_index]
+            target = service_placement[service_index]
+            demand_path = path_node_to_path_tuple(
+                self._select_shortest_path(origin, target, sp_indices[demand_index])
+            )
+            for edge in demand_path:
                 latency += self.graph.edges[edge]["latency"]
             assert (
                 latency <= self.problem_instance.latencies[demand_index]

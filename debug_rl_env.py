@@ -2,7 +2,7 @@ from utils.SPPGym import SPPGym
 from utils.make_tree_instance import make_tree_instance
 from utils.data_management import solve
 
-users = 8
+users = 6
 neighbors = 2
 instance_name = "tree_{}_{}".format(users, neighbors)
 solver_name = "base_heuristic"
@@ -13,11 +13,16 @@ print("Heuristique ok")
 env = SPPGym(problem_instance=problem_instance)
 env.reset()
 
-for _ in range(10000):
+for _ in range(1000):
     action = env.action_space.sample()
     obs, reward, done, terminated, info = env.step(action)
     # print(obs)
+    if terminated:
+        env.reset()
 
-instance, solver = solve(instance_name, "ILP_arc")
-print("Runtime: {}".format(solver.runtime))
-print("Score: {}".format(solver.score))
+x_var, y_var, q_var = env.observation_to_variables(env.state)
+variable = (x_var, y_var, q_var)
+
+instance, solver = solve(instance_name, "ILP_arc", initial_variable=variable)
+print("Runtime with warm start : {}".format(solver.runtime))
+print("Score with warm start : {}".format(solver.score))

@@ -206,9 +206,6 @@ class ProblemInstance:
                     for edge_index in np.nonzero(self.x_variable[demand_index, :])[0]
                 ]
                 ordered_path = nx.dag_longest_path(nx.DiGraph(unordered_path))
-                print(demand_index)
-                print(self.y_variable[service_index])
-                print(self.x_variable[demand_index])
                 assert (ordered_path[0] == demand_origin) and (
                     ordered_path[-1] == demand_destination
                 )
