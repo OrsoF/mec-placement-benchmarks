@@ -17,6 +17,7 @@ class EnvSP(gym.Env):
         # Problem data
         self.problem_instance = problem_instance
         self.limit_step = max_steps
+        self.graph = self.problem_instance.network_graph.nx_graph
 
         self.network_graph = self.problem_instance.network_graph
         self.nx_graph = self.network_graph.nx_graph
@@ -59,10 +60,11 @@ class EnvSP(gym.Env):
             * np.ones((self.problem_instance.number_of_service))
         )
         q_space = MultiDiscrete(np.array(self.problem_instance.max_flows))
-        latency_proportion = Box(
-            high=np.ones((self.problem_instance.total_number_of_demands))
-        )
-        capacity_proportion = Box(high=np.ones((self.nx_graph.number_of_edges())))
+        max_values = np.zeros((self.problem_instance.total_number_of_demands))
+        latency_proportion = Box(low=max_values, high=max_values + 1)
+
+        max_values = np.zeros((self.nx_graph.number_of_edges()))
+        capacity_proportion = Box(low=max_values, high=max_values + 1)
 
         self.observation_space = Tuple(
             (
@@ -445,21 +447,3 @@ class EnvSP(gym.Env):
             or action_q >= 3
             or action_sp >= 3
         )
-
-
-# from utils.data_management import (
-#     get_instance_list,
-# )
-
-# instance_list = get_instance_list()
-# instance = instance_list[1]
-
-# env = EnvSP(instance)
-# env.reset()
-
-
-# for _ in range(10):
-#     action = (0, 0, 0, 2, 1)
-#     action = env.action_space.sample()
-#     obs, reward, done, terminated, info = env.step(action)
-#     # print(reward)

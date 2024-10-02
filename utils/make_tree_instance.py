@@ -50,12 +50,14 @@ def make_tree_instance(number_of_users: int = 7, neighbors_connection: int = 2):
     # plt.show()
 
     # Build graph
+    latency_alphas = [1.0] * nx_graph.number_of_edges() * 2
+    latency_betas = [1.0] * nx_graph.number_of_edges() * 2
     network_graph = NetworkGraph(
         base_graph=nx_graph,
         node_resources=resources,
         edge_capacity=capacities,
-        latency_alpha_factor=[1] * nx_graph.number_of_edges() * 2,
-        latency_beta_factor=[1] * nx_graph.number_of_edges() * 2,
+        latency_alpha_factor=latency_alphas,
+        latency_beta_factor=latency_betas,
     )
 
     # Create services, one per user
@@ -67,8 +69,8 @@ def make_tree_instance(number_of_users: int = 7, neighbors_connection: int = 2):
                 Demand(
                     origin_node_index=nx_graph.number_of_nodes() - 1,
                     flow_min=1,
-                    flow_max=20,
-                    max_latency=20,
+                    flow_max=50,
+                    max_latency=20 * number_of_users,
                 ),
             ],
             network_graph=network_graph,

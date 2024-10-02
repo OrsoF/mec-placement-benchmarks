@@ -56,7 +56,16 @@ class Solver(GenericSolver):
     ):
         start_time = time.time()
         # On attribue les serveurs aléatoirement. Autre possibilité : on attribue les points milieus des services
-        self.service_placement = self._generate_random_server_attribution()
+        # self.service_placement = self._generate_random_server_attribution()
+        self.service_placement = [
+            np.argmax(
+                [
+                    self.nx_graph.nodes[node]["available_resources"]
+                    for node in self.nx_graph.nodes
+                ]
+            )
+            for _ in range(self.problem_instance.number_of_service)
+        ]
         self.paths_used = [
             self._select_shortest_path(
                 self.problem_instance.origins[demand_index],
@@ -68,22 +77,20 @@ class Solver(GenericSolver):
             for demand_index in range(self.problem_instance.total_number_of_demands)
         ]
 
-        # Choix des chemins:
-        # On prends les plus courts.
-        # Puis, tant qu'une demande pose problème en terme de capacités ou de latence,
-        # on prends le chemins suivant
+        # Selection of the shortest paths
         self.path_selection = [
             1 for _ in range(self.problem_instance.total_number_of_demands)
         ]
+        # Selection of the smallest quantities
         self.choosen_quantities = [
             1 for _ in range(self.problem_instance.total_number_of_demands)
         ]
 
         while not self.current_solution_works():
-            problematic_path = self.find_problematic_demand_path()
-            if problematic_path == -1:
+            problematic_demand = self.find_problematic_demand_path()
+            if problematic_demand == -1:
                 self._generate_random_server_attribution()
-            self.path_selection[problematic_path] += 1  # Change the path
+            self.path_selection[problematic_demand] += 1  # Change the path
             if rnd_gen.random() < 0.01:
                 self.service_placement = self._generate_random_server_attribution()
                 self.paths_used = self.compute_first_shortest_path()
