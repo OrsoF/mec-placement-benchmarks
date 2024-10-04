@@ -12,7 +12,9 @@ from utils.graph_utils import make_graph_from_gml
 import matplotlib.pyplot as plt
 
 
-def make_tree_instance(number_of_users: int = 7, neighbors_connection: int = 2):
+def make_tree_instance(
+    number_of_users: int = 7, neighbors_connection: int = 2
+) -> ProblemInstance:
     nx_graph = nx.Graph()
     USER_NODE_NAME = "user_{}"
     WAP_NODE = "WAP"
@@ -87,3 +89,5 @@ def make_tree_instance(number_of_users: int = 7, neighbors_connection: int = 2):
     problem_instance = ProblemInstance(network_graph, service_package, PROBLEM_NAME)
 
     pickle_save(problem_instance, INSTANCE_PATH)
+
+    return problem_instance

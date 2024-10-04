@@ -15,18 +15,21 @@ class SPPGym(gym.Env):
         problem_instance: ProblemInstance,
         sp_number: int = 10,  # Max number of explored shortest paths
         limit_step: int = 1000,  # Limit of the number of evolving steps
-        verbose: bool = False,
     ):
         # Problem data
         self.problem_instance = problem_instance
         self.sp_number = sp_number
         self.limit_step = limit_step
-        self.verbose = verbose
 
         self.network_graph = self.problem_instance.network_graph
         self.graph = self.network_graph.nx_graph
 
         self._make_action_observation_spaces()
+
+        self.best_solution = self._build_initial_solution()
+        self.max_q_reached = np.sum(
+            self.observation_to_variables(self.best_solution)[2]
+        )
 
     def _build_initial_solution(self) -> tuple:
         """
@@ -111,8 +114,6 @@ class SPPGym(gym.Env):
         self.steps_done = 0
 
         self.state = self._build_initial_solution()
-        self.best_solution = self.state
-        self.max_q_reached = np.sum(self.observation_to_variables(self.state)[2])
 
         obs = self.state
         info = {}
@@ -202,8 +203,8 @@ class SPPGym(gym.Env):
         terminated = self.steps_done >= self.limit_step
         info = {}
 
-        if terminated:
-            print(self.max_q_reached)
+        # if terminated:
+        #     print(self.max_q_reached)
 
         # Action : Choix_Service x Placement x Choix_Demande x Changement_Quantité x Changement PCC
         (
@@ -240,7 +241,6 @@ class SPPGym(gym.Env):
             self.max_q_reached = objective
             self.best_solution = self.state
             print(self.max_q_reached)
-            print("ok")
 
         return obs, reward / 100, done, terminated, info
 

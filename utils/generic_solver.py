@@ -14,6 +14,8 @@ class GenericSolver:
         self.y_variable: np.ndarray
         self.q_variable: np.ndarray
 
+        self.score: float
+
     def run(
         self,
         initial_variable: tuple,
