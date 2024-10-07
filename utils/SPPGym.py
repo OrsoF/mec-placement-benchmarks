@@ -240,7 +240,7 @@ class SPPGym(gym.Env):
         if objective > self.max_q_reached:
             self.max_q_reached = objective
             self.best_solution = self.state
-            print(self.max_q_reached)
+            # print(self.max_q_reached)
 
         return obs, reward / 100, done, terminated, info
 
@@ -403,3 +403,13 @@ class SPPGym(gym.Env):
             + self.problem_instance.max_flows
         )
         self.observation_space = Box(low=low_array, high=high_array)
+
+    def clip_state(self):
+        self.state = np.round(self.state).astype(int)
+        service_placement, sp_indices, quantities = self.observation_to_components(
+            self.state
+        )
+        service_placement = service_placement.clip(0, self.graph.number_of_nodes() - 1)
+        sp_indices = sp_indices.clip(0, self.sp_number - 1)
+        quantities = quantities.clip(0, self.problem_instance.max_flows[0])
+        self.state = np.concatenate([service_placement, sp_indices, quantities])

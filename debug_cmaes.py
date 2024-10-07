@@ -4,10 +4,12 @@ from utils.data_management import solve
 from stable_baselines3 import A2C
 import os
 import numpy as np
+import matplotlib.pyplot as plt
 
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
-users = 20
-neighbors = 2
+users = 8
+neighbors = 4
 instance_name = "tree_{}_{}".format(users, neighbors)
 solver_name = "base_heuristic"
 problem_instance = make_tree_instance(
@@ -16,33 +18,41 @@ problem_instance = make_tree_instance(
 
 env = SPPGym(problem_instance=problem_instance)
 env.reset()
+max_value = 0
 
 
 def objective(value: np.ndarray):
+    global max_value
     S = problem_instance.number_of_service
     D = problem_instance.total_number_of_demands
     assert value.shape[0] == S + 2 * D
     env.state = value
+    env.clip_state()
     try:
         env._test_solution()
-        return np.sum(value[-D:])
+        obj = np.sum(env.state[-D:])
+        if obj > max_value:
+            max_value = obj
+
+        return -obj
     except AssertionError:
         return 0.0
 
 
 env.reset()
-x0 = np.array(env.state)
+x0 = np.array(env.state).astype(np.float64)
 print(objective(x0))
 
-from cmaes import CMA
+import cma
 
-optimizer = CMA(mean=x0, sigma=1.0)
+es = cma.CMAEvolutionStrategy(x0, 2)
+while not es.stop():
+    solutions = es.ask()
+    es.tell(solutions, [objective(x) for x in solutions])
+    es.logger.add()  # write data to disc to be plotted
+    es.disp()
 
-for generation in range(50):
-    solutions = []
-    for _ in range(optimizer.population_size):
-        x = optimizer.ask()
-        value = objective(x)
-        solutions.append((x, value))
-        print(f"#{generation} {value} (x1={x[0]}, x2 = {x[1]})")
-    optimizer.tell(solutions)
+print("Meilleure solution CMA: {}".format(max_value))
+
+instance, solver = solve(instance_name, "ILP_arc")
+print("Meilleure solution ILP-arc: {}".format(solver.score))
