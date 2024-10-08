@@ -13,6 +13,8 @@ import networkx as nx
 import os
 import numpy as np
 from utils.generic_solver import GenericSolver
+from stable_baselines3 import A2C, SAC, PPO
+from utils.SPPGym import SPPGym
 
 
 class Solver(GenericSolver):
@@ -25,7 +27,7 @@ class Solver(GenericSolver):
     def run(
         self,
     ):
-        '''
+        """
         - Instantiate a gym environment
         Action space: (Service Placement, Shortest path indices, Quantity)
         - for each service, place it
@@ -33,5 +35,15 @@ class Solver(GenericSolver):
         - Choose quantities
 
         - Solve it with base RL
-        '''
-        pass
+        """
+
+        start_time = time.time()
+
+        env = SPPGym(problem_instance=self.problem_instance)
+        env.reset()
+        model = PPO("MlpPolicy", env, verbose=0, seed=0)
+        model.learn(total_timesteps=100000, progress_bar=False)
+
+        self.runtime = time.time() - start_time
+        self.score = env.max_q_reached
+        self.x_variable, self.y_variable, self.q_variable = env.best_solution

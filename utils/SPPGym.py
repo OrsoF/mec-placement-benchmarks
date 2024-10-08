@@ -7,6 +7,7 @@ import itertools
 
 from problem_classes.probleminstance import ProblemInstance
 from utils.graph_utils import path_node_to_path_tuple, path_tuple_to_path_node
+import matplotlib.pyplot as plt
 
 
 class SPPGym(gym.Env):
@@ -14,7 +15,7 @@ class SPPGym(gym.Env):
         self,
         problem_instance: ProblemInstance,
         sp_number: int = 10,  # Max number of explored shortest paths
-        limit_step: int = 1000,  # Limit of the number of evolving steps
+        limit_step: int = 2000,  # Limit of the number of evolving steps
     ):
         # Problem data
         self.problem_instance = problem_instance
@@ -117,6 +118,11 @@ class SPPGym(gym.Env):
 
         obs = self.state
         info = {}
+
+        self.recent_scores = [-3 for _ in range(self.limit_step)]
+
+        self.max_q_reached_episode = 0
+
         return obs, info
 
     def _update_placement(self, selected_service: int, choosen_node: int) -> None:
@@ -144,21 +150,15 @@ class SPPGym(gym.Env):
             service_placement[selected_service] = old_choosen_node
             self.state = service_placement + sp_indices + quantities
 
-    def _reroute(self, selected_demand: int, action_sp: int):
+    def _reroute(self, selected_demand: int, choosen_sp: int):
         """
-        Considering action_sp = 0, 1 or 2:
-        0 : sp_index -= 1
-        1 : keep sp_index
-        2 : sp_index += 1
+        choosen_sp is the index of the shortest path choosent through this action.
         """
         service_placement, sp_indices, quantities = self.observation_to_components(
             self.state
         )
         old_sp_index = sp_indices[selected_demand]
-        if action_sp == 0:  # Rerouting -1
-            sp_indices[selected_demand] = max(0, sp_indices[selected_demand] - 1)
-        elif action_sp == 2:
-            sp_indices[selected_demand] = max(0, sp_indices[selected_demand] + 1)
+        sp_indices[selected_demand] = choosen_sp
 
         self.state = service_placement + sp_indices + quantities
 
@@ -206,14 +206,14 @@ class SPPGym(gym.Env):
         # if terminated:
         #     print(self.max_q_reached)
 
-        # Action : Choix_Service x Placement x Choix_Demande x Changement_Quantité x Changement PCC
+        # Action : Choix_Action x Choix_Service x Placement x Choix_Demande x Changement_Quantité x Changement PCC
         (
             service_or_demand_or_quantities,
             selected_service,
             choosen_node_for_this_service,
             selected_demand,
             action_q,
-            action_sp,
+            choosen_sp,
         ) = action
 
         # Si service_or_demand == 0, on s'occupe du service et on le déplace
@@ -221,15 +221,22 @@ class SPPGym(gym.Env):
             self._update_placement(selected_service, choosen_node_for_this_service)
             reward = -2
         elif service_or_demand_or_quantities == 1:  # Sinon, on reroute la demande
-            self._reroute(selected_demand, action_sp)
+            self._reroute(selected_demand, choosen_sp)
             reward = -1
         else:
             self._update_quantity(selected_demand, action_q)
-            reward = max(
-                np.sum(self.state[-self.problem_instance.total_number_of_demands :])
-                - self.max_q_reached,
-                0,
-            )
+            if self.max_q_reached_episode == 0:
+                reward = max(
+                    np.sum(self.state[-self.problem_instance.total_number_of_demands :])
+                    - self.problem_instance.total_number_of_demands,
+                    0,
+                )
+            else:
+                reward = max(
+                    np.sum(self.state[-self.problem_instance.total_number_of_demands :])
+                    - self.max_q_reached_episode,
+                    0,
+                )
 
         obs = np.array(self.state)
         info = {}
@@ -238,9 +245,32 @@ class SPPGym(gym.Env):
         objective = np.sum(self.state[-self.problem_instance.total_number_of_demands :])
 
         if objective > self.max_q_reached:
+            print(objective)
             self.max_q_reached = objective
-            self.best_solution = self.state
+            self.best_solution = self.observation_to_variables(self.state)
             # print(self.max_q_reached)
+
+        if objective > self.max_q_reached_episode:
+            self.max_q_reached_episode = objective
+
+        self.recent_scores[self.steps_done - 1] = reward
+
+        if terminated:
+            if hasattr(self, "episode"):
+                self.episode += 1
+            else:
+                self.episode = 0
+
+            if self.episode % 5 == 0:
+                plt.cla()
+
+            rolling = self.limit_step // 50
+            self.recent_scores = np.convolve(
+                self.recent_scores, np.ones(rolling) / rolling, mode="valid"
+            )
+            plt.plot(self.recent_scores, label="Episode {}".format(self.episode))
+            plt.legend()
+            plt.savefig("results.png")
 
         return obs, reward / 100, done, terminated, info
 
@@ -376,7 +406,7 @@ class SPPGym(gym.Env):
         # x Placement
         # x Choix_Demande
         # x Changement_Quantité
-        # x Changement PCC
+        # x Choix PCC
         self.action_space = MultiDiscrete(
             [
                 3,
@@ -384,7 +414,7 @@ class SPPGym(gym.Env):
                 self.graph.number_of_nodes(),
                 self.problem_instance.total_number_of_demands,
                 3,
-                3,
+                self.sp_number,
             ]
         )
         # State : Ou sont placés les services (taille S, max n)
