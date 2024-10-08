@@ -48,9 +48,6 @@ def make_tree_instance(
         + [1000] * 2
     )
 
-    # nx.draw(nx_graph, with_labels=True)
-    # plt.show()
-
     # Build graph
     latency_alphas = [1.0] * nx_graph.number_of_edges() * 2
     latency_betas = [1.0] * nx_graph.number_of_edges() * 2

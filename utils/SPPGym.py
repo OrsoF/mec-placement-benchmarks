@@ -203,9 +203,6 @@ class SPPGym(gym.Env):
         terminated = self.steps_done >= self.limit_step
         info = {}
 
-        # if terminated:
-        #     print(self.max_q_reached)
-
         # Action : Choix_Action x Choix_Service x Placement x Choix_Demande x Changement_Quantité x Changement PCC
         (
             service_or_demand_or_quantities,
@@ -218,11 +215,13 @@ class SPPGym(gym.Env):
 
         # Si service_or_demand == 0, on s'occupe du service et on le déplace
         if service_or_demand_or_quantities == 0:
+            old_state = self.state
             self._update_placement(selected_service, choosen_node_for_this_service)
-            reward = -2
+            reward = -10 if old_state == self.state else -2
         elif service_or_demand_or_quantities == 1:  # Sinon, on reroute la demande
+            old_state = self.state
             self._reroute(selected_demand, choosen_sp)
-            reward = -1
+            reward = -10 if old_state == self.state else -1
         else:
             self._update_quantity(selected_demand, action_q)
             if self.max_q_reached_episode == 0:
