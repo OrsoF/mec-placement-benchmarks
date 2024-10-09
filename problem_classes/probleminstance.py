@@ -4,6 +4,7 @@ import numpy as np
 import networkx as nx
 from utils.pickle import pickle_save
 import matplotlib.pyplot as plt
+from utils.graph_utils import path_node_to_path_tuple, path_tuple_to_path_node
 
 
 class ProblemInstance:
@@ -51,6 +52,8 @@ class ProblemInstance:
             for service_index in range(self.number_of_service)
             for _ in range(self.demand_per_service[service_index])
         ]
+
+        self.validate_instance()
 
     def _set_arc_solution(
         self, x_variable: np.ndarray, y_variable: np.ndarray, q_variable: np.ndarray
@@ -168,8 +171,7 @@ class ProblemInstance:
         - Edge capacities
         - Routing
         - Latencies
-
-        C'est quoi cette merde
+        Using the attributes self.x_variable, self.y_variable and self.q_variable.
         """
         assert (
             (self.y_variable.sum(axis=1) - 1) ** 2
@@ -229,6 +231,37 @@ class ProblemInstance:
         # Capacities
         for edge_index, capa in enumerate(capacities_used):
             assert capa <= self.network_graph.capacities[edge_index]
+
+    def validate_instance(self):
+        """
+        Check if the basic placement and routing can be done.
+        """
+        placement_node = np.argmax(self.network_graph.available_resources)
+
+        self.x_variable = np.zeros(
+            (
+                self.total_number_of_demands,
+                self.network_graph.nx_graph.number_of_edges(),
+            )
+        )
+        for demand_index in range(self.total_number_of_demands):
+            demand_origin = self.origins[demand_index]
+            path = nx.shortest_path(
+                self.network_graph.nx_graph, demand_origin, placement_node
+            )
+            path = path_node_to_path_tuple(path)
+            for edge in path:
+                edge_index = self.network_graph.arc_index_dictionary[edge]
+                self.x_variable[demand_index, edge_index] = 1.0
+
+        placement = [
+            1 if node_index == placement_node else 0
+            for node_index in range(self.network_graph.nx_graph.number_of_nodes())
+        ]
+        self.y_variable = np.array([placement for _ in range(self.number_of_service)])
+
+        self.q_variable = np.array(self.min_flows)
+        self.check_current_solution()
 
 
 class ToyInstance(ProblemInstance):

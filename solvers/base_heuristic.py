@@ -86,6 +86,8 @@ class Solver(GenericSolver):
             1 for _ in range(self.problem_instance.total_number_of_demands)
         ]
 
+        assert self.current_solution_works()
+
         while not self.current_solution_works():
             problematic_demand = self.find_problematic_demand_path()
             if problematic_demand == -1:
