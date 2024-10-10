@@ -181,6 +181,9 @@ def solve(
     check_solution: bool = False,
     initial_variable=None,
 ) -> tuple[ProblemInstance, GenericSolver]:
+    """
+    Allows to solve an instance by its name and by the solver name.
+    """
     instance = import_instance_from_file(instance_name)
     solver = import_solver_from_file(solver_name, instance)
 

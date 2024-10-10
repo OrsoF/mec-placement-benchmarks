@@ -6,7 +6,7 @@ import os
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
-users = 15
+users = 5
 neighbors = 4
 instance_name = "tree_{}_{}".format(users, neighbors)
 solver_name = "rl_base"

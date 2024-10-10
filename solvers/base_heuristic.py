@@ -36,7 +36,7 @@ class Solver(GenericSolver):
         ]
         return service_placement
 
-    def current_solution_works(self):
+    def current_solution_works(self, show_why: bool = True):
         """
         Checks if the current solution works.
         """
@@ -44,6 +44,9 @@ class Solver(GenericSolver):
         self._update_edge_attributes()
         self._reset_node_attributes()
         self._update_node_attributes()
+
+        if show_why:
+            self._assert_all_constraints()
 
         try:
             self._assert_all_constraints()
@@ -57,13 +60,15 @@ class Solver(GenericSolver):
         start_time = time.time()
         # On attribue les serveurs aléatoirement. Autre possibilité : on attribue les points milieus des services
         # self.service_placement = self._generate_random_server_attribution()
+
+        node_with_max_resources = np.argmax(
+            [
+                self.nx_graph.nodes[node]["available_resources"]
+                for node in self.nx_graph.nodes
+            ]
+        )
         self.service_placement = [
-            np.argmax(
-                [
-                    self.nx_graph.nodes[node]["available_resources"]
-                    for node in self.nx_graph.nodes
-                ]
-            )
+            node_with_max_resources
             for _ in range(self.problem_instance.number_of_service)
         ]
         self.paths_used = [
@@ -86,7 +91,7 @@ class Solver(GenericSolver):
             1 for _ in range(self.problem_instance.total_number_of_demands)
         ]
 
-        assert self.current_solution_works()
+        self.current_solution_works()
 
         while not self.current_solution_works():
             problematic_demand = self.find_problematic_demand_path()
@@ -110,6 +115,7 @@ class Solver(GenericSolver):
         self.update_variables()
 
     def compute_first_shortest_path(self) -> list:
+        print(self.problem_instance.origins)
         return [
             self._select_shortest_path(
                 self.problem_instance.origins[demand_index],
