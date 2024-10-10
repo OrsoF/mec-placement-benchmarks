@@ -63,7 +63,10 @@ def make_tree_instance(
     services = []
     for user_index in range(number_of_users):
         demand_user = Demand(
-            origin_node_index=user_index, flow_min=1, flow_max=20, max_latency=20
+            origin_node_index=user_index,
+            flow_min=1,
+            flow_max=20,
+            max_latency=20 * number_of_users,
         )
         demand_server = Demand(
             origin_node_index=nx_graph.number_of_nodes() - 1,
