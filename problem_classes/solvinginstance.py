@@ -212,27 +212,11 @@ class SolvingInstance:
         print()
 
         for demand_index in range(self.problem_instance.total_number_of_demands):
-            latency = 0
-            for node_index in range(len(self.paths_used[demand_index]) - 1):
-                edge = (
-                    self.paths_used[demand_index][node_index],
-                    self.paths_used[demand_index][node_index + 1],
-                )
-                latency += self.graph.edges[edge]["latency"]
-            print(
-                "Latency for demand {} : {} / {}".format(
-                    demand_index, latency, self.problem_instance.latencies[demand_index]
-                )
-            )
-        print()
-        for demand_index in range(self.problem_instance.total_number_of_demands):
             print(
                 "Path for demand {} : {}".format(
                     demand_index, self.paths_used[demand_index]
                 )
             )
-        print()
-        for demand_index in range(self.problem_instance.total_number_of_demands):
             print(
                 "Quantity for demand {} : {} / {}".format(
                     demand_index,
@@ -240,7 +224,12 @@ class SolvingInstance:
                     self.problem_instance.max_flows[demand_index],
                 )
             )
-
+            latency = self.get_latency(demand_index)
+            print(
+                "Latency for demand {} : {} / {}".format(
+                    demand_index, latency, self.problem_instance.latencies[demand_index]
+                )
+            )
         print()
         print("Solution reached : {}".format(sum(self.quantities)))
 
@@ -273,3 +262,9 @@ class SolvingInstance:
 
     def get_score(self):
         return sum(self.quantities)
+
+    def get_latency(self, demand_index):
+        path = self.paths_used[demand_index]
+        return sum(
+            self.graph.edges[edge]["latency"] for edge in path_node_to_path_tuple(path)
+        )
