@@ -31,6 +31,8 @@ class Solver(GenericSolver):
 
         self.solving_instance.basic_placement_and_routing()
 
+        self.solving_instance._maximize_quantities_greedy()
+
         self.runtime = time.time() - start_time
         self.score = self.solving_instance.get_score()
 

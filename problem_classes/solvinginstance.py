@@ -119,16 +119,23 @@ class SolvingInstance:
 
         for edge in path_node_to_path_tuple(self.paths_used[demand_index]):
             self.graph.edges[edge]["remaining_capacity"] += difference
-            self.graph.edges[edge]["latency"] -= self.graph.edges["alpha"] * difference
+            self.graph.edges[edge]["latency"] -= (
+                self.graph.edges[edge]["alpha"] * difference
+            )
 
             if not force:
-                assert self.graph.edges[edge]["remaining_capacity"] >= 0
+                assert (
+                    self.graph.edges[edge]["remaining_capacity"] >= 0
+                ), "Capacity exceeded."
 
         if not force:
-            assert (
-                self.compute_demand_latency(demand_index)
-                <= self.problem_instance.latencies[demand_index]
-            ), "Latency exceeded"
+            problem_latency = self.compute_demand_latency(demand_index)
+            max_latency = self.problem_instance.latencies[demand_index]
+            message = "Latency exceeded {} > {}".format(
+                problem_latency,
+                max_latency,
+            )
+            assert problem_latency <= max_latency, message
 
     def compute_demand_latency(self, demand_index: int):
         """
@@ -268,3 +275,78 @@ class SolvingInstance:
         return sum(
             self.graph.edges[edge]["latency"] for edge in path_node_to_path_tuple(path)
         )
+
+    def reset_routing(self):
+        self.paths_used: list = [
+            [] for _ in range(self.problem_instance.total_number_of_demands)
+        ]
+        self.quantities = [
+            -1 for _ in range(self.problem_instance.total_number_of_demands)
+        ]
+        for edge in self.graph.edges:
+            self.graph.edges[edge]["remaining_capacity"] = self.graph.edges[edge][
+                "capacity"
+            ]
+            self.graph.edges[edge]["latency"] = self.graph.edges[edge]["alpha"]
+
+    def reset_placement(self):
+        self.service_placement: list = [
+            -1 for _ in range(self.problem_instance.number_of_service)
+        ]
+        for node in self.graph.nodes:
+            self.graph.nodes[node]["remaining_resources"] = self.graph.nodes[node][
+                "available_resources"
+            ]
+
+    def reset_instance(self):
+        self.reset_routing()
+        self.reset_placement()
+
+    def get_remaining_quantity_possible(self, demand_index):
+        path = path_node_to_path_tuple(self.paths_used[demand_index])
+        remaining_flow = (
+            self.problem_instance.max_flows[demand_index]
+            - self.quantities[demand_index]
+        )
+        if not len(path):
+            return remaining_flow
+        else:
+            max_alpha = max(self.graph.edges[edge]["alpha"] for edge in path)
+            distance_to_max_latency = self.problem_instance.latencies[
+                demand_index
+            ] - self.get_latency(demand_index)
+            remaining_quantity_latency = np.floor(
+                distance_to_max_latency / max_alpha / len(path)
+            )
+            remaining_quantity_capacity = min(
+                self.graph.edges[edge]["remaining_capacity"] for edge in path
+            )
+            assert remaining_quantity_capacity >= 0
+            assert remaining_quantity_latency >= 0
+            assert remaining_flow >= 0
+            return min(
+                remaining_quantity_capacity, remaining_quantity_latency, remaining_flow
+            )
+
+    def _maximize_quantities_greedy(self):
+        remaining_quantities = [
+            self.get_remaining_quantity_possible(demand_index)
+            for demand_index in range(self.problem_instance.total_number_of_demands)
+        ]
+        while max(remaining_quantities):
+            demand_index = np.argmax(remaining_quantities)
+            new_quantity = (
+                remaining_quantities[demand_index] + self.quantities[demand_index]
+            )
+            print()
+            print(remaining_quantities)
+            print(remaining_quantities[demand_index])
+            print(self.quantities[demand_index])
+            print(new_quantity)
+            print(self.get_latency(demand_index))
+            print(self.problem_instance.latencies[demand_index])
+            self.change_demand_quantity(demand_index, new_quantity)
+            remaining_quantities = [
+                self.get_remaining_quantity_possible(demand_index)
+                for demand_index in range(self.problem_instance.total_number_of_demands)
+            ]

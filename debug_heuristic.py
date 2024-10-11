@@ -6,8 +6,8 @@ import os
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
-users = 15
-neighbors = 4
+users = 5
+neighbors = 1
 instance_name = "tree_{}_{}".format(users, neighbors)
 solver_name = "heuristic"
 problem_instance = make_tree_instance(
