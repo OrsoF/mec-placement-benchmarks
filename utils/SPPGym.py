@@ -8,6 +8,7 @@ import itertools
 from problem_classes.probleminstance import ProblemInstance
 from utils.graph_utils import path_node_to_path_tuple, path_tuple_to_path_node
 import matplotlib.pyplot as plt
+from problem_classes.solvinginstance import SolvingInstance
 
 
 class SPPGym(gym.Env):
@@ -27,10 +28,12 @@ class SPPGym(gym.Env):
 
         self._make_action_observation_spaces()
 
-        self.best_solution = self._build_initial_solution()
-        self.max_q_reached = np.sum(
-            self.observation_to_variables(self.best_solution)[2]
-        )
+        self.solving_instance = SolvingInstance(problem_instance)
+
+        self.solving_instance.basic_placement_and_routing()
+
+        self.best_solution = self.solving_instance.get_arc_variables()
+        self.max_q_reached = self.solving_instance.get_score()
 
     def _build_initial_solution(self) -> tuple:
         """
@@ -113,14 +116,12 @@ class SPPGym(gym.Env):
     def reset(self, seed=0):
         # Placement aléatoire, PCC0 et quantités 1
         self.steps_done = 0
+        self.solving_instance.reset_instance()
 
-        self.state = self._build_initial_solution()
-
-        obs = self.state
+        obs = self.solving_instance.get_actual_state()
         info = {}
 
-        self.recent_scores = [-3 for _ in range(self.limit_step)]
-
+        self.recent_scores = [-10 for _ in range(self.limit_step)]
         self.max_q_reached_episode = 0
 
         return obs, info
@@ -195,12 +196,13 @@ class SPPGym(gym.Env):
             self.state = service_placement + sp_indices + quantities
 
     def render(self):
-        print(self.state)
+        self.solving_instance.render_solution()
 
     def step(self, action: tuple):
         self.steps_done += 1
         done = False
         terminated = self.steps_done >= self.limit_step
+        old_state = self.solving_instance.get_actual_state()
         info = {}
 
         # Action : Choix_Action x Choix_Service x Placement x Choix_Demande x Changement_Quantité x Changement PCC
@@ -215,8 +217,8 @@ class SPPGym(gym.Env):
 
         # Si service_or_demand == 0, on s'occupe du service et on le déplace
         if service_or_demand_or_quantities == 0:
-            old_state = self.state
-            self._update_placement(selected_service, choosen_node_for_this_service)
+            new_demands_path = [1 for _ in range(self.problem_instance.demand_per_service)]
+            self.solving_instance.replace_service(selected_service, choosen_node_for_this_service, new_demands_path)
             reward = -10 if old_state == self.state else -2
         elif service_or_demand_or_quantities == 1:  # Sinon, on reroute la demande
             old_state = self.state

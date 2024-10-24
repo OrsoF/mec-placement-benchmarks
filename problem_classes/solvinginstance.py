@@ -24,9 +24,12 @@ class SolvingInstance:
             -1 for _ in range(self.problem_instance.total_number_of_demands)
         ]
 
-        self.initialize_graph()
+        self._initialize_graph()
 
-    def initialize_graph(self):
+    def _initialize_graph(self):
+        """
+        Initialize graph with trivial placement on cloud servers.
+        """
         for node in self.graph.nodes:
             self.graph.nodes[node]["remaining_resources"] = self.graph.nodes[node][
                 "available_resources"
@@ -188,6 +191,7 @@ class SolvingInstance:
         new_demand_paths: list,
         force: bool = False,
     ):
+        """For a given service, replace it from its old node to new_node."""
         self.unplace_service(service_index)
         self.place_service(service_index, new_node, force)
 
@@ -267,7 +271,7 @@ class SolvingInstance:
 
         return x_variable, y_variable, q_variable
 
-    def get_score(self):
+    def get_score(self) -> float:
         return sum(self.quantities)
 
     def get_latency(self, demand_index):
@@ -350,3 +354,6 @@ class SolvingInstance:
                 self.get_remaining_quantity_possible(demand_index)
                 for demand_index in range(self.problem_instance.total_number_of_demands)
             ]
+
+    def get_actual_state(self) -> np.ndarray:
+        return np.array(self.service_placement + self.paths_used + self.quantities)
