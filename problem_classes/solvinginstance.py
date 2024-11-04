@@ -1,12 +1,17 @@
+import numpy as np
+import networkx as nx
+import matplotlib.pyplot as plt
+from tqdm import trange
+
 from problem_classes.networkgraph import NetworkGraph
 from problem_classes.servicepackage import ServicePackage
 from problem_classes.probleminstance import ProblemInstance
-import numpy as np
-import networkx as nx
 from utils.pickle import pickle_save
-import matplotlib.pyplot as plt
-from utils.graph_utils import path_node_to_path_tuple, path_tuple_to_path_node
-from tqdm import trange
+from utils.graph_utils import (
+    path_node_to_path_tuple,
+    path_tuple_to_path_node,
+    edges_to_path,
+)
 
 
 class SolvingInstance:
@@ -53,6 +58,11 @@ class SolvingInstance:
                 self.graph.nodes[node]["remaining_resources"] >= 0
             ), "Not enough resources."
 
+    def place_service_variable(self, y_variable: np.ndarray):
+        for service_index in range(self.problem_instance.number_of_service):
+            node_placement = np.argmax(y_variable[service_index, :])
+            self.place_service(service_index, node_placement)
+
     def route_demand(
         self, demand_index: int, quantity: float, path: list, force: bool = False
     ):
@@ -88,6 +98,16 @@ class SolvingInstance:
                 for edge in path_node_to_path_tuple(path)
             )
             assert latency_demand <= self.problem_instance.latencies[demand_index]
+
+    def route_demand_variable(self, x_variable, q_variable: np.ndarray):
+        for demand_index in range(self.problem_instance.total_number_of_demands):
+            edges_used_indices = np.nonzero(x_variable[demand_index])[0]
+            edges_used = [
+                self.problem_instance.network_graph.arc_list[index]
+                for index in edges_used_indices
+            ]
+            path = edges_to_path(edges_used)
+            self.route_demand(demand_index, q_variable[demand_index], path)
 
     def basic_placement_and_routing(self):
         cloud_node = np.argmax(
@@ -245,7 +265,6 @@ class SolvingInstance:
         print("Solution reached : {}".format(sum(self.quantities)))
 
     def get_arc_variables(self):
-
         y_variable = np.zeros(
             (self.problem_instance.number_of_service, self.graph.number_of_nodes()),
             dtype=int,

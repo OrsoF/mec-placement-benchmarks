@@ -87,9 +87,9 @@ def make_tree_instance(
     PROBLEM_NAME = "tree_{}_{}".format(number_of_users, neighbors_connection)
     INSTANCE_PATH = os.path.join(os.getcwd(), "instances", PROBLEM_NAME + ".pkl")
 
-    service_package = ServicePackage(services, PROBLEM_NAME)
+    print('Instance creation...')
 
-    # Create instances
+    service_package = ServicePackage(services, PROBLEM_NAME)
     problem_instance = ProblemInstance(network_graph, service_package, PROBLEM_NAME)
 
     pickle_save(problem_instance, INSTANCE_PATH)
