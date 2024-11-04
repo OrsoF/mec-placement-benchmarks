@@ -39,3 +39,6 @@ class Solver(GenericSolver):
         self.x_variable, self.y_variable, self.q_variable = (
             self.solving_instance.get_arc_variables()
         )
+
+        print('ok')
+        self._end_solving()

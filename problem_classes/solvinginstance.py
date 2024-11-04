@@ -255,7 +255,7 @@ class SolvingInstance:
                     self.problem_instance.max_flows[demand_index],
                 )
             )
-            latency = self.get_latency(demand_index)
+            latency = self.get_real_latency(demand_index)
             print(
                 "Latency for demand {} : {} / {}".format(
                     demand_index, latency, self.problem_instance.latencies[demand_index]
@@ -293,7 +293,7 @@ class SolvingInstance:
     def get_score(self) -> float:
         return sum(self.quantities)
 
-    def get_latency(self, demand_index):
+    def get_real_latency(self, demand_index):
         path = self.paths_used[demand_index]
         return sum(
             self.graph.edges[edge]["latency"] for edge in path_node_to_path_tuple(path)
@@ -325,31 +325,50 @@ class SolvingInstance:
         self.reset_routing()
         self.reset_placement()
 
-    def get_remaining_quantity_possible(self, demand_index):
+    def get_remaining_quantity_possible(self, demand_index: int):
+        '''
+        Les chemins de demandes peuvent s'intersecter ! Regarder ce truc
+        '''
         path = path_node_to_path_tuple(self.paths_used[demand_index])
         remaining_flow = (
             self.problem_instance.max_flows[demand_index]
             - self.quantities[demand_index]
         )
+
+        print(demand_index)
+
         if not len(path):
             return remaining_flow
         else:
+            distance_to_max_latency = float(
+                self.problem_instance.latencies[demand_index]
+                - self.get_real_latency(demand_index)
+            )
+            assert distance_to_max_latency >= 0.0, "Latency excedeed."
             max_alpha = max(self.graph.edges[edge]["alpha"] for edge in path)
-            distance_to_max_latency = self.problem_instance.latencies[
-                demand_index
-            ] - self.get_latency(demand_index)
             remaining_quantity_latency = np.floor(
                 distance_to_max_latency / max_alpha / len(path)
             )
+            assert remaining_quantity_latency >= 0.0, "Should not be seen."
+
+            print()
+            print(path)
+            print(self.problem_instance.latencies[demand_index])
+            print(self.get_real_latency(demand_index))
+            print(distance_to_max_latency / max_alpha / len(path))
+
             remaining_quantity_capacity = min(
                 self.graph.edges[edge]["remaining_capacity"] for edge in path
             )
             assert remaining_quantity_capacity >= 0
-            assert remaining_quantity_latency >= 0
             assert remaining_flow >= 0
-            return min(
+
+            remaining_quantity = min(
                 remaining_quantity_capacity, remaining_quantity_latency, remaining_flow
             )
+            print("Remaining quantity : {}".format(remaining_quantity))
+            print()
+            return remaining_quantity
 
     def _maximize_quantities_greedy(self):
         remaining_quantities = [
@@ -358,21 +377,18 @@ class SolvingInstance:
         ]
         while max(remaining_quantities):
             demand_index = np.argmax(remaining_quantities)
+            print("Demand for augmentation : {}".format(demand_index))
             new_quantity = (
                 remaining_quantities[demand_index] + self.quantities[demand_index]
             )
-            print()
-            print(remaining_quantities)
-            print(remaining_quantities[demand_index])
-            print(self.quantities[demand_index])
-            print(new_quantity)
-            print(self.get_latency(demand_index))
-            print(self.problem_instance.latencies[demand_index])
             self.change_demand_quantity(demand_index, new_quantity)
             remaining_quantities = [
                 self.get_remaining_quantity_possible(demand_index)
                 for demand_index in range(self.problem_instance.total_number_of_demands)
             ]
+            print()
+            print(remaining_quantities)
+            print()
 
     def get_actual_state(self) -> np.ndarray:
         return np.array(self.service_placement + self.paths_used + self.quantities)
