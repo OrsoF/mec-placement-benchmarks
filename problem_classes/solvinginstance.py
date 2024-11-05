@@ -71,6 +71,7 @@ class SolvingInstance:
             not (len(self.paths_used[demand_index]))
             and self.quantities[demand_index] == -1
         ), "Demand already routed."
+
         service_index = self.problem_instance.demand_to_service[demand_index]
 
         assert self.service_placement[service_index] != -1, "Service not placed"
@@ -78,7 +79,8 @@ class SolvingInstance:
         origin = self.problem_instance.origins[demand_index]
         destination = self.service_placement[service_index]
 
-        assert path[0] == origin and path[-1] == destination, "Path is not well set"
+        if len(path):
+            assert path[0] == origin and path[-1] == destination, "Path is not well set"
 
         self.paths_used[demand_index] = path
         self.quantities[demand_index] = quantity
@@ -99,14 +101,20 @@ class SolvingInstance:
             )
             assert latency_demand <= self.problem_instance.latencies[demand_index]
 
-    def route_demand_variable(self, x_variable, q_variable: np.ndarray):
+    def route_demand_variable(self, x_variable: np.ndarray, q_variable: np.ndarray):
         for demand_index in range(self.problem_instance.total_number_of_demands):
             edges_used_indices = np.nonzero(x_variable[demand_index])[0]
             edges_used = [
                 self.problem_instance.network_graph.arc_list[index]
                 for index in edges_used_indices
             ]
-            path = edges_to_path(edges_used)
+            start, end = (
+                self.problem_instance.origins[demand_index],
+                self.service_placement[
+                    self.problem_instance.demand_to_service[demand_index]
+                ],
+            )
+            path = edges_to_path(edges_used, start, end)
             self.route_demand(demand_index, q_variable[demand_index], path)
 
     def basic_placement_and_routing(self):
@@ -160,12 +168,12 @@ class SolvingInstance:
             )
             assert problem_latency <= max_latency, message
 
-    def compute_demand_latency(self, demand_index: int):
+    def compute_demand_latency(self, demand_index: int) -> float:
         """
         For a given demand, return the associated graph latency.
         """
         path = path_node_to_path_tuple(self.paths_used[demand_index])
-        return sum(self.graph.edges[edge]["latency"] for edge in path)
+        return float(sum(self.graph.edges[edge]["latency"] for edge in path))
 
     def unroute_demand(self, demand_index: int):
         """
@@ -325,17 +333,35 @@ class SolvingInstance:
         self.reset_routing()
         self.reset_placement()
 
+    def get_demands_using_arc(self, arc: tuple) -> list:
+        """Return the indices of the demands that uses the given arc."""
+        return [
+            demand_index
+            for demand_index in range(self.problem_instance.total_number_of_demands)
+            if arc in path_node_to_path_tuple(self.paths_used[demand_index])
+        ]
+
+    def get_crossing_demands(self, path: list) -> list:
+        """Return the indices of the demands that use any arc of the given path."""
+        if not len(path):
+            return []
+        if isinstance(path[0], int):
+            path = path_node_to_path_tuple(path)
+        demands = []
+        for arc in path:
+            demands += self.get_demands_using_arc(arc)
+        demands = list(set(demands))
+        return demands
+
     def get_remaining_quantity_possible(self, demand_index: int):
-        '''
-        Les chemins de demandes peuvent s'intersecter ! Regarder ce truc
-        '''
+        """
+        Les chemins de demandes peuvent s'intersecter !
+        """
         path = path_node_to_path_tuple(self.paths_used[demand_index])
         remaining_flow = (
             self.problem_instance.max_flows[demand_index]
             - self.quantities[demand_index]
         )
-
-        print(demand_index)
 
         if not len(path):
             return remaining_flow
@@ -351,23 +377,34 @@ class SolvingInstance:
             )
             assert remaining_quantity_latency >= 0.0, "Should not be seen."
 
-            print()
-            print(path)
-            print(self.problem_instance.latencies[demand_index])
-            print(self.get_real_latency(demand_index))
-            print(distance_to_max_latency / max_alpha / len(path))
-
             remaining_quantity_capacity = min(
                 self.graph.edges[edge]["remaining_capacity"] for edge in path
             )
             assert remaining_quantity_capacity >= 0
             assert remaining_flow >= 0
 
-            remaining_quantity = min(
-                remaining_quantity_capacity, remaining_quantity_latency, remaining_flow
+            crossing_demands = self.get_crossing_demands(self.paths_used[demand_index])
+
+            remaining_quantities_crossing_demands = min(
+                [
+                    (
+                        self.problem_instance.latencies[demand_index]
+                        - self.compute_demand_latency(demand_index)
+                    )
+                    / max_alpha
+                    / len(self.paths_used[demand_index])
+                    for demand_index in crossing_demands
+                ]
             )
-            print("Remaining quantity : {}".format(remaining_quantity))
-            print()
+
+            remaining_quantity = int(
+                min(
+                    remaining_quantity_capacity,
+                    remaining_quantity_latency,
+                    remaining_flow,
+                    remaining_quantities_crossing_demands,
+                )
+            )
             return remaining_quantity
 
     def _maximize_quantities_greedy(self):
@@ -375,9 +412,8 @@ class SolvingInstance:
             self.get_remaining_quantity_possible(demand_index)
             for demand_index in range(self.problem_instance.total_number_of_demands)
         ]
-        while max(remaining_quantities):
+        while max(remaining_quantities) >= 1:
             demand_index = np.argmax(remaining_quantities)
-            print("Demand for augmentation : {}".format(demand_index))
             new_quantity = (
                 remaining_quantities[demand_index] + self.quantities[demand_index]
             )
@@ -386,9 +422,11 @@ class SolvingInstance:
                 self.get_remaining_quantity_possible(demand_index)
                 for demand_index in range(self.problem_instance.total_number_of_demands)
             ]
-            print()
-            print(remaining_quantities)
-            print()
 
     def get_actual_state(self) -> np.ndarray:
-        return np.array(self.service_placement + self.paths_used + self.quantities)
+        state = self.service_placement + self.quantities
+        print(state)
+        return np.array(state)
+
+    def get_state_dimension(self):
+        return self.get_actual_state().shape[0]

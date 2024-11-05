@@ -6,7 +6,7 @@ import os
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
-users = 5
+users = 3
 neighbors = 1
 instance_name = "tree_{}_{}".format(users, neighbors)
 solver_name = "heuristic"

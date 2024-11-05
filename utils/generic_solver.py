@@ -31,6 +31,7 @@ class GenericSolver:
             and self.q_variable is not None
         )
         self.solving_instance = SolvingInstance(self.problem_instance)
+        print(self.y_variable)
         self.solving_instance.place_service_variable(self.y_variable)
         self.solving_instance.route_demand_variable(self.x_variable, self.q_variable)
         print("Score: {}".format(self.solving_instance.get_score()))

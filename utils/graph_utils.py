@@ -62,20 +62,14 @@ def get_encoded_incoming_arc(
     return [arc_dic[elem] for elem in get_incoming_arc(nx_graph, node)]
 
 
-def edges_to_path(edges: list):
-    adj = defaultdict(list)
-    for u, v in edges:
-        adj[u].append(v)
-        adj[v].append(u)
-    start = next(node for node in adj if len(adj[node]) == 1)
-    path, visited, current = [start], set(), start
-    while True:
-        next_node = next((n for n in adj[current] if (current, n) not in visited), None)
-        if not next_node:
-            break
-        visited.add(
-            (current, next_node) if current < next_node else (next_node, current)
-        )
-        path.append(next_node)
-        current = next_node
-    return path
+def edges_to_path(edges_used: list, start: int, end: int) -> list:
+    if not len(edges_used):
+        return []
+    path = [edge for edge in edges_used if edge[0] == start]
+
+    while len(path) < len(edges_used) - 1:
+        path += [edge for edge in edges_used if edge[0] == path[-1][1]]
+
+    path += [edge for edge in edges_used if edge[1] == end]
+
+    return path_tuple_to_path_node(path)
