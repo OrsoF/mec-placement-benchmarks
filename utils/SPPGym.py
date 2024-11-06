@@ -8,7 +8,6 @@ import itertools
 from problem_classes.probleminstance import ProblemInstance
 from utils.graph_utils import path_node_to_path_tuple, path_tuple_to_path_node
 import matplotlib.pyplot as plt
-from problem_classes.solvinginstance import SolvingInstance
 
 
 class SPPGym(gym.Env):
@@ -28,12 +27,10 @@ class SPPGym(gym.Env):
 
         self._make_action_observation_spaces()
 
-        self.solving_instance = SolvingInstance(problem_instance)
-
-        self.solving_instance.basic_placement_and_routing()
-
-        self.best_solution = self.solving_instance.get_arc_variables()
-        self.max_q_reached = self.solving_instance.get_score()
+        self.best_solution = self._build_initial_solution()
+        self.max_q_reached = np.sum(
+            self.observation_to_variables(self.best_solution)[2]
+        )
 
     def _build_initial_solution(self) -> tuple:
         """
@@ -116,12 +113,14 @@ class SPPGym(gym.Env):
     def reset(self, seed=0):
         # Placement aléatoire, PCC0 et quantités 1
         self.steps_done = 0
-        self.solving_instance.reset_instance()
 
-        obs = self.solving_instance.get_actual_state()
+        self.state = self._build_initial_solution()
+
+        obs = self.state
         info = {}
 
-        self.recent_scores = [-10 for _ in range(self.limit_step)]
+        self.recent_scores = [-3 for _ in range(self.limit_step)]
+
         self.max_q_reached_episode = 0
 
         return obs, info
@@ -196,13 +195,12 @@ class SPPGym(gym.Env):
             self.state = service_placement + sp_indices + quantities
 
     def render(self):
-        self.solving_instance.render_solution()
+        print(self.state)
 
     def step(self, action: tuple):
         self.steps_done += 1
         done = False
         terminated = self.steps_done >= self.limit_step
-        old_state = self.solving_instance.get_actual_state()
         info = {}
 
         # Action : Choix_Action x Choix_Service x Placement x Choix_Demande x Changement_Quantité x Changement PCC
@@ -217,8 +215,8 @@ class SPPGym(gym.Env):
 
         # Si service_or_demand == 0, on s'occupe du service et on le déplace
         if service_or_demand_or_quantities == 0:
-            new_demands_path = [1 for _ in range(self.problem_instance.demand_per_service)]
-            self.solving_instance.replace_service(selected_service, choosen_node_for_this_service, new_demands_path)
+            old_state = self.state
+            self._update_placement(selected_service, choosen_node_for_this_service)
             reward = -10 if old_state == self.state else -2
         elif service_or_demand_or_quantities == 1:  # Sinon, on reroute la demande
             old_state = self.state
@@ -246,7 +244,8 @@ class SPPGym(gym.Env):
         objective = np.sum(self.state[-self.problem_instance.total_number_of_demands :])
 
         if objective > self.max_q_reached:
-            print(objective)
+            if np.random.random() < 0.1:
+                print(objective)
             self.max_q_reached = objective
             self.best_solution = self.observation_to_variables(self.state)
             # print(self.max_q_reached)
@@ -408,6 +407,7 @@ class SPPGym(gym.Env):
         # x Choix_Demande
         # x Changement_Quantité
         # x Choix PCC
+        # x latences
         self.action_space = MultiDiscrete(
             [
                 3,
@@ -418,6 +418,7 @@ class SPPGym(gym.Env):
                 self.sp_number,
             ]
         )
+
         # State : Ou sont placés les services (taille S, max n)
         #       x Quel est le numéro du PCC pour chaque demande (taille d, max sp_number)
         #       x Quantité de chaque demande (taille d, max q_dmax)
@@ -425,13 +426,14 @@ class SPPGym(gym.Env):
             [0]
             * (
                 self.problem_instance.number_of_service
-                + 2 * self.problem_instance.total_number_of_demands
+                + self.problem_instance.total_number_of_demands
+                + self.problem_instance.total_number_of_demands
             )
         )
         high_array = np.array(
-            [self.graph.number_of_nodes()] * self.problem_instance.number_of_service
-            + [self.sp_number] * self.problem_instance.total_number_of_demands
-            + self.problem_instance.max_flows
+            [self.graph.number_of_nodes()] * self.problem_instance.number_of_service # Placement
+            + [self.sp_number] * self.problem_instance.total_number_of_demands # Sp indices
+            + self.problem_instance.max_flows # 
         )
         self.observation_space = Box(low=low_array, high=high_array)
 
