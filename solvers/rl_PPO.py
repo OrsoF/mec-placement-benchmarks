@@ -44,7 +44,7 @@ class Solver(GenericSolver):
         env = SPPGym(problem_instance=self.problem_instance)
         env.reset()
         model = PPO("MlpPolicy", env, verbose=0, seed=0)
-        model.learn(total_timesteps=1000, progress_bar=True)
+        model.learn(total_timesteps=int(1e5), progress_bar=True)
 
         self.runtime = time.time() - start_time
         self.score = env.max_q_reached

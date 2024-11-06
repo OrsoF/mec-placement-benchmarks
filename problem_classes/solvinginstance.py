@@ -298,6 +298,12 @@ class SolvingInstance:
 
         return x_variable, y_variable, q_variable
 
+    def set_variable_solution(
+        self, x_var: np.ndarray, y_var: np.ndarray, q_var: np.ndarray
+    ):
+        self.place_service_variable(y_var)
+        self.route_demand_variable(x_var, q_var)
+
     def get_score(self) -> float:
         return sum(self.quantities)
 
@@ -425,7 +431,6 @@ class SolvingInstance:
 
     def get_actual_state(self) -> np.ndarray:
         state = self.service_placement + self.quantities
-        print(state)
         return np.array(state)
 
     def get_state_dimension(self):

@@ -4,7 +4,7 @@ from problem_classes.networkgraph import NetworkGraph
 from problem_classes.service import Service
 from problem_classes.probleminstance import ProblemInstance
 from utils.data_management import get_info_from_results
-from utils.graph_neighbors import get_encoded_incoming_arc, get_encoded_outgoing_arc
+from utils.graph_utils import get_encoded_incoming_arc, get_encoded_outgoing_arc
 from utils.data_management import get_result_informations
 import pyomo.environ as pyo
 import time
@@ -325,6 +325,7 @@ class Solver(GenericSolver):
         thread_limit: int = 1,
         initial_value=None,
     ):
+        print('Building Gurobi model...')
         self._model_parameters()
         self._build_model()
         self._build_sets()
@@ -339,6 +340,8 @@ class Solver(GenericSolver):
         opt = pyo.SolverFactory("gurobi")
         opt.options["threads"] = 1
         opt.options['Heuristics'] = 0
+
+        print('Start solving process...')
         solver_result = opt.solve(self.model)
 
         (

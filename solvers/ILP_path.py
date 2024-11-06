@@ -4,7 +4,7 @@ from problem_classes.networkgraph import NetworkGraph
 from problem_classes.service import Service
 from problem_classes.probleminstance import ProblemInstance
 from utils.data_management import get_info_from_results
-from utils.graph_neighbors import get_encoded_incoming_arc, get_encoded_outgoing_arc
+from utils.graph_utils import get_encoded_incoming_arc, get_encoded_outgoing_arc
 from itertools import islice
 from utils.data_management import get_result_informations
 import pyomo.environ as pyo
@@ -369,6 +369,7 @@ class Solver(GenericSolver):
         thread_limit: int = 1,
         solver: str = "gurobi",
     ):
+        print('Building Gurobi model...')
         self._model_parameters()
         self._build_model()
         self._build_sets()
@@ -378,13 +379,12 @@ class Solver(GenericSolver):
         self._build_objective()
 
         opt = pyo.SolverFactory(solver)
-        if solver == "gurobi":
-            opt.options["TimeLimit"] = solving_time_limit
-            opt.options["threads"] = thread_limit
-        else:
-            assert False, "Not implemented yet."
+        opt.options["TimeLimit"] = solving_time_limit
+        opt.options["threads"] = thread_limit
+        opt.options["MemLimit"] = 8
 
         try:
+            print('Start solving process...')
             solver_result = opt.solve(self.model)
             (
                 self.runtime,
@@ -395,3 +395,5 @@ class Solver(GenericSolver):
 
         except ValueError:
             self.runtime, self.lower_bound, self.upper_bound = solving_time_limit, 0, 0
+
+        self.score= self.lower_bound

@@ -9,17 +9,15 @@ users = 10
 neighbors = 4
 
 # Average instance
-# users = 20
-# neighbors = 8
+users = 20
+neighbors = 8
 
 # Large instance
-# users = 30
-# neighbors = 12
+users = 30
+neighbors = 12
 
 instance_name = "tree_{}_{}".format(users, neighbors)
 solver_name = "rl_PPO"
-solver_name = "rl_A2C"
-solver_name = "rl_SAC"
 problem_instance = make_tree_instance(
     number_of_users=users, neighbors_connection=neighbors
 )

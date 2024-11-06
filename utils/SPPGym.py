@@ -4,7 +4,7 @@ from gymnasium.spaces import Tuple, Discrete, Box, MultiDiscrete
 import networkx as nx
 from typing import List
 import itertools
-
+from problem_classes.solvinginstance import SolvingInstance
 from problem_classes.probleminstance import ProblemInstance
 from utils.graph_utils import path_node_to_path_tuple, path_tuple_to_path_node
 import matplotlib.pyplot as plt
@@ -20,13 +20,16 @@ class SPPGym(gym.Env):
         # Problem data
         self.problem_instance = problem_instance
         self.sp_number = sp_number
+        self.saved_shortest_path = {}
         self.limit_step = limit_step
+        self.solving_instance = SolvingInstance(problem_instance)
 
         self.network_graph = self.problem_instance.network_graph
         self.graph = self.network_graph.nx_graph
 
         self._make_action_observation_spaces()
 
+        self.scores_reached = []
         self.best_solution = self._build_initial_solution()
         self.max_q_reached = np.sum(
             self.observation_to_variables(self.best_solution)[2]
@@ -107,7 +110,7 @@ class SPPGym(gym.Env):
         D = self.problem_instance.total_number_of_demands
         service_placement = observation[:S]
         sp_indices = observation[S : S + D]
-        choosen_quantities = observation[S + D :]
+        choosen_quantities = observation[S + D : S + 2 * D]
         return service_placement, sp_indices, choosen_quantities
 
     def reset(self, seed=0):
@@ -213,21 +216,27 @@ class SPPGym(gym.Env):
             choosen_sp,
         ) = action
 
-        # Si service_or_demand == 0, on s'occupe du service et on le déplace
-        if service_or_demand_or_quantities == 0:
+        if (
+            service_or_demand_or_quantities == 0
+        ):  # On s'occupe du service et on le déplace
             old_state = self.state
             self._update_placement(selected_service, choosen_node_for_this_service)
             reward = -10 if old_state == self.state else -2
-        elif service_or_demand_or_quantities == 1:  # Sinon, on reroute la demande
+
+        elif service_or_demand_or_quantities == 1:  # On reroute la demande
             old_state = self.state
             self._reroute(selected_demand, choosen_sp)
             reward = -10 if old_state == self.state else -1
-        else:
+
+        else:  # On change Q
             self._update_quantity(selected_demand, action_q)
             if self.max_q_reached_episode == 0:
-                reward = max(
+                improvement = (
                     np.sum(self.state[-self.problem_instance.total_number_of_demands :])
-                    - self.problem_instance.total_number_of_demands,
+                    - self.problem_instance.total_number_of_demands
+                )
+                reward = max(
+                    improvement,
                     0,
                 )
             else:
@@ -237,16 +246,32 @@ class SPPGym(gym.Env):
                     0,
                 )
 
+        for _ in range(1000):
+            self._update_quantity(
+                np.random.randint(self.problem_instance.total_number_of_demands), 0
+            )
+
         obs = np.array(self.state)
         info = {}
         self._test_solution()
+
+        # x, y, q = self.observation_to_variables(obs)
+        # self.solving_instance.set_variable_solution(x, y, q)
+        # self.solving_instance._maximize_quantities_greedy()
+        # x, y, q = self.solving_instance.get_arc_variables()
+        # objective = self.solving_instance.get_score()
 
         objective = np.sum(self.state[-self.problem_instance.total_number_of_demands :])
 
         if objective > self.max_q_reached:
             self.max_q_reached = objective
             self.best_solution = self.observation_to_variables(self.state)
-            # print(self.max_q_reached)
+            self.best_solution = (x, y, q)
+            self.scores_reached.append(objective)
+            plt.plot(self.scores_reached, label="Quantity")
+            plt.legend()
+            plt.savefig("scores.png")
+            plt.cla()
 
         if objective > self.max_q_reached_episode:
             self.max_q_reached_episode = objective
@@ -277,15 +302,22 @@ class SPPGym(gym.Env):
         Returns the index-th shortest path from source to destination.
         """
         index = int(index)
-        shortest_paths = nx.algorithms.simple_paths.shortest_simple_paths(
-            self.graph,
-            source,
-            destination,
-        )
-        for i, path in enumerate(shortest_paths):
-            if i == index:
-                return path
+
+        if (source, destination, index) in self.saved_shortest_path:
+            return self.saved_shortest_path[(source, destination, index)]
+
+        for i, path in enumerate(
+            nx.algorithms.simple_paths.shortest_simple_paths(
+                self.graph,
+                source,
+                destination,
+            )
+        ):
             last_visited_path = path
+            if i == index:
+                break
+
+        self.saved_shortest_path[(source, destination, index)] = last_visited_path
         return last_visited_path
 
     def _update_edge_attributes(self):
