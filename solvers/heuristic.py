@@ -36,8 +36,6 @@ class Solver(GenericSolver):
         self.runtime = time.time() - start_time
         self.score = self.solving_instance.get_score()
 
-        self.solving_instance.validate_current_solution()
-
         self.x_variable, self.y_variable, self.q_variable = (
             self.solving_instance.get_arc_variables()
         )

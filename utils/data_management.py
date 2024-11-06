@@ -2,6 +2,7 @@ import os
 import importlib
 import pandas as pd
 import pickle as pkl
+import tqdm
 from problem_classes.probleminstance import ProblemInstance, ToyInstance
 from importlib.util import spec_from_file_location, module_from_spec
 from utils.generic_solver import GenericSolver
@@ -180,12 +181,16 @@ def solve(
     repeat: int = 1,
     check_solution: bool = False,
     initial_variable=None,
+    verbose:bool=False,
 ) -> tuple[ProblemInstance, GenericSolver]:
     """
     Allows to solve an instance by its name and by the solver name.
     """
     instance = import_instance_from_file(instance_name)
     solver = import_solver_from_file(solver_name, instance)
+
+    if verbose:
+        print('Start solving...')
 
     if repeat == 1:
         if initial_variable is not None:
@@ -201,6 +206,10 @@ def solve(
                 solver.run()
             runtime += solver.runtime
         solver.runtime = runtime / repeat
+
+    if verbose:
+        print(f"Score : {solver.score}")
+        print(f"Runtime : {solver.runtime}")
 
     instance._set_arc_solution(solver.x_variable, solver.y_variable, solver.q_variable)
     if check_solution:

@@ -244,8 +244,6 @@ class SPPGym(gym.Env):
         objective = np.sum(self.state[-self.problem_instance.total_number_of_demands :])
 
         if objective > self.max_q_reached:
-            if np.random.random() < 0.1:
-                print(objective)
             self.max_q_reached = objective
             self.best_solution = self.observation_to_variables(self.state)
             # print(self.max_q_reached)
@@ -422,19 +420,19 @@ class SPPGym(gym.Env):
         # State : Ou sont placés les services (taille S, max n)
         #       x Quel est le numéro du PCC pour chaque demande (taille d, max sp_number)
         #       x Quantité de chaque demande (taille d, max q_dmax)
-        low_array = np.array(
-            [0]
-            * (
-                self.problem_instance.number_of_service
-                + self.problem_instance.total_number_of_demands
-                + self.problem_instance.total_number_of_demands
-            )
+
+        high = max(
+            self.graph.number_of_nodes(),
+            self.sp_number,
+            self.problem_instance.max_flows[0],
         )
-        high_array = np.array(
-            [self.graph.number_of_nodes()] * self.problem_instance.number_of_service # Placement
-            + [self.sp_number] * self.problem_instance.total_number_of_demands # Sp indices
-            + self.problem_instance.max_flows # 
+        state_shape = (
+            self.problem_instance.number_of_service  # Placement pour chaque service
+            + self.problem_instance.total_number_of_demands  # Sp indices pour chaque demande
+            + self.problem_instance.total_number_of_demands  # Flow pour chaque demande
         )
+        low_array = np.zeros(state_shape)
+        high_array = high * np.ones(state_shape)
         self.observation_space = Box(low=low_array, high=high_array)
 
     def clip_state(self):

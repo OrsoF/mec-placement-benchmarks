@@ -13,4 +13,4 @@ solver_name = "rl_base"
 problem_instance = make_tree_instance(
     number_of_users=users, neighbors_connection=neighbors
 )
-problem_instance, solver = solve(instance_name, solver_name)
+problem_instance, solver = solve(instance_name, solver_name, verbose=True)

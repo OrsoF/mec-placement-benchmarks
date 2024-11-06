@@ -4,12 +4,23 @@ import os
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
-users = 5
+# Small instance
+users = 10
 neighbors = 4
+
+# Average instance
+# users = 20
+# neighbors = 8
+
+# Large instance
+# users = 30
+# neighbors = 12
+
 instance_name = "tree_{}_{}".format(users, neighbors)
-solver_name = "base_heuristic"
+solver_name = "rl_PPO"
+solver_name = "rl_A2C"
+solver_name = "rl_SAC"
 problem_instance = make_tree_instance(
     number_of_users=users, neighbors_connection=neighbors
 )
-problem_instance, solver = solve(instance_name, solver_name)
-print(solver.score)
+problem_instance, solver = solve(instance_name, solver_name, verbose=True)
