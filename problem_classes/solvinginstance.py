@@ -48,6 +48,9 @@ class SolvingInstance:
 
     def place_service(self, service_index: int, node: int, force: bool = False):
         assert self.service_placement[service_index] == -1, "Already placed"
+        assert service_index < self.problem_instance.number_of_service
+        assert node < self.graph.number_of_nodes()
+
         self.service_placement[service_index] = node
         self.graph.nodes[node][
             "remaining_resources"

@@ -65,6 +65,8 @@ def get_encoded_incoming_arc(
 def edges_to_path(edges_used: list, start: int, end: int) -> list:
     if not len(edges_used):
         return []
+    elif len(edges_used) == 1:
+        return list(edges_used[0])
     path = [edge for edge in edges_used if edge[0] == start]
 
     while len(path) < len(edges_used) - 1:

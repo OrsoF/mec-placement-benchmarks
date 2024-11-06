@@ -255,17 +255,18 @@ class SPPGym(gym.Env):
         info = {}
         self._test_solution()
 
-        # x, y, q = self.observation_to_variables(obs)
-        # self.solving_instance.set_variable_solution(x, y, q)
-        # self.solving_instance._maximize_quantities_greedy()
-        # x, y, q = self.solving_instance.get_arc_variables()
-        # objective = self.solving_instance.get_score()
+        x, y, q = self.observation_to_variables(obs)
+        self.solving_instance.set_variable_solution(x, y, q)
+        self.solving_instance._maximize_quantities_greedy()
+        x, y, q = self.solving_instance.get_arc_variables()
+        objective = self.solving_instance.get_score()
+        self.solving_instance.__init__(self.problem_instance)
 
-        objective = np.sum(self.state[-self.problem_instance.total_number_of_demands :])
+        # objective = np.sum(self.state[-self.problem_instance.total_number_of_demands :])
 
         if objective > self.max_q_reached:
             self.max_q_reached = objective
-            self.best_solution = self.observation_to_variables(self.state)
+            # self.best_solution = self.observation_to_variables(self.state)
             self.best_solution = (x, y, q)
             self.scores_reached.append(objective)
             plt.plot(self.scores_reached, label="Quantity")
