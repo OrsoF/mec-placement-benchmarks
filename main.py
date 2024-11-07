@@ -8,17 +8,17 @@ os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 users = 10
 neighbors = 4
 
-# Average instance
-users = 20
-neighbors = 8
+# # Average instance
+# users = 20
+# neighbors = 8
 
-# Large instance
-users = 30
-neighbors = 12
+# # Large instance
+# users = 30
+# neighbors = 12
 
 instance_name = "tree_{}_{}".format(users, neighbors)
-solver_name = "rl_PPO"
 problem_instance = make_tree_instance(
     number_of_users=users, neighbors_connection=neighbors
 )
+solver_name = "heuristic"
 problem_instance, solver = solve(instance_name, solver_name, verbose=True)

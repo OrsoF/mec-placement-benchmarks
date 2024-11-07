@@ -15,6 +15,8 @@ import matplotlib.pyplot as plt
 def make_tree_instance(
     number_of_users: int = 7, neighbors_connection: int = 2
 ) -> ProblemInstance:
+    assert number_of_users >= 1
+    assert neighbors_connection >= 0
     nx_graph = nx.Graph()
     USER_NODE_NAME = "user_{}"
     WAP_NODE = "WAP"
@@ -41,11 +43,11 @@ def make_tree_instance(
 
     nx_graph.add_edge(WAP_NODE, CLOUD_NODE)
 
-    resources = [10] * number_of_users + [10, 1000]
+    resources = [10] * number_of_users + [100, 1000]
     capacities = (
-        [number_of_users * 10] * 2 * (nx_graph.number_of_edges() - number_of_users - 1)
+        [number_of_users * 5] * 2 * (nx_graph.number_of_edges() - number_of_users - 1)
         + [100] * 2 * number_of_users
-        + [1000] * 2
+        + [100] * 2
     )
 
     # Build graph
@@ -65,14 +67,14 @@ def make_tree_instance(
         demand_user = Demand(
             origin_node_index=user_index,
             flow_min=1,
-            flow_max=20,
-            max_latency=20 * number_of_users,
+            flow_max=100,
+            max_latency=10 * number_of_users,
         )
         demand_server = Demand(
             origin_node_index=nx_graph.number_of_nodes() - 1,
             flow_min=1,
-            flow_max=50,
-            max_latency=20 * number_of_users,
+            flow_max=100,
+            max_latency=10 * number_of_users,
         )
         service = Service(
             task_list=[

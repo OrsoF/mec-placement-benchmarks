@@ -341,6 +341,14 @@ class Solver(GenericSolver):
         opt.options["threads"] = 1
         opt.options['Heuristics'] = 0
 
+        num_variables = len([v for v in self.model.component_data_objects(pyo.Var)])
+        print("Number of variables:", num_variables)
+
+        num_constraints = len(
+            [c for c in self.model.component_data_objects(pyo.Constraint)]
+        )
+        print("Number of constraints:", num_constraints)
+
         print('Start solving process...')
         solver_result = opt.solve(self.model)
 

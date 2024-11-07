@@ -7,11 +7,14 @@ from utils.data_management import get_info_from_results
 from utils.graph_utils import get_encoded_incoming_arc, get_encoded_outgoing_arc
 from itertools import islice
 from utils.data_management import get_result_informations
-import pyomo.environ as pyo
-import time
 from networkx.readwrite.gml import read_gml
+
+import pyomo.environ as pyo
 import networkx as nx
+import numpy as np
 import os
+import time
+
 
 
 class Solver(GenericSolver):
@@ -21,6 +24,7 @@ class Solver(GenericSolver):
         self.G: nx.DiGraph = self.problem_instance.network_graph.nx_graph
         self.maximum_path_number = maximum_path_number
         self.solver_name = "ILP_path"
+        print(f"Number of SP: {maximum_path_number}")
 
         # Graphs
         self.network_graph = self.problem_instance.network_graph
@@ -369,7 +373,7 @@ class Solver(GenericSolver):
         thread_limit: int = 1,
         solver: str = "gurobi",
     ):
-        print('Building Gurobi model...')
+        print("Building Gurobi model...")
         self._model_parameters()
         self._build_model()
         self._build_sets()
@@ -383,8 +387,16 @@ class Solver(GenericSolver):
         opt.options["threads"] = thread_limit
         opt.options["MemLimit"] = 8
 
+        num_variables = len([v for v in self.model.component_data_objects(pyo.Var)])
+        print("Number of variables:", num_variables)
+
+        num_constraints = len(
+            [c for c in self.model.component_data_objects(pyo.Constraint)]
+        )
+        print("Number of constraints:", num_constraints)
+
         try:
-            print('Start solving process...')
+            print("Start solving process...")
             solver_result = opt.solve(self.model)
             (
                 self.runtime,
@@ -396,4 +408,23 @@ class Solver(GenericSolver):
         except ValueError:
             self.runtime, self.lower_bound, self.upper_bound = solving_time_limit, 0, 0
 
-        self.score= self.lower_bound
+        self.lambda_variable = np.array(
+            [
+                [
+                    self.model.demand_arc_transit[i, j].value
+                    for j in range(self.arc_number)
+                ]
+                for i in range(self.total_number_of_demands)
+            ]
+        )
+        self.y_variable = np.array(
+            [
+                [self.model.y[i, j].value for j in range(self.node_number)]
+                for i in range(self.number_of_services)
+            ]
+        )
+        self.q_variable = np.array(
+            [self.model.p[dd].value for dd in range(self.total_number_of_demands)]
+        )
+
+        self.score = self.lower_bound

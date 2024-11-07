@@ -17,7 +17,7 @@ from utils.graph_utils import (
 class SolvingInstance:
     def __init__(self, problem_instance: ProblemInstance):
         self.problem_instance = problem_instance
-        self.graph = self.problem_instance.network_graph.nx_graph
+        self.graph = self.problem_instance.network_graph.nx_graph.copy()
 
         self.service_placement: list = [
             -1 for _ in range(self.problem_instance.number_of_service)
@@ -29,6 +29,20 @@ class SolvingInstance:
             -1 for _ in range(self.problem_instance.total_number_of_demands)
         ]
 
+        self._initialize_graph()
+
+    def reset_instance(self):
+        """Allows to reset the solving instance."""
+        self.graph = self.problem_instance.network_graph.nx_graph.copy()
+        self.service_placement: list = [
+            -1 for _ in range(self.problem_instance.number_of_service)
+        ]
+        self.paths_used: list = [
+            [] for _ in range(self.problem_instance.total_number_of_demands)
+        ]
+        self.quantities = [
+            -1 for _ in range(self.problem_instance.total_number_of_demands)
+        ]
         self._initialize_graph()
 
     def _initialize_graph(self):
@@ -233,13 +247,17 @@ class SolvingInstance:
                 )
 
     def render_solution(self):
+        for service_index in range(self.problem_instance.number_of_service):
+            print(
+                f"Service {service_index} placed on node {self.service_placement[service_index]}."
+            )
+        print()
+
         for node_index in self.graph.nodes:
             node = self.graph.nodes[node_index]
             print(
                 "Node {} remaining resources : {} / {}".format(
-                    node_index,
-                    node["remaining_resources"],
-                    node["available_resources"],
+                    node_index, node["remaining_resources"], node["available_resources"]
                 )
             )
         print()
@@ -248,7 +266,7 @@ class SolvingInstance:
             edge = self.graph.edges[edge_tuple]
             print(
                 "Edge {} remaining capacity : {} / {}".format(
-                    edge, edge["remaining_capacity"], edge["capacity"]
+                    edge_tuple, edge["remaining_capacity"], edge["capacity"]
                 )
             )
         print()
@@ -259,6 +277,9 @@ class SolvingInstance:
                     demand_index, self.paths_used[demand_index]
                 )
             )
+        print()
+
+        for demand_index in range(self.problem_instance.total_number_of_demands):
             print(
                 "Quantity for demand {} : {} / {}".format(
                     demand_index,
@@ -266,6 +287,9 @@ class SolvingInstance:
                     self.problem_instance.max_flows[demand_index],
                 )
             )
+        print()
+
+        for demand_index in range(self.problem_instance.total_number_of_demands):
             latency = self.get_real_latency(demand_index)
             print(
                 "Latency for demand {} : {} / {}".format(
