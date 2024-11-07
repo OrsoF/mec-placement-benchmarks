@@ -172,57 +172,54 @@ class SPPGymFast(gym.Env):
         terminated = self.steps_done >= self.limit_step
         info = {}
 
-        # Action : Choix_Action x Choix_Service x Placement x Choix_Demande x Changement_Quantité x Changement PCC
         (
-            service_or_demand_or_quantities,
-            selected_service,
-            choosen_node_for_this_service,
-            selected_demand,
-            action_q,
-            choosen_sp,
+            service_or_demand_or_quantities,  # Choix_Action
+            selected_service,  # Choix_Service
+            choosen_node_for_this_service,  # Placement
+            selected_demand,  # Choix_Demande
+            action_q,  # Changement_Quantité
+            choosen_sp,  # Changement PCC
         ) = action
 
         # Si service_or_demand == 0, on s'occupe du service et on le déplace
         if service_or_demand_or_quantities == 0:
-            new_demands_path = [
-                nx.shortest_path(
+
+            demands_in_service = (
+                self.problem_instance.demand_per_service[selected_service] * selected_service,
+                self.problem_instance.demand_per_service[selected_service] * (selected_service + 1),
+            )
+            paths = []
+            for demand_index in range(*demands_in_service):
+                origin = self.problem_instance.origins[demand_index]
+                path = nx.shortest_path(
                     self.graph,
-                    self.problem_instance.origins[demand_index],
+                    origin,
                     choosen_node_for_this_service,
                 )
-                for demand_index in range(self.problem_instance.total_number_of_demands)
-            ]
-            self.solving_instance.replace_service(
-                selected_service, choosen_node_for_this_service, new_demands_path
-            )
-            reward = -10 if old_state == self.state else -2
+                paths.append(path)
+
+            try:
+                self.solving_instance.replace_service(selected_service, choosen_node_for_this_service, paths)
+            except AssertionError:
+                reward = -1
+
         elif service_or_demand_or_quantities == 1:  # Sinon, on reroute la demande
             self.solving_instance.reroute_demand(
                 selected_demand,
                 self._select_shortest_path(
                     self.problem_instance.origins[selected_demand],
-                    self.solving_instance.service_placement[selected_demand],
+                    self.solving_instance.service_placement[self.problem_instance.demand_to_service[selected_demand]],
                     choosen_sp,
                 ),
             )
-        else:
-            self._update_quantity(selected_demand, action_q)
-            if self.max_q_reached_episode == 0:
-                reward = max(
-                    np.sum(self.state[-self.problem_instance.total_number_of_demands :])
-                    - self.problem_instance.total_number_of_demands,
-                    0,
-                )
-            else:
-                reward = max(
-                    np.sum(self.state[-self.problem_instance.total_number_of_demands :])
-                    - self.max_q_reached_episode,
-                    0,
-                )
+        else: # Troisième possibilité : on mets à jour les quantités avec + ou - 1
+            if action_q == 0:
+                self.solving_instance.decrease_quantity(selected_demand)
+            elif action_q == 2:
+                self.solving_instance.increase_quantity(selected_demand)
 
         obs = np.array(self.state)
         info = {}
-        self._test_solution()
 
         objective = np.sum(self.state[-self.problem_instance.total_number_of_demands :])
 
@@ -234,6 +231,8 @@ class SPPGymFast(gym.Env):
 
         if objective > self.max_q_reached_episode:
             self.max_q_reached_episode = objective
+
+        reward = self.solving_instance.get_score()
 
         self.recent_scores[self.steps_done - 1] = reward
 
@@ -253,8 +252,6 @@ class SPPGymFast(gym.Env):
             plt.plot(self.recent_scores, label="Episode {}".format(self.episode))
             plt.legend()
             plt.savefig("results.png")
-
-        print(type(obs))
 
         return obs, reward / 100, done, terminated, info
 
@@ -385,7 +382,7 @@ class SPPGymFast(gym.Env):
         Build the Gym action and observation spaces.
         """
         # Action :
-        #   Choix action (service demande ou quantité)
+        #   Choix action (service,  demande ou quantité)
         # x Choix_Service
         # x Placement
         # x Choix_Demande

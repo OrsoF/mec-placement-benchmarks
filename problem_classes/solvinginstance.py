@@ -23,7 +23,7 @@ class SolvingInstance:
             -1 for _ in range(self.problem_instance.number_of_service)
         ]
         self.paths_used: list = [
-            [] for _ in range(self.problem_instance.total_number_of_demands)
+            -1 for _ in range(self.problem_instance.total_number_of_demands)
         ]
         self.quantities = [
             -1 for _ in range(self.problem_instance.total_number_of_demands)
@@ -66,14 +66,16 @@ class SolvingInstance:
         assert node < self.graph.number_of_nodes()
 
         self.service_placement[service_index] = node
-        self.graph.nodes[node][
-            "remaining_resources"
-        ] -= self.problem_instance.needed_resources[service_index]
+
+        new_available_resources = (
+            self.graph.nodes[node]["remaining_resources"]
+            - self.problem_instance.needed_resources[service_index]
+        )
 
         if not force:
-            assert (
-                self.graph.nodes[node]["remaining_resources"] >= 0
-            ), "Not enough resources."
+            assert new_available_resources >= 0, "Not enough resources."
+
+        self.graph.nodes[node]["remaining_resources"] = new_available_resources
 
     def place_service_variable(self, y_variable: np.ndarray):
         for service_index in range(self.problem_instance.number_of_service):
@@ -85,8 +87,7 @@ class SolvingInstance:
     ):
         """Route given demands for the first time."""
         assert (
-            not (len(self.paths_used[demand_index]))
-            and self.quantities[demand_index] == -1
+            self.paths_used[demand_index] == -1 and self.quantities[demand_index] == -1
         ), "Demand already routed."
 
         service_index = self.problem_instance.demand_to_service[demand_index]
@@ -197,18 +198,18 @@ class SolvingInstance:
         Remove the associated latencies and capacities.
         """
         assert (
-            self.quantities[demand_index] != -1 and self.paths_used[demand_index] != []
+            self.quantities[demand_index] != -1 and self.paths_used[demand_index] != -1
         ), "demand not routed"
         old_quantity = self.quantities[demand_index]
         self.quantities[demand_index] = -1
 
         old_path = self.paths_used[demand_index]
-        self.paths_used[demand_index] = []
+        self.paths_used[demand_index] = -1
 
         for edge in path_node_to_path_tuple(old_path):
             self.graph.edges[edge]["remaining_capacity"] += old_quantity
             self.graph.edges[edge]["latency"] -= (
-                self.graph.edges["alpha"] * old_quantity
+                self.graph.edges[edge]["alpha"] * old_quantity
             )
 
     def reroute_demand(self, demand_index: int, new_path: list, force: bool = False):
@@ -219,9 +220,13 @@ class SolvingInstance:
         self.route_demand(demand_index, 1.0, new_path, force)
 
     def unplace_service(self, service_index: int):
-        for demand_index in range(self.problem_instance.total_number_of_demands):
-            if self.problem_instance.demand_to_service[demand_index] == service_index:
-                self.unroute_demand(demand_index)
+        demands_in_service = (
+            self.problem_instance.demand_per_service[service_index] * service_index,
+            self.problem_instance.demand_per_service[service_index]
+            * (service_index + 1),
+        )
+        for demand_index in range(*demands_in_service):
+            self.unroute_demand(demand_index)
 
         old_placement = self.service_placement[service_index]
         self.service_placement[service_index] = -1
@@ -233,18 +238,21 @@ class SolvingInstance:
         self,
         service_index: int,
         new_node: int,
-        new_demand_paths: list,
+        concerned_demand_paths: list[list],
         force: bool = False,
     ):
         """For a given service, replace it from its old node to new_node."""
         self.unplace_service(service_index)
         self.place_service(service_index, new_node, force)
 
-        for demand_index in range(self.problem_instance.total_number_of_demands):
-            if self.problem_instance.demand_to_service[demand_index] == service_index:
-                self.route_demand(
-                    demand_index, 1.0, new_demand_paths[demand_index], force
-                )
+        demands_in_service = (
+            self.problem_instance.demand_per_service[service_index] * service_index,
+            self.problem_instance.demand_per_service[service_index]
+            * (service_index + 1),
+        )
+
+        for index, demand_index in enumerate(range(*demands_in_service)):
+            self.route_demand(demand_index, 1.0, concerned_demand_paths[index], force)
 
     def render_solution(self):
         for service_index in range(self.problem_instance.number_of_service):
@@ -462,3 +470,14 @@ class SolvingInstance:
 
     def get_state_dimension(self):
         return self.get_actual_state().shape[0]
+
+    def increase_quantity(self, demand_index: int):
+        new_quantity = self.quantities[demand_index] + 1
+        self.change_demand_quantity(demand_index, new_quantity)
+
+    def decrease_quantity(self, demand_index: int):
+        new_quantity = self.quantities[demand_index] - 1
+        self.change_demand_quantity(demand_index, new_quantity)
+
+    def _all_demands_are_routed(self):
+        assert [] not in self.paths_used
