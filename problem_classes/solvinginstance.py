@@ -15,35 +15,17 @@ from utils.graph_utils import (
 
 
 class SolvingInstance:
-    def __init__(self, problem_instance: ProblemInstance):
+    def __init__(self, problem_instance: ProblemInstance, verbose:bool=True):
         self.problem_instance = problem_instance
+        self.verbose = verbose
         self.graph = self.problem_instance.network_graph.nx_graph.copy()
-
-        self.service_placement: list = [
-            -1 for _ in range(self.problem_instance.number_of_service)
-        ]
-        self.paths_used: list = [
-            -1 for _ in range(self.problem_instance.total_number_of_demands)
-        ]
-        self.quantities = [
-            -1 for _ in range(self.problem_instance.total_number_of_demands)
-        ]
-
-        self._initialize_graph()
+        self.reset_instance()
 
     def reset_instance(self):
         """Allows to reset the solving instance."""
         self.graph = self.problem_instance.network_graph.nx_graph.copy()
-        self.service_placement: list = [
-            -1 for _ in range(self.problem_instance.number_of_service)
-        ]
-        self.paths_used: list = [
-            -1 for _ in range(self.problem_instance.total_number_of_demands)
-        ]
-        self.quantities = [
-            -1 for _ in range(self.problem_instance.total_number_of_demands)
-        ]
-        self._initialize_graph()
+        self.reset_routing()
+        self.reset_placement()
 
     def _initialize_graph(self):
         """
@@ -144,7 +126,11 @@ class SolvingInstance:
 
         for demand_index in trange(self.problem_instance.total_number_of_demands):
             origin = self.problem_instance.origins[demand_index]
-            path = nx.shortest_path(self.graph, origin, cloud_node) if origin != cloud_node else []
+            path = (
+                nx.shortest_path(self.graph, origin, cloud_node)
+                if origin != cloud_node
+                else []
+            )
             self.route_demand(demand_index, 1.0, path)
 
     def change_demand_quantity(
@@ -220,6 +206,8 @@ class SolvingInstance:
         self.route_demand(demand_index, 1.0, new_path, force)
 
     def unplace_service(self, service_index: int):
+        self.display_variables()
+        
         demands_in_service = (
             self.problem_instance.demand_per_service[service_index] * service_index,
             self.problem_instance.demand_per_service[service_index]
@@ -357,6 +345,7 @@ class SolvingInstance:
         self.quantities = [
             -1 for _ in range(self.problem_instance.total_number_of_demands)
         ]
+
         for edge in self.graph.edges:
             self.graph.edges[edge]["remaining_capacity"] = self.graph.edges[edge][
                 "capacity"
@@ -371,10 +360,6 @@ class SolvingInstance:
             self.graph.nodes[node]["remaining_resources"] = self.graph.nodes[node][
                 "available_resources"
             ]
-
-    def reset_instance(self):
-        self.reset_routing()
-        self.reset_placement()
 
     def get_demands_using_arc(self, arc: tuple) -> list:
         """Return the indices of the demands that uses the given arc."""
@@ -484,6 +469,18 @@ class SolvingInstance:
     def _all_demands_are_routed(self):
         try:
             assert -1 not in self.paths_used
-        except:
-            print(self.paths_used)
+        except AssertionError:
+            self.display_variables()
             assert False
+
+    def display_variables(self):
+        if self.verbose:
+            print('Placement:')
+            print(self.service_placement)
+            print()
+            print('Paths:')
+            print(self.paths_used)
+            print()
+            print('Q:')
+            print(self.quantities)
+            print()

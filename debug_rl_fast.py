@@ -21,6 +21,5 @@ env = SPPGymFast(problem_instance, 10, 2000)
 env.reset()
 
 for _ in range(1000):
-    print(_)
     action = env.action_space.sample()
     env.step(action)
