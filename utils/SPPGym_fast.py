@@ -195,7 +195,7 @@ class SPPGymFast(gym.Env):
                     self.graph,
                     origin,
                     choosen_node_for_this_service,
-                )
+                ) if origin != choosen_node_for_this_service else []
                 paths.append(path)
 
             try:
@@ -204,6 +204,7 @@ class SPPGymFast(gym.Env):
                 reward = -1
 
         elif service_or_demand_or_quantities == 1:  # Sinon, on reroute la demande
+            self.solving_instance._all_demands_are_routed()
             self.solving_instance.reroute_demand(
                 selected_demand,
                 self._select_shortest_path(

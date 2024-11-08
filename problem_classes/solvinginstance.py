@@ -38,7 +38,7 @@ class SolvingInstance:
             -1 for _ in range(self.problem_instance.number_of_service)
         ]
         self.paths_used: list = [
-            [] for _ in range(self.problem_instance.total_number_of_demands)
+            -1 for _ in range(self.problem_instance.total_number_of_demands)
         ]
         self.quantities = [
             -1 for _ in range(self.problem_instance.total_number_of_demands)
@@ -144,7 +144,7 @@ class SolvingInstance:
 
         for demand_index in trange(self.problem_instance.total_number_of_demands):
             origin = self.problem_instance.origins[demand_index]
-            path = nx.shortest_path(self.graph, origin, cloud_node)
+            path = nx.shortest_path(self.graph, origin, cloud_node) if origin != cloud_node else []
             self.route_demand(demand_index, 1.0, path)
 
     def change_demand_quantity(
@@ -254,6 +254,8 @@ class SolvingInstance:
         for index, demand_index in enumerate(range(*demands_in_service)):
             self.route_demand(demand_index, 1.0, concerned_demand_paths[index], force)
 
+        self._all_demands_are_routed()
+
     def render_solution(self):
         for service_index in range(self.problem_instance.number_of_service):
             print(
@@ -350,7 +352,7 @@ class SolvingInstance:
 
     def reset_routing(self):
         self.paths_used: list = [
-            [] for _ in range(self.problem_instance.total_number_of_demands)
+            -1 for _ in range(self.problem_instance.total_number_of_demands)
         ]
         self.quantities = [
             -1 for _ in range(self.problem_instance.total_number_of_demands)
@@ -480,4 +482,8 @@ class SolvingInstance:
         self.change_demand_quantity(demand_index, new_quantity)
 
     def _all_demands_are_routed(self):
-        assert [] not in self.paths_used
+        try:
+            assert -1 not in self.paths_used
+        except:
+            print(self.paths_used)
+            assert False
