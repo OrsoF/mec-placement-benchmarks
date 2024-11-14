@@ -4,7 +4,7 @@ from problem_classes.networkgraph import NetworkGraph
 from problem_classes.service import Service
 from problem_classes.probleminstance import ProblemInstance
 from utils.data_management import get_info_from_results
-from utils.graph_neighbors import get_encoded_incoming_arc, get_encoded_outgoing_arc
+from utils.graph_utils import get_encoded_incoming_arc, get_encoded_outgoing_arc
 from solvers.base_heuristic import greedy_server_allocation
 from solvers.ILP_arc import Solver as ilp_solver
 
