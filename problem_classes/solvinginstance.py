@@ -152,6 +152,8 @@ class SolvingInstance:
 
         self.quantities[demand_index] = new_quantity
 
+        print(self.paths_used[demand_index])
+
         for edge in path_node_to_path_tuple(self.paths_used[demand_index]):
             self.graph.edges[edge]["remaining_capacity"] += difference
             self.graph.edges[edge]["latency"] -= (
@@ -226,23 +228,11 @@ class SolvingInstance:
         self,
         service_index: int,
         new_node: int,
-        concerned_demand_paths: list[list],
         force: bool = False,
     ):
         """For a given service, replace it from its old node to new_node."""
         self.unplace_service(service_index)
         self.place_service(service_index, new_node, force)
-
-        demands_in_service = (
-            self.problem_instance.demand_per_service[service_index] * service_index,
-            self.problem_instance.demand_per_service[service_index]
-            * (service_index + 1),
-        )
-
-        for index, demand_index in enumerate(range(*demands_in_service)):
-            self.route_demand(demand_index, 1.0, concerned_demand_paths[index], force)
-
-        self._all_demands_are_routed()
 
     def render_solution(self):
         for service_index in range(self.problem_instance.number_of_service):
@@ -477,10 +467,8 @@ class SolvingInstance:
         if self.verbose:
             print('Placement:')
             print(self.service_placement)
-            print()
             print('Paths:')
             print(self.paths_used)
-            print()
             print('Q:')
             print(self.quantities)
             print()

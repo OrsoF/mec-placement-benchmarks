@@ -15,11 +15,20 @@ problem_instance = make_tree_instance(
     number_of_users=users, neighbors_connection=neighbors
 )
 
-from utils.SPPGym_fast import SPPGymFast
+from utils.SPPGym_fast import SPPGym
 
-env = SPPGymFast(problem_instance, 10, 2000)
+env = SPPGym(problem_instance, 10, 2000)
 env.reset()
 
-for _ in range(1000):
+t = time.time()
+for _ in range(2000):
     action = env.action_space.sample()
     env.step(action)
+
+env.reset()
+
+for _ in range(2000):
+    action = env.action_space.sample()
+    env.step(action)
+
+print((time.time() - t)/2000)
