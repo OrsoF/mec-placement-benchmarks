@@ -22,7 +22,6 @@ class SPPGym(gym.Env):
         self.sp_number = sp_number
         self.saved_shortest_path = {}
         self.limit_step = limit_step
-        self.solving_instance = SolvingInstance(problem_instance)
 
         self.network_graph = self.problem_instance.network_graph
         self.graph = self.network_graph.nx_graph
@@ -250,13 +249,6 @@ class SPPGym(gym.Env):
         info = {}
         self._test_solution()
 
-        # x, y, q = self.observation_to_variables(obs)
-        # self.solving_instance.set_variable_solution(x, y, q)
-        # self.solving_instance._maximize_quantities_greedy()
-        # x, y, q = self.solving_instance.get_arc_variables()
-        # objective = self.solving_instance.get_score()
-        # self.solving_instance.__init__(self.problem_instance)
-
         objective = np.sum(self.state[-self.problem_instance.total_number_of_demands :])
 
         if objective > self.max_q_reached:
@@ -293,7 +285,7 @@ class SPPGym(gym.Env):
 
         return obs, reward / 100, done, terminated, info
 
-    def _select_shortest_path(self, source: int, destination: int, index: int):
+    def _select_shortest_path(self, source: int, destination: int, index: int) -> list:
         """
         Returns the index-th shortest path from source to destination.
         """
@@ -316,52 +308,32 @@ class SPPGym(gym.Env):
         self.saved_shortest_path[(source, destination, index)] = last_visited_path
         return last_visited_path
 
+    def _reset_edge_attributes(self):
+        for edge in self.graph.edges:
+            self.graph.edges[edge]["remaining_capacity"] = self.graph.edges[edge][
+                "capacity"
+            ]
+            self.graph.edges[edge]["latency"] = self.graph.edges[edge]["beta"]
+
     def _update_edge_attributes(self):
         """
-        Update the edge attributes quantity, latency and remaining capacity along self.state.
+        Update the edge attributes latency and remaining capacity along self.state.
         """
         service_placement, sp_indices, quantities = self.observation_to_components(
             self.state
         )
-
         for demand_index in range(self.problem_instance.total_number_of_demands):
             service_index = self.problem_instance.demand_to_service[demand_index]
-
             origin = self.problem_instance.origins[demand_index]
-            target = np.argmax(service_placement[service_index])
-            demand_path = path_node_to_path_tuple(
-                self._select_shortest_path(origin, target, sp_indices[demand_index])
-            )
+            target = service_placement[service_index]
+            path = self._select_shortest_path(origin, target, sp_indices[demand_index])
+            demand_path = path_node_to_path_tuple(path)
+
             for edge in demand_path:
-                # Update quantity
-                self.graph.edges[edge]["quantity"] += quantities[demand_index]
-                # Update latency
+                self.graph.edges[edge]["remaining_capacity"] -= quantities[demand_index]
                 self.graph.edges[edge]["latency"] += (
                     quantities[demand_index] * self.graph.edges[edge]["alpha"]
-                )  # Le beta y est deja
-
-        for edge in self.graph.edges:
-            # Update remaining capacity
-            self.graph.edges[edge]["remaining_capacity"] = (
-                self.graph.edges[edge]["capacity"] - self.graph.edges[edge]["quantity"]
-            )
-
-    def _reset_edge_attributes(self):
-        """
-        Set edge["quantity"] to 0 and edge["latency"] to edge["beta"], the base latency.
-        """
-        for edge in self.graph.edges:
-            # Reset Q, l
-            self.graph.edges[edge]["quantity"] = 0
-            self.graph.edges[edge]["latency"] = self.graph.edges[edge]["beta"]
-
-    def _update_node_attributes(self):
-        service_placement, _, _ = self.observation_to_components(self.state)
-
-        for service_index in range(self.problem_instance.number_of_service):
-            target_node = service_placement[service_index]
-            required_resources = self.problem_instance.needed_resources[service_index]
-            self.graph.nodes[target_node]["remaining_resources"] -= required_resources
+                )
 
     def _reset_node_attributes(self):
         for node in self.graph.nodes:
@@ -370,7 +342,15 @@ class SPPGym(gym.Env):
                 "available_resources"
             ]
 
-    def _assert_all_constraints(self):
+    def _update_node_attributes(self):
+        service_placement = self.observation_to_components(self.state)[0]
+
+        for service_index in range(self.problem_instance.number_of_service):
+            target_node = service_placement[service_index]
+            required_resources = self.problem_instance.needed_resources[service_index]
+            self.graph.nodes[target_node]["remaining_resources"] -= required_resources
+
+    def _test_all_constraints(self) -> bool:
         # Contraintes :
         # - Capacité pour chaque arc
         # - Pour chaque demande, quantité et latence limite
@@ -381,32 +361,32 @@ class SPPGym(gym.Env):
         )
 
         for edge in self.graph.edges:
-            assert (
-                self.graph.edges[edge]["remaining_capacity"] >= 0
-            ), "Capacité non respectée."
+            if self.graph.edges[edge]["remaining_capacity"] < 0.0:  # Edge capacity
+                return False
 
         for demand_index in range(self.problem_instance.total_number_of_demands):
-            assert (
-                quantities[demand_index]
-                <= self.problem_instance.max_flows[demand_index]
-            ), "Max flow exceeded."
-            latency = 0
-            service_index = self.problem_instance.demand_to_service[demand_index]
+            if (
+                quantities[demand_index] > self.problem_instance.max_flows[demand_index]
+            ):  # Max flows
+                return False
+
+            service_index = self.problem_instance.demand_to_service[
+                demand_index
+            ]  # Latency
             origin = self.problem_instance.origins[demand_index]
             target = service_placement[service_index]
             demand_path = path_node_to_path_tuple(
                 self._select_shortest_path(origin, target, sp_indices[demand_index])
             )
-            for edge in demand_path:
-                latency += self.graph.edges[edge]["latency"]
-            assert (
-                latency <= self.problem_instance.latencies[demand_index]
-            ), "Latency exceeded."
+            latency = sum(self.graph.edges[edge]["latency"] for edge in demand_path)
+            if latency > self.problem_instance.latencies[demand_index]:
+                return False
 
         for node in self.graph.nodes:
-            assert (
-                self.graph.nodes[node]["remaining_resources"] >= 0
-            ), "No enough resources."
+            if self.graph.nodes[node]["remaining_resources"] < 0.0:
+                return False
+
+        return True
 
     def _test_solution(self):
         """
@@ -420,7 +400,8 @@ class SPPGym(gym.Env):
         self._reset_node_attributes()
         self._update_edge_attributes()
         self._update_node_attributes()
-        self._assert_all_constraints()
+
+        assert self._test_all_constraints()
 
     def _make_action_observation_spaces(self):
         """
@@ -462,13 +443,3 @@ class SPPGym(gym.Env):
         low_array = np.zeros(state_shape)
         high_array = high * np.ones(state_shape)
         self.observation_space = Box(low=low_array, high=high_array)
-
-    def clip_state(self):
-        self.state = np.round(self.state).astype(int)
-        service_placement, sp_indices, quantities = self.observation_to_components(
-            self.state
-        )
-        service_placement = service_placement.clip(0, self.graph.number_of_nodes() - 1)
-        sp_indices = sp_indices.clip(0, self.sp_number - 1)
-        quantities = quantities.clip(0, self.problem_instance.max_flows[0])
-        self.state = np.concatenate([service_placement, sp_indices, quantities])

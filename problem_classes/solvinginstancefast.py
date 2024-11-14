@@ -54,7 +54,10 @@ class SolvingInstance:
 
         # Check latency constraint
         for demand_index in range(self.problem_instance.total_number_of_demands):
-            demand_latency = self.compute_latency(paths[demand_index])
+            path = paths[demand_index]
+            demand_latency = sum(
+            self.graph.edges[edge]["latency"] for edge in path_node_to_path_tuple(path)
+            )
             if demand_latency > self.problem_instance.latencies[demand_index]:
                 if self.verbose:
                     print("Latency not respected.")
@@ -82,14 +85,6 @@ class SolvingInstance:
                 "capacity"
             ]
             self.graph.edges[edge]["latency"] = self.graph.edges[edge]["beta"]
-
-    def compute_latency(self, path: list) -> float:
-        """
-        For a given demand, return the associated graph latency.
-        """
-        return sum(
-            self.graph.edges[edge]["latency"] for edge in path_node_to_path_tuple(path)
-        )
 
     def test_solution_variable(self, x_var, y_var, q_var) -> bool:
         service_placement = y_var
