@@ -9,13 +9,12 @@ from problem_classes.probleminstance import ProblemInstance
 from utils.graph_utils import path_node_to_path_tuple, path_tuple_to_path_node
 import matplotlib.pyplot as plt
 
-
 class SPPGym(gym.Env):
     def __init__(
         self,
         problem_instance: ProblemInstance,
         max_pcc: int = 3,  # Max number of explored shortest paths
-        max_step: int = 100,  # Limit of the number of evolving steps
+        max_step: int = 1000,  # Limit of the number of evolving steps
     ):
         # Problem data
         self.problem_instance = problem_instance
@@ -30,9 +29,9 @@ class SPPGym(gym.Env):
         self.state = self._initial_state()
 
         # Evolution
-        self.rewards = []
-        self.scores = []
-        self.solutions = []
+        self.rewards = [-10]
+        self.scores = [0]
+        self.solutions = [self._state_to_variables(self.state)]
 
     def _initial_state(self) -> list:
         """
@@ -63,79 +62,59 @@ class SPPGym(gym.Env):
 
         self.steps_done = 0
         self.state = self._initial_state()
-
         observation = self._observe(self.state)
 
         info = {}
+        return observation, info
 
-        self.recent_scores = [-3 for _ in range(self.max_step)]
-
-        self.max_q_reached_episode = 0
-
-        return obs, info
-
-    def _update_placement(self, selected_service: int, choosen_node: int) -> None:
+    def _update_placement(
+        self, state: list, selected_service: int, choosen_node: int
+    ) -> Tuple:
         """
         Change the placement of service.
         If the same SP indices do not work,
         take back the previous placement
         """
-        service_placement, sp_indices, quantities = self._state_to_vectors(self.state)
-        old_choosen_node = service_placement[selected_service]
-        service_placement[selected_service] = choosen_node
+        new_state = state.copy()
+        new_state[selected_service] = choosen_node
+        done = self._test_solution(new_state)
+        if done:
+            return new_state, done
+        else:
+            return state, done
 
-        # On doit update les shortest paths
-        # parce que les chemins actuels ne fonctionnent plus necessaire
-        # Mais bon, on garde les mêmes indices, et si jamais le changement de service fonctionne pas
-        # Ba on déplace pas le service
-        # On vérifie donc que le changement est bien possible
-        self.state = service_placement + sp_indices + quantities
-
-        try:
-            self._test_solution()
-        except AssertionError:
-            service_placement[selected_service] = old_choosen_node
-            self.state = service_placement + sp_indices + quantities
-
-    def _reroute(self, selected_demand: int, choosen_sp: int):
+    def _reroute(self, state: list, selected_demand: int, choosen_sp: int) -> Tuple:
         """
         choosen_sp is the index of the shortest path choosent through this action.
         """
-        service_placement, sp_indices, quantities = self._state_to_vectors(self.state)
-        old_sp_index = sp_indices[selected_demand]
-        sp_indices[selected_demand] = choosen_sp
+        new_state = state.copy()
+        new_state[self.problem_instance.number_of_service + selected_demand] = (
+            choosen_sp
+        )
 
-        self.state = service_placement + sp_indices + quantities
+        done = self._test_solution(new_state)
+        if done:
+            return new_state, done
+        else:
+            return state, done
 
-        try:
-            self._test_solution()
-        except AssertionError:
-            sp_indices[selected_demand] = old_sp_index
-            self.state = service_placement + sp_indices + quantities
-
-    def _update_quantity(self, selected_demand: int, action_q: int):
+    def _update_quantity(
+        self, state: list, selected_demand: int, action_q: int
+    ) -> tuple:
         """
         For a given demand, apply +-1 or 0 along action_q.
         """
-        service_placement, sp_indices, quantities = self._state_to_vectors(self.state)
-        old_quantity = quantities[selected_demand]
-        min_flow = self.problem_instance.min_flows[selected_demand]
-        max_flow = self.problem_instance.max_flows[selected_demand]
+        action_q = int(action_q == 2) - int(action_q == 0)
+        new_state = state.copy()
+        new_state[
+            -self.problem_instance.total_number_of_demands + selected_demand
+        ] += action_q
 
-        if action_q == 0:  # On baisse Q
-            quantities[selected_demand] = max(min_flow, quantities[selected_demand] - 1)
-        elif action_q == 2:
-            quantities[selected_demand] = min(
-                max_flow,
-                quantities[selected_demand] + 1,
-            )
-
-        self.state = service_placement + sp_indices + quantities
-        try:
-            self._test_solution()
-        except AssertionError:
-            quantities[selected_demand] = old_quantity
-            self.state = service_placement + sp_indices + quantities
+        done = self._test_solution(new_state)
+        if done:
+            return new_state, done
+        else:
+            return state, done
 
     def render(self):
         print(self.state)
@@ -145,6 +124,7 @@ class SPPGym(gym.Env):
         done = False
         terminated = self.steps_done >= self.max_step
         info = {}
+        state = self.state
 
         # Action : Choix_Action x Choix_Service x Placement x Choix_Demande x Changement_Quantité x Changement PCC
         (
@@ -159,72 +139,40 @@ class SPPGym(gym.Env):
         if (
             service_or_demand_or_quantities == 0
         ):  # On s'occupe du service et on le déplace
-            old_state = self.state
-            self._update_placement(selected_service, choosen_node_for_this_service)
-            reward = -10 if old_state == self.state else -2
+            state, done = self._update_placement(
+                state, selected_service, choosen_node_for_this_service
+            )
+            reward = -1 if done else -10
 
         elif service_or_demand_or_quantities == 1:  # On reroute la demande
-            old_state = self.state
-            self._reroute(selected_demand, choosen_sp)
-            reward = -10 if old_state == self.state else -1
+            state, done = self._reroute(state, selected_demand, choosen_sp)
+            reward = -1 if done else -2
 
         else:  # On change Q
-            self._update_quantity(selected_demand, action_q)
-            if self.max_q_reached_episode == 0:
-                improvement = (
-                    np.sum(self.state[-self.problem_instance.total_number_of_demands :])
-                    - self.problem_instance.total_number_of_demands
-                )
-                reward = max(
-                    improvement,
-                    0,
-                )
-            else:
-                reward = max(
-                    np.sum(self.state[-self.problem_instance.total_number_of_demands :])
-                    - self.max_q_reached_episode,
-                    0,
-                )
+            state, done = self._update_quantity(state, selected_demand, action_q)
+            # Reward:
+            current_q = sum(self._state_to_vectors(state)[2])
+            best_q = self._max_score_episode()
+            reward = max(0, current_q - best_q)
 
-        obs = np.array(self.state)
+        self.state = state
+        obs = self._observe(state)
         info = {}
-        self._test_solution()
 
-        objective = np.sum(self.state[-self.problem_instance.total_number_of_demands :])
-
-        if objective > self.max_q_reached:
-            self.max_q_reached = objective
-            self.best_solution = self.observation_to_variables(self.state)
-            # self.best_solution = (x, y, q)
-            self.scores_reached.append(objective)
-            plt.plot(self.scores_reached, label="Quantity")
-            plt.legend()
-            plt.savefig("scores.png")
-            plt.cla()
-
-        if objective > self.max_q_reached_episode:
-            self.max_q_reached_episode = objective
-
-        self.recent_scores[self.steps_done - 1] = reward
+        self.rewards.append(reward)
+        self.scores.append(sum(self._state_to_vectors(self.state)[2]))
+        self.solutions.append(self._state_to_variables(self.state))
 
         if terminated:
-            if hasattr(self, "episode"):
-                self.episode += 1
-            else:
-                self.episode = 0
-
-            if self.episode % 5 == 0:
-                plt.cla()
-
-            rolling = self.max_step // 50
-            self.recent_scores = np.convolve(
-                self.recent_scores, np.ones(rolling) / rolling, mode="valid"
-            )
-            plt.plot(self.recent_scores, label="Episode {}".format(self.episode))
-            plt.legend()
-            plt.savefig("results.png")
+            self.plot_average_reward()
 
         return obs, reward / 100, done, terminated, info
+    
+    def plot_average_reward(self):
+        last_episode_score = self.rewards[-self.max_step:]
+        plt.plot(last_episode_score, label="Episode rewards")
+        plt.legend()
+        plt.savefig("results.png")
 
     def _select_shortest_path(self, source: int, destination: int, index: int) -> list:
         """
@@ -256,11 +204,12 @@ class SPPGym(gym.Env):
             ]
             self.graph.edges[edge]["latency"] = self.graph.edges[edge]["beta"]
 
-    def _update_edge_attributes(self):
+    def _update_edge_attributes(self, state):
         """
         Update the edge attributes latency and remaining capacity along self.state.
         """
-        service_placement, sp_indices, quantities = self._state_to_vectors(self.state)
+        service_placement, sp_indices, quantities = self._state_to_vectors(state)
+
         for demand_index in range(self.problem_instance.total_number_of_demands):
             service_index = self.problem_instance.demand_to_service[demand_index]
             origin = self.problem_instance.origins[demand_index]
@@ -281,8 +230,8 @@ class SPPGym(gym.Env):
                 "available_resources"
             ]
 
-    def _update_node_attributes(self):
-        service_placement = self._state_to_vectors(self.state)[0]
+    def _update_node_attributes(self, state):
+        service_placement = self._state_to_vectors(state)[0]
 
         for service_index in range(self.problem_instance.number_of_service):
             target_node = service_placement[service_index]
@@ -290,18 +239,21 @@ class SPPGym(gym.Env):
             self.graph.nodes[target_node]["remaining_resources"] -= required_resources
 
     def _test_all_constraints(self, state: list) -> bool:
-        # Contraintes :
-        # - Capacité pour chaque arc
-        # - Pour chaque demande, quantité et latence limite
-        # - Ressource pour chaque noeud
+        """
+        Une fois que le graphe est mis à jour avec remaining_capacity,
+        latency, remaining_resources, on s'assure que les contraintes
+        sont respectées.
+        """
 
         service_placement, sp_indices, quantities = self._state_to_vectors(state)
 
-        for edge in self.graph.edges:
+        for edge in self.graph.edges:  # Capacité pour chaque arc
             if self.graph.edges[edge]["remaining_capacity"] < 0.0:  # Edge capacity
                 return False
 
-        for demand_index in range(self.problem_instance.total_number_of_demands):
+        for demand_index in range(
+            self.problem_instance.total_number_of_demands
+        ):  # Pour chaque demande, quantité et latence limite
             if (
                 quantities[demand_index] > self.problem_instance.max_flows[demand_index]
             ):  # Max flows
@@ -319,13 +271,13 @@ class SPPGym(gym.Env):
             if latency > self.problem_instance.latencies[demand_index]:
                 return False
 
-        for node in self.graph.nodes:
+        for node in self.graph.nodes:  # Ressource pour chaque noeud
             if self.graph.nodes[node]["remaining_resources"] < 0.0:
                 return False
 
         return True
 
-    def _test_solution(self):
+    def _test_solution(self, state: list) -> bool:
         """
         Test if a given solution self.state is doable or not.
         - Capacity conditions
@@ -335,10 +287,9 @@ class SPPGym(gym.Env):
         """
         self._reset_edge_attributes()
         self._reset_node_attributes()
-        self._update_edge_attributes()
-        self._update_node_attributes()
-
-        assert self._test_all_constraints()
+        self._update_edge_attributes(state)
+        self._update_node_attributes(state)
+        return self._test_all_constraints(state)
 
     def _make_action_observation_spaces(self):
         """
@@ -381,8 +332,11 @@ class SPPGym(gym.Env):
         high_array = high * np.ones(state_shape)
         self.observation_space = Box(low=low_array, high=high_array)
 
-    def _max_score(self) -> float:
+    def _max_score_ever(self) -> float:
         return max(self.scores)
+
+    def _max_score_episode(self) -> float:
+        return max(self.scores[-self.steps_done :])
 
     def _state_to_variables(self, state: list) -> tuple:
         """

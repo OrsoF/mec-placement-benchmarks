@@ -14,8 +14,9 @@ problem_instance = make_tree_instance(
 env = SPPGym(problem_instance)
 env.reset()
 
-for _ in range(20):
+for _ in range(10000):
     action = env.action_space.sample()
-    print(action)
-    env.step(action)
+    obs, reward, done, terminated, info = env.step(action)
+    if terminated:
+        env.reset()
     # env.render()
