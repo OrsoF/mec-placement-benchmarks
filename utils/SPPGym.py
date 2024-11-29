@@ -14,29 +14,29 @@ class SPPGym(gym.Env):
     def __init__(
         self,
         problem_instance: ProblemInstance,
-        sp_number: int = 10,  # Max number of explored shortest paths
-        limit_step: int = 2000,  # Limit of the number of evolving steps
+        max_pcc: int = 3,  # Max number of explored shortest paths
+        max_step: int = 100,  # Limit of the number of evolving steps
     ):
         # Problem data
         self.problem_instance = problem_instance
-        self.sp_number = sp_number
+        self.max_pcc = max_pcc
+        self.max_step = max_step
         self.saved_shortest_path = {}
-        self.limit_step = limit_step
-
         self.network_graph = self.problem_instance.network_graph
         self.graph = self.network_graph.nx_graph
 
+        # Gym
         self._make_action_observation_spaces()
+        self.state = self._initial_state()
 
-        self.scores_reached = []
-        self.best_solution = self._build_initial_solution()
-        self.max_q_reached = np.sum(
-            self.observation_to_variables(self.best_solution)[2]
-        )
+        # Evolution
+        self.rewards = []
+        self.scores = []
+        self.solutions = []
 
-    def _build_initial_solution(self) -> tuple:
+    def _initial_state(self) -> list:
         """
-        Build the initial solution for initialization of the environment.
+        Build the initial state : basic placement, shortest path, smallest quantities.
         """
         # State : Ou sont placés les services (taille S, max n)
         #       x Quel est le numéro du PCC pour chaque demande (taille d, max sp_number)
@@ -51,77 +51,24 @@ class SPPGym(gym.Env):
         ] * self.problem_instance.number_of_service
 
         # The shortest path indice for each demand
-        sp_indices = [0] * self.problem_instance.total_number_of_demands
+        pcc_indices = [0] * self.problem_instance.total_number_of_demands
 
         # Min flows
         choosen_quantities = self.problem_instance.min_flows
-
-        # On check quand même la solution au cas où
-        observation = service_placement + sp_indices + choosen_quantities
-        self.problem_instance._set_arc_solution(
-            *self.observation_to_variables(observation)
-        )
-
-        self.problem_instance.check_current_solution()
-
-        return observation
-
-    def observation_to_variables(self, observation: list) -> tuple:
-        """
-        Observation to (x, y, q).
-        """
-        # State : Ou sont placés les services (taille S, max n)
-        #       x Quel est le numéro du PCC pour chaque demande (taille d, max sp_number)
-        #       x Quantité de chaque demande (taille d, max q_dmax)
-        service_placement, sp_indices, choosen_quantities = (
-            self.observation_to_components(observation)
-        )
-
-        x_var = np.zeros(
-            (
-                self.problem_instance.total_number_of_demands,
-                self.graph.number_of_edges(),
-            )
-        )
-        for demand_index in range(self.problem_instance.total_number_of_demands):
-            service_index = self.problem_instance.demand_to_service[demand_index]
-            origin = self.problem_instance.origins[demand_index]
-            target = service_placement[service_index]
-            demand_path = path_node_to_path_tuple(
-                self._select_shortest_path(origin, target, sp_indices[demand_index])
-            )
-            for edge in demand_path:
-                edge_index = self.network_graph.arc_index_dictionary[edge]
-                x_var[demand_index, edge_index] = 1.0
-        y_var = np.zeros(
-            (self.problem_instance.number_of_service, self.graph.number_of_nodes())
-        )
-        for service_index in range(self.problem_instance.number_of_service):
-            y_var[service_index, service_placement[service_index]] = 1.0
-        q_var = np.array(choosen_quantities)
-        return (x_var, y_var, q_var)
-
-    def observation_to_components(self, observation: list) -> tuple:
-        """
-        Observation to (service_placement, sp_indices, quantities)
-        """
-        S = self.problem_instance.number_of_service
-        D = self.problem_instance.total_number_of_demands
-        service_placement = observation[:S]
-        sp_indices = observation[S : S + D]
-        choosen_quantities = observation[S + D : S + 2 * D]
-        return service_placement, sp_indices, choosen_quantities
+        state = service_placement + pcc_indices + choosen_quantities
+        return state
 
     def reset(self, seed=0):
-        # Placement aléatoire, PCC0 et quantités 1
+        """Reset environment."""
+
         self.steps_done = 0
+        self.state = self._initial_state()
 
-        self.state = self._build_initial_solution()
+        observation = self._observe(self.state)
 
-        obs = self.state
         info = {}
 
-        self.recent_scores = [-3 for _ in range(self.limit_step)]
+        self.recent_scores = [-3 for _ in range(self.max_step)]
 
         self.max_q_reached_episode = 0
 
@@ -133,9 +80,7 @@ class SPPGym(gym.Env):
         If the same SP indices do not work,
         take back the previous placement
         """
-        service_placement, sp_indices, quantities = self.observation_to_components(
-            self.state
-        )
+        service_placement, sp_indices, quantities = self._state_to_vectors(self.state)
         old_choosen_node = service_placement[selected_service]
         service_placement[selected_service] = choosen_node
 
@@ -156,9 +101,7 @@ class SPPGym(gym.Env):
         """
         choosen_sp is the index of the shortest path choosent through this action.
         """
-        service_placement, sp_indices, quantities = self.observation_to_components(
-            self.state
-        )
+        service_placement, sp_indices, quantities = self._state_to_vectors(self.state)
         old_sp_index = sp_indices[selected_demand]
         sp_indices[selected_demand] = choosen_sp
 
@@ -174,9 +117,7 @@ class SPPGym(gym.Env):
         """
         For a given demand, apply +-1 or 0 along action_q.
         """
-        service_placement, sp_indices, quantities = self.observation_to_components(
-            self.state
-        )
+        service_placement, sp_indices, quantities = self._state_to_vectors(self.state)
         old_quantity = quantities[selected_demand]
         min_flow = self.problem_instance.min_flows[selected_demand]
         max_flow = self.problem_instance.max_flows[selected_demand]
@@ -202,7 +143,7 @@ class SPPGym(gym.Env):
     def step(self, action: tuple):
         self.steps_done += 1
         done = False
-        terminated = self.steps_done >= self.limit_step
+        terminated = self.steps_done >= self.max_step
         info = {}
 
         # Action : Choix_Action x Choix_Service x Placement x Choix_Demande x Changement_Quantité x Changement PCC
@@ -275,7 +216,7 @@ class SPPGym(gym.Env):
             if self.episode % 5 == 0:
                 plt.cla()
 
-            rolling = self.limit_step // 50
+            rolling = self.max_step // 50
             self.recent_scores = np.convolve(
                 self.recent_scores, np.ones(rolling) / rolling, mode="valid"
             )
@@ -319,9 +260,7 @@ class SPPGym(gym.Env):
         """
         Update the edge attributes latency and remaining capacity along self.state.
         """
-        service_placement, sp_indices, quantities = self.observation_to_components(
-            self.state
-        )
+        service_placement, sp_indices, quantities = self._state_to_vectors(self.state)
         for demand_index in range(self.problem_instance.total_number_of_demands):
             service_index = self.problem_instance.demand_to_service[demand_index]
             origin = self.problem_instance.origins[demand_index]
@@ -343,22 +282,20 @@ class SPPGym(gym.Env):
             ]
 
     def _update_node_attributes(self):
-        service_placement = self.observation_to_components(self.state)[0]
+        service_placement = self._state_to_vectors(self.state)[0]
 
         for service_index in range(self.problem_instance.number_of_service):
             target_node = service_placement[service_index]
             required_resources = self.problem_instance.needed_resources[service_index]
             self.graph.nodes[target_node]["remaining_resources"] -= required_resources
 
-    def _test_all_constraints(self) -> bool:
+    def _test_all_constraints(self, state: list) -> bool:
         # Contraintes :
         # - Capacité pour chaque arc
         # - Pour chaque demande, quantité et latence limite
         # - Ressource pour chaque noeud
 
-        service_placement, sp_indices, quantities = self.observation_to_components(
-            self.state
-        )
+        service_placement, sp_indices, quantities = self._state_to_vectors(state)
 
         for edge in self.graph.edges:
             if self.graph.edges[edge]["remaining_capacity"] < 0.0:  # Edge capacity
@@ -417,29 +354,81 @@ class SPPGym(gym.Env):
         # x latences
         self.action_space = MultiDiscrete(
             [
-                3,
-                self.problem_instance.number_of_service,
-                self.graph.number_of_nodes(),
-                self.problem_instance.total_number_of_demands,
-                3,
-                self.sp_number,
+                3,  # Déplacer service, changer PCC ou change Q
+                self.problem_instance.number_of_service,  # Choisir un service
+                self.graph.number_of_nodes(),  # Le placer ici
+                self.problem_instance.total_number_of_demands,  # Choisir une demande
+                3,  # Augmenter ou diminuer sa quantité
+                self.max_pcc,  # Choisir l'indice du PCC
             ]
         )
 
         # State : Ou sont placés les services (taille S, max n)
-        #       x Quel est le numéro du PCC pour chaque demande (taille d, max sp_number)
+        #       x Quel est l'indice du PCC pour chaque demande (taille d, max sp_number)
         #       x Quantité de chaque demande (taille d, max q_dmax)
 
         high = max(
             self.graph.number_of_nodes(),
-            self.sp_number,
+            self.max_pcc,
             self.problem_instance.max_flows[0],
         )
         state_shape = (
             self.problem_instance.number_of_service  # Placement pour chaque service
-            + self.problem_instance.total_number_of_demands  # Sp indices pour chaque demande
+            + self.problem_instance.total_number_of_demands  # PCC indices pour chaque demande
             + self.problem_instance.total_number_of_demands  # Flow pour chaque demande
         )
         low_array = np.zeros(state_shape)
         high_array = high * np.ones(state_shape)
         self.observation_space = Box(low=low_array, high=high_array)
+
+    def _max_score(self) -> float:
+        return max(self.scores)
+
+    def _state_to_variables(self, state: list) -> tuple:
+        """
+        State to (x, y, q).
+        """
+        # State : Ou sont placés les services (taille S, max n)
+        #       x Quel est le numéro du PCC pour chaque demande (taille d, max sp_number)
+        #       x Quantité de chaque demande (taille d, max q_dmax)
+        service_placement, sp_indices, choosen_quantities = self._state_to_vectors(
+            state
+        )
+
+        x_var = np.zeros(
+            (
+                self.problem_instance.total_number_of_demands,
+                self.graph.number_of_edges(),
+            )
+        )
+        for demand_index in range(self.problem_instance.total_number_of_demands):
+            service_index = self.problem_instance.demand_to_service[demand_index]
+            origin = self.problem_instance.origins[demand_index]
+            target = service_placement[service_index]
+            demand_path = path_node_to_path_tuple(
+                self._select_shortest_path(origin, target, sp_indices[demand_index])
+            )
+            for edge in demand_path:
+                edge_index = self.network_graph.arc_index_dictionary[edge]
+                x_var[demand_index, edge_index] = 1.0
+        y_var = np.zeros(
+            (self.problem_instance.number_of_service, self.graph.number_of_nodes())
+        )
+        for service_index in range(self.problem_instance.number_of_service):
+            y_var[service_index, service_placement[service_index]] = 1.0
+        q_var = np.array(choosen_quantities)
+        return (x_var, y_var, q_var)
+
+    def _state_to_vectors(self, state: np.ndarray) -> tuple:
+        """
+        State to (service_placement, sp_indices, quantities)
+        """
+        S = self.problem_instance.number_of_service
+        D = self.problem_instance.total_number_of_demands
+        service_placement = state[:S]
+        sp_indices = state[S : S + D]
+        choosen_quantities = state[S + D : S + 2 * D]
+        return service_placement, sp_indices, choosen_quantities
+
+    def _observe(self, state: list) -> np.ndarray:
+        return np.array(state)
