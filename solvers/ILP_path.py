@@ -16,7 +16,6 @@ import os
 import time
 
 
-
 class Solver(GenericSolver):
     def __init__(self, problem_instance: ProblemInstance, maximum_path_number: int = 1):
         self.problem_instance = problem_instance
@@ -387,13 +386,10 @@ class Solver(GenericSolver):
         opt.options["threads"] = thread_limit
         opt.options["MemLimit"] = 8
 
-        num_variables = len([v for v in self.model.component_data_objects(pyo.Var)])
-        print("Number of variables:", num_variables)
-
-        num_constraints = len(
-            [c for c in self.model.component_data_objects(pyo.Constraint)]
-        )
-        print("Number of constraints:", num_constraints)
+        var_count = len([v for v in self.model.component_data_objects(pyo.Var)])
+        print(f"Number of variables: {var_count}")
+        cons_count = len([c for c in self.model.component_data_objects(pyo.Constraint)])
+        print(f"Number of constraints: {cons_count}")
 
         try:
             print("Start solving process...")

@@ -20,5 +20,8 @@ instance_name = "tree_{}_{}".format(users, neighbors)
 problem_instance = make_tree_instance(
     number_of_users=users, neighbors_connection=neighbors
 )
-solver_name = "heuristic"
+solver_name = "ILP_arc"
+solver_name = "ILP_path"
+# solver_name = "rl_A2C"
 problem_instance, solver = solve(instance_name, solver_name, verbose=True)
+print(solver.score)

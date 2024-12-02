@@ -17,6 +17,7 @@ import numpy as np
 from utils.generic_solver import GenericSolver
 from stable_baselines3 import A2C
 from utils.SPPGym import SPPGym
+from tqdm import trange, tqdm
 
 
 class Solver(GenericSolver):
@@ -39,13 +40,23 @@ class Solver(GenericSolver):
         - Solve it with base RL
         """
 
-        start_time = time.time()
+        max_step = 10000
+        train_step = 50000
 
-        env = SPPGym(problem_instance=self.problem_instance)
+        env = SPPGym(problem_instance=self.problem_instance, max_step=max_step)
         env.reset()
         model = A2C("MlpPolicy", env, verbose=0, seed=0)
-        model.learn(total_timesteps=int(1e5), progress_bar=True)
+        model.learn(total_timesteps=train_step, progress_bar=True)
 
+        start_time = time.time()
+
+        obs, _ = env.reset()
+        action, _ = model.predict(obs)
+        for _ in trange(max_step):
+            obs, _, _, _, _ = env.step(action)
+            action, _ = model.predict(obs)
+
+        
         self.runtime = time.time() - start_time
-        self.score = env.max_q_reached
-        self.x_variable, self.y_variable, self.q_variable = env.best_solution
+        self.score = env._max_score_ever()
+        self.x_variable, self.y_variable, self.q_variable = env._best_solution_ever()

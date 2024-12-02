@@ -9,12 +9,18 @@ from problem_classes.probleminstance import ProblemInstance
 from utils.graph_utils import path_node_to_path_tuple, path_tuple_to_path_node
 import matplotlib.pyplot as plt
 
+
+moving_avg = lambda data, window: [
+    sum(data[i : i + window]) / window for i in range(len(data) - window + 1)
+]
+
+
 class SPPGym(gym.Env):
     def __init__(
         self,
         problem_instance: ProblemInstance,
+        max_step: int,  # Limit of the number of evolving steps
         max_pcc: int = 3,  # Max number of explored shortest paths
-        max_step: int = 1000,  # Limit of the number of evolving steps
     ):
         # Problem data
         self.problem_instance = problem_instance
@@ -29,6 +35,7 @@ class SPPGym(gym.Env):
         self.state = self._initial_state()
 
         # Evolution
+        self.steps_done = 0
         self.rewards = [-10]
         self.scores = [0]
         self.solutions = [self._state_to_variables(self.state)]
@@ -59,13 +66,9 @@ class SPPGym(gym.Env):
 
     def reset(self, seed=0):
         """Reset environment."""
-
-        self.steps_done = 0
         self.state = self._initial_state()
-        observation = self._observe(self.state)
-
-        info = {}
-        return observation, info
+        self.steps_done = 0
+        return self._observe(self.state), {}
 
     def _update_placement(
         self, state: list, selected_service: int, choosen_node: int
@@ -123,7 +126,6 @@ class SPPGym(gym.Env):
         self.steps_done += 1
         done = False
         terminated = self.steps_done >= self.max_step
-        info = {}
         state = self.state
 
         # Action : Choix_Action x Choix_Service x Placement x Choix_Demande x Changement_Quantité x Changement PCC
@@ -166,11 +168,17 @@ class SPPGym(gym.Env):
         if terminated:
             self.plot_average_reward()
 
-        return obs, reward / 100, done, terminated, info
-    
+        return obs, reward / 100, terminated, terminated, {}
+
     def plot_average_reward(self):
-        last_episode_score = self.rewards[-self.max_step:]
-        plt.plot(last_episode_score, label="Episode rewards")
+        self.count = 0 if not hasattr(self, "count") else self.count + 1
+        episodes_count = len(self.rewards) // self.max_step
+        rewards = self.rewards[: episodes_count * self.max_step]
+        plt.cla()
+        rewards_array = np.array(rewards).reshape((episodes_count, self.max_step))
+        for index, rewards_list in enumerate(rewards_array[-3:]):
+            rewards_list = moving_avg(rewards_list, 5)
+            plt.plot(rewards_list, label=f"Episode {index + self.count} rewards")
         plt.legend()
         plt.savefig("results.png")
 
@@ -323,13 +331,16 @@ class SPPGym(gym.Env):
             self.max_pcc,
             self.problem_instance.max_flows[0],
         )
-        state_shape = (
+        observation_shape = (
             self.problem_instance.number_of_service  # Placement pour chaque service
             + self.problem_instance.total_number_of_demands  # PCC indices pour chaque demande
             + self.problem_instance.total_number_of_demands  # Flow pour chaque demande
+            + self.problem_instance.total_number_of_demands  # Latence en proportion pour chaque demande
+            + self.graph.number_of_edges()  # Capacité de chaque arc en proportion
+            + self.graph.number_of_nodes()
         )
-        low_array = np.zeros(state_shape)
-        high_array = high * np.ones(state_shape)
+        low_array = np.zeros(observation_shape)
+        high_array = high * np.ones(observation_shape)
         self.observation_space = Box(low=low_array, high=high_array)
 
     def _max_score_ever(self) -> float:
@@ -337,6 +348,10 @@ class SPPGym(gym.Env):
 
     def _max_score_episode(self) -> float:
         return max(self.scores[-self.steps_done :])
+
+    def _best_solution_ever(self) -> tuple:
+        index = np.argmax(self.scores)
+        return self.solutions[index]
 
     def _state_to_variables(self, state: list) -> tuple:
         """
@@ -385,4 +400,39 @@ class SPPGym(gym.Env):
         return service_placement, sp_indices, choosen_quantities
 
     def _observe(self, state: list) -> np.ndarray:
-        return np.array(state)
+        """
+        Transform a given state into the observation vector.
+        """
+        self._reset_edge_attributes()
+        self._reset_node_attributes()
+        self._update_edge_attributes(state)
+        self._update_node_attributes(state)
+
+        latence_proportion = [
+            self._get_latency_demand(demand_index, state)
+            / self.problem_instance.latencies[demand_index]
+            for demand_index in range(self.problem_instance.total_number_of_demands)
+        ]
+
+        arc_saturation_proportion = [
+            self.graph.edges[edge]["remaining_capacity"]
+            / self.graph.edges[edge]["capacity"]
+            for edge in self.graph.edges
+        ]
+
+        server_saturation = [
+            self.graph.nodes[node]["remaining_resources"]
+            / self.graph.nodes[node]["available_resources"]
+            for node in self.graph.nodes
+        ]
+
+        return np.array(state + latence_proportion + arc_saturation_proportion + server_saturation)
+
+    def _get_latency_demand(self, demand_index, state):
+        service_placement, sp_indices, _ = self._state_to_vectors(state)
+        service_index = self.problem_instance.demand_to_service[demand_index]
+        origin = self.problem_instance.origins[demand_index]
+        target = service_placement[service_index]
+        path = self._select_shortest_path(origin, target, sp_indices[demand_index])
+        demand_path = path_node_to_path_tuple(path)
+        return sum(self.graph.edges[edge]["latency"] for edge in demand_path)

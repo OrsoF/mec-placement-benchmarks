@@ -2,6 +2,7 @@ from utils.SPPGym import SPPGym
 from utils.make_tree_instance import make_tree_instance
 from utils.data_management import solve
 import os
+
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 users = 5
@@ -11,12 +12,11 @@ problem_instance = make_tree_instance(
 )
 
 
-env = SPPGym(problem_instance)
+env = SPPGym(problem_instance, 500)
 env.reset()
 
-for _ in range(10000):
-    action = env.action_space.sample()
-    obs, reward, done, terminated, info = env.step(action)
-    if terminated:
-        env.reset()
-    # env.render()
+from stable_baselines3 import A2C
+from stable_baselines3.a2c.policies import MlpPolicy
+
+training = A2C(MlpPolicy, env, verbose=1)
+training.learn(1000, progress_bar=True)
