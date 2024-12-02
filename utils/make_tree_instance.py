@@ -11,9 +11,11 @@ from utils.pickle import pickle_save
 from utils.graph_utils import make_graph_from_gml
 import matplotlib.pyplot as plt
 
+rng_gen = np.random.default_rng(seed=0)
+
 
 def make_tree_instance(
-    number_of_users: int = 7, neighbors_connection: int = 2
+    number_of_users: int = 7, neighbors_connection: int = 2, randomize: bool = False
 ) -> ProblemInstance:
     assert number_of_users >= 1
     assert neighbors_connection >= 0
@@ -43,11 +45,18 @@ def make_tree_instance(
 
     nx_graph.add_edge(WAP_NODE, CLOUD_NODE)
 
-    resources = [10] * number_of_users + [100, 1000]
+    resources = [10 + randomize * rng_gen.integers(10)] * number_of_users + [
+        100 + randomize * rng_gen.integers(100),
+        1000 + randomize * rng_gen.integers(1000),
+    ]
+
+    # Capacités des arcs
     capacities = (
-        [number_of_users * 5] * 2 * (nx_graph.number_of_edges() - number_of_users - 1)
-        + [100] * 2 * number_of_users
-        + [100] * 2
+        [number_of_users * 5 + randomize * rng_gen.integers(10)]
+        * 2
+        * (nx_graph.number_of_edges() - number_of_users - 1)
+        + [100 + randomize * rng_gen.integers(100)] * 2 * number_of_users
+        + [100 + randomize * rng_gen.integers(100)] * 2
     )
 
     # Build graph
@@ -68,13 +77,13 @@ def make_tree_instance(
             origin_node_index=user_index,
             flow_min=1,
             flow_max=100,
-            max_latency=10 * number_of_users,
+            max_latency=10 * number_of_users + randomize * rng_gen.integers(10),
         )
         demand_server = Demand(
             origin_node_index=nx_graph.number_of_nodes() - 1,
             flow_min=1,
             flow_max=100,
-            max_latency=10 * number_of_users,
+            max_latency=10 * number_of_users + randomize * rng_gen.integers(10),
         )
         service = Service(
             task_list=[
@@ -89,7 +98,7 @@ def make_tree_instance(
     PROBLEM_NAME = "tree_{}_{}".format(number_of_users, neighbors_connection)
     INSTANCE_PATH = os.path.join(os.getcwd(), "instances", PROBLEM_NAME + ".pkl")
 
-    print('Instance creation...')
+    print("Instance creation...")
 
     service_package = ServicePackage(services, PROBLEM_NAME)
     problem_instance = ProblemInstance(network_graph, service_package, PROBLEM_NAME)
