@@ -21,6 +21,7 @@ class SPPGym(gym.Env):
         problem_instance: ProblemInstance,
         max_step: int,  # Limit of the number of evolving steps
         max_pcc: int = 3,  # Max number of explored shortest paths
+        list_of_instances: list = None,  # Eventual other instances
     ):
         # Problem data
         self.problem_instance = problem_instance
@@ -29,6 +30,10 @@ class SPPGym(gym.Env):
         self.saved_shortest_path = {}
         self.network_graph = self.problem_instance.network_graph
         self.graph = self.network_graph.nx_graph
+        self.list_of_instances = list_of_instances
+        if not hasattr(self, 'first_time'):
+            self.initial_instance = problem_instance
+        self.first_time = False
 
         # Gym
         self._make_action_observation_spaces()
@@ -64,8 +69,24 @@ class SPPGym(gym.Env):
         state = service_placement + pcc_indices + choosen_quantities
         return state
 
-    def reset(self, seed=0):
+    def reset(self, seed: float = 0, initial_instance: bool = False):
         """Reset environment."""
+        if self.list_of_instances is not None:
+            new_instance = np.random.choice(self.list_of_instances)
+            self.__init__(
+                new_instance,
+                self.max_step,
+                self.max_pcc,
+                self.list_of_instances,
+            )
+
+        if initial_instance:
+            self.__init__(
+                self.initial_instance,
+                self.max_step,
+                self.max_pcc,
+                self.list_of_instances,
+            )
         self.state = self._initial_state()
         self.steps_done = 0
         return self._observe(self.state), {}
@@ -165,8 +186,13 @@ class SPPGym(gym.Env):
         self.scores.append(sum(self._state_to_vectors(self.state)[2]))
         self.solutions.append(self._state_to_variables(self.state))
 
+        if self.scores[-1] > 690:
+            print(self.state)
+            assert False
+
         if terminated:
             self.plot_average_reward()
+
 
         return obs, reward / 100, terminated, terminated, {}
 
@@ -175,10 +201,12 @@ class SPPGym(gym.Env):
         episodes_count = len(self.rewards) // self.max_step
         rewards = self.rewards[: episodes_count * self.max_step]
         plt.cla()
+
         rewards_array = np.array(rewards).reshape((episodes_count, self.max_step))
         for index, rewards_list in enumerate(rewards_array[-3:]):
             rewards_list = moving_avg(rewards_list, 5)
             plt.plot(rewards_list, label=f"Episode {index + self.count} rewards")
+            plt.plot(np.array(self.scores[-self.max_step:])/100)
         plt.legend()
         plt.savefig("results.png")
 
@@ -337,7 +365,12 @@ class SPPGym(gym.Env):
             + self.problem_instance.total_number_of_demands  # Flow pour chaque demande
             + self.problem_instance.total_number_of_demands  # Latence en proportion pour chaque demande
             + self.graph.number_of_edges()  # Capacité de chaque arc en proportion
-            + self.graph.number_of_nodes()
+            + self.graph.number_of_nodes()  # Ressources de chaque noeud
+            + self.problem_instance.total_number_of_demands  # Flow max
+            + self.problem_instance.total_number_of_demands  # Latences max
+            + self.graph.number_of_edges()  # Capacité de chaque arc
+            + self.graph.number_of_nodes()  # Ressources disponibles pour chaque serveur
+            + self.problem_instance.number_of_service  # Ressources nécessaires par service
         )
         low_array = np.zeros(observation_shape)
         high_array = high * np.ones(observation_shape)
@@ -426,7 +459,17 @@ class SPPGym(gym.Env):
             for node in self.graph.nodes
         ]
 
-        return np.array(state + latence_proportion + arc_saturation_proportion + server_saturation)
+        return np.array(
+            state
+            + latence_proportion
+            + arc_saturation_proportion
+            + server_saturation
+            + self.problem_instance.max_flows
+            + self.problem_instance.latencies
+            + self.problem_instance.network_graph.capacities
+            + self.problem_instance.network_graph.available_resources
+            + self.problem_instance.needed_resources
+        )
 
     def _get_latency_demand(self, demand_index, state):
         service_placement, sp_indices, _ = self._state_to_vectors(state)

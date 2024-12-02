@@ -40,40 +40,55 @@ class Solver(GenericSolver):
 
         start_time = time.time()
 
-        env = SPPGym(problem_instance=self.problem_instance)
-        env.reset()
-        max_value = 0
+        self.max_pcc = 3
 
-        def objective(value: np.ndarray):
-            global max_value
-            S = self.problem_instance.number_of_service
-            D = self.problem_instance.total_number_of_demands
-            assert value.shape[0] == S + 2 * D
-            env.state = value
-            env.clip_state()
-            try:
-                env._test_solution()
-                obj = np.sum(env.state[-D:])
-                if obj > max_value:
-                    max_value = obj
+        self.env = SPPGym(
+            problem_instance=self.problem_instance,
+            max_step=1000,
+            max_pcc=self.max_pcc,
+        )
+        self.env.reset()
+        self.max_value = 0
 
-                return -obj
-            except AssertionError:
-                return 0.0
-
-        env.reset()
-        x0 = np.array(env.state).astype(np.float64)
-        print(objective(x0))
+        self.env.reset()
+        x0 = np.array(self.env.state).astype(np.float64)
+        print(self.objective(x0))
 
         es = cma.CMAEvolutionStrategy(x0, 2)
         while not es.stop():
             solutions = es.ask()
-            es.tell(solutions, [objective(x) for x in solutions])
+            es.tell(solutions, [self.objective(x) for x in solutions])
             es.logger.add()  # write data to disc to be plotted
             es.disp()
 
-        print("Meilleure solution CMA: {}".format(max_value))
+        print("Meilleure solution CMA: {}".format(self.max_value))
 
         self.runtime = time.time() - start_time
-        self.score = env.max_q_reached
-        self.x_variable, self.y_variable, self.q_variable = env.best_solution
+        self.score = self.max_value
+
+    def objective(self, value: np.ndarray):
+        value = np.array(value)
+        S = self.problem_instance.number_of_service
+        D = self.problem_instance.total_number_of_demands
+        assert value.shape[0] == S + 2 * D
+
+        value[:S] = np.clip(value[:S], 0, self.nx_graph.number_of_nodes() - 1).astype(
+            int
+        )
+        value[S : S + D] = np.clip(value[S : S + D], 0, self.max_pcc).astype(int)
+        value[-D:] = np.clip(value[-D:], 1, self.problem_instance.max_flows[0]).astype(
+            int
+        )
+        value = [int(elem) for elem in value]
+
+        self.env.state = value
+        
+        try:
+            assert self.env._test_solution(self.env.state)
+            obj = np.sum(self.env.state[-D:])
+            if obj > self.max_value:
+                self.max_value = obj
+
+            return -obj
+        except AssertionError:
+            return 0.0

@@ -76,13 +76,13 @@ def make_tree_instance(
         demand_user = Demand(
             origin_node_index=user_index,
             flow_min=1,
-            flow_max=100,
+            flow_max=100 + randomize * rng_gen.integers(100),
             max_latency=10 * number_of_users + randomize * rng_gen.integers(10),
         )
         demand_server = Demand(
             origin_node_index=nx_graph.number_of_nodes() - 1,
             flow_min=1,
-            flow_max=100,
+            flow_max=100 + randomize * rng_gen.integers(100),
             max_latency=10 * number_of_users + randomize * rng_gen.integers(10),
         )
         service = Service(
@@ -96,8 +96,9 @@ def make_tree_instance(
         services.append(service)
 
     PROBLEM_NAME = "tree_{}_{}".format(number_of_users, neighbors_connection)
-    INSTANCE_PATH = os.path.join(os.getcwd(), "instances", PROBLEM_NAME + ".pkl")
-
+    INSTANCE_PATH = os.path.join(
+        os.getcwd(), "instances", PROBLEM_NAME + f"{np.random.randint(100)}.pkl"
+    )
     print("Instance creation...")
 
     service_package = ServicePackage(services, PROBLEM_NAME)
