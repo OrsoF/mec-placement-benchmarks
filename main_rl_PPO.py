@@ -12,8 +12,8 @@ users = 4
 neighbors = 1
 
 # Small instance
-# users = 10
-# neighbors = 2
+users = 10
+neighbors = 2
 
 # # Average instance
 # users = 20
@@ -30,8 +30,9 @@ problem_instance = make_tree_instance(
 training_instances_database = [make_tree_instance(
     number_of_users=users, neighbors_connection=neighbors, randomize=True
 ) for _ in range(train_size)]
+training_instances_database = None
 
-solver = Solver(problem_instance, training_instances_database)
+solver = Solver(problem_instance, training_instances_database, 2500, 50000, 25000)
 solver.run()
 print(f"Score : {solver.score}")
 print(f"Runtime : {solver.runtime}")

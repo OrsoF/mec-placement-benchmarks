@@ -21,10 +21,20 @@ from tqdm import trange, tqdm
 
 
 class Solver(GenericSolver):
-    def __init__(self, problem_instance: ProblemInstance, training_instances_database:list):
+    def __init__(
+        self,
+        problem_instance: ProblemInstance,
+        training_instances_database: list,
+        max_step: int,
+        train_step: int,
+        evaluation_step: int,
+    ):
         self.problem_instance = problem_instance
         self.nx_graph = self.problem_instance.network_graph.nx_graph
         self.training_instances_database = training_instances_database
+        self.max_step = max_step
+        self.train_step = train_step
+        self.evaluation_step = evaluation_step
 
         self.solver_name = "rl_base"
 
@@ -41,10 +51,15 @@ class Solver(GenericSolver):
         - Solve it with base RL
         """
 
-        max_step = 2500
-        train_step = 50000
+        max_step = self.max_step
+        train_step = self.train_step
+        evaluation_step = self.evaluation_step
 
-        env = SPPGym(problem_instance=self.problem_instance, max_step=max_step, list_of_instances=self.training_instances_database)
+        env = SPPGym(
+            problem_instance=self.problem_instance,
+            max_step=max_step,
+            list_of_instances=self.training_instances_database,
+        )
         env.reset()
         model = PPO("MlpPolicy", env, verbose=0, seed=0)
         model.learn(total_timesteps=train_step, progress_bar=True)
@@ -53,11 +68,9 @@ class Solver(GenericSolver):
 
         obs, _ = env.reset(initial_instance=True)
         action, _ = model.predict(obs)
-        for _ in trange(max_step):
+        for _ in trange(evaluation_step):
             obs, _, _, _, _ = env.step(action)
             action, _ = model.predict(obs)
 
-        
         self.runtime = time.time() - start_time
-        self.score = env._max_score_ever()
-        self.x_variable, self.y_variable, self.q_variable = env._best_solution_ever()
+        self.score = max(env.scores[-evaluation_step:])

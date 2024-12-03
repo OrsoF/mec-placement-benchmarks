@@ -97,7 +97,9 @@ def make_tree_instance(
 
     PROBLEM_NAME = "tree_{}_{}".format(number_of_users, neighbors_connection)
     INSTANCE_PATH = os.path.join(
-        os.getcwd(), "instances", PROBLEM_NAME + f"{np.random.randint(100)}.pkl"
+        os.getcwd(),
+        "instances",
+        PROBLEM_NAME + ".pkl",  # + f"{np.random.randint(100)}.pkl"
     )
     print("Instance creation...")
 

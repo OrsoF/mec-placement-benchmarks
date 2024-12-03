@@ -1,16 +1,16 @@
 \begin{frame}
     \frametitle{Results}
-    \framesubtitle{Tiny instances}
+    \framesubtitle{Small instances}
     \begin{table}[]
         \begin{tabular}{llll}
-            Method          & Computation time & Optimality Gap & Objective \\ \hline
-            ILP exact       & 1s               & 100\%          & 686       \\
-            ILP with 10 SP  & 1s               & 100\%          & 686       \\
-            RL PPO          & 14.2s            & 95\%           & 654       \\
-            RL A2C          & 12.3s            & 69\%           & 474       \\
-            Heuristic       & 0.1s             & 92\%           & 632       \\
-            Heuristic (CMA) & 13.7s            & 37\%           & 258
+            Method         & Computation time & Optimality Gap & Objective \\ \hline
+            ILP exact      & 3465.1s          & 100\%          & 1186      \\
+            ILP with 10 SP & 3500.0s          & 100\%          & 1186      \\
+            RL PPO         & 33.1s            & 62\%           & 738       \\
+            RL A2C         & 12.7s            & 91\%           & 1078      \\
+            Heuristic      & 0.1s             & 89\%           & 1053      \\
+            CMAES          & 23.3s            & 85\%           & 1005
         \end{tabular}
-        \caption{Solving time and performance on Tree\_6\_4}
+        \caption{Solving time and performance on Tree\_12\_10}
     \end{table}
 \end{frame}

@@ -30,11 +30,12 @@ problem_instance = make_tree_instance(
 training_instances_database = [make_tree_instance(
     number_of_users=users, neighbors_connection=neighbors, randomize=True
 ) for _ in range(train_size)]
+training_instances_database = None
 
 solver_name = "rl_A2C"
 
 instance = import_instance_from_file(instance_name)
-solver = Solver(problem_instance, training_instances_database)
+solver = Solver(problem_instance, training_instances_database, 2500, 50000, 25000)
 solver.run()
 print(f"Score : {solver.score}")
 print(f"Runtime : {solver.runtime}")

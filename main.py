@@ -28,9 +28,9 @@ problem_instance = make_tree_instance(
 )
 
 solver_name = "ILP_arc"
-# solver_name = "ILP_path"
-# solver_name = "heuristic"
-# solver_name = "cma"
+solver_name = "ILP_path"
+solver_name = "heuristic"
+solver_name = "cma"
 
 
 problem_instance, solver = solve(instance_name, solver_name, verbose=True)

@@ -31,7 +31,7 @@ class SPPGym(gym.Env):
         self.network_graph = self.problem_instance.network_graph
         self.graph = self.network_graph.nx_graph
         self.list_of_instances = list_of_instances
-        if not hasattr(self, 'first_time'):
+        if not hasattr(self, "first_time"):
             self.initial_instance = problem_instance
         self.first_time = False
 
@@ -186,13 +186,8 @@ class SPPGym(gym.Env):
         self.scores.append(sum(self._state_to_vectors(self.state)[2]))
         self.solutions.append(self._state_to_variables(self.state))
 
-        if self.scores[-1] > 690:
-            print(self.state)
-            assert False
-
         if terminated:
             self.plot_average_reward()
-
 
         return obs, reward / 100, terminated, terminated, {}
 
@@ -206,7 +201,7 @@ class SPPGym(gym.Env):
         for index, rewards_list in enumerate(rewards_array[-3:]):
             rewards_list = moving_avg(rewards_list, 5)
             plt.plot(rewards_list, label=f"Episode {index + self.count} rewards")
-            plt.plot(np.array(self.scores[-self.max_step:])/100)
+            plt.plot(np.array(self.scores[-self.max_step :]) / 100)
         plt.legend()
         plt.savefig("results.png")
 
@@ -371,6 +366,7 @@ class SPPGym(gym.Env):
             + self.graph.number_of_edges()  # Capacité de chaque arc
             + self.graph.number_of_nodes()  # Ressources disponibles pour chaque serveur
             + self.problem_instance.number_of_service  # Ressources nécessaires par service
+            + self.problem_instance.total_number_of_demands  # Longueur de chaque chemin utilisé
         )
         low_array = np.zeros(observation_shape)
         high_array = high * np.ones(observation_shape)
@@ -459,6 +455,11 @@ class SPPGym(gym.Env):
             for node in self.graph.nodes
         ]
 
+        longueur_chemins = [
+            len(self._get_path_demand(demand_index, state))
+            for demand_index in range(self.problem_instance.total_number_of_demands)
+        ]
+
         return np.array(
             state
             + latence_proportion
@@ -469,13 +470,18 @@ class SPPGym(gym.Env):
             + self.problem_instance.network_graph.capacities
             + self.problem_instance.network_graph.available_resources
             + self.problem_instance.needed_resources
+            + longueur_chemins
         )
 
-    def _get_latency_demand(self, demand_index, state):
+    def _get_latency_demand(self, demand_index: int, state: list) -> float:
+        """For a given demand, get its associated latency."""
+        path = self._get_path_demand(demand_index, state)
+        demand_path = path_node_to_path_tuple(path)
+        return sum(self.graph.edges[edge]["latency"] for edge in demand_path)
+
+    def _get_path_demand(self, demand_index: int, state: list) -> list:
         service_placement, sp_indices, _ = self._state_to_vectors(state)
         service_index = self.problem_instance.demand_to_service[demand_index]
         origin = self.problem_instance.origins[demand_index]
         target = service_placement[service_index]
-        path = self._select_shortest_path(origin, target, sp_indices[demand_index])
-        demand_path = path_node_to_path_tuple(path)
-        return sum(self.graph.edges[edge]["latency"] for edge in demand_path)
+        return self._select_shortest_path(origin, target, sp_indices[demand_index])
