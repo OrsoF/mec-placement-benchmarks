@@ -16,8 +16,8 @@ users = 10
 neighbors = 2
 
 # # Average instance
-# users = 20
-# neighbors = 4
+users = 20
+neighbors = 4
 
 # # Large instance
 # users = 30

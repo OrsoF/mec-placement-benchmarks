@@ -11,8 +11,8 @@ users = 4
 neighbors = 1
 
 # Small instance
-users = 10
-neighbors = 2
+# users = 10
+# neighbors = 2
 
 # # Average instance
 # users = 20
@@ -29,8 +29,8 @@ problem_instance = make_tree_instance(
 
 solver_name = "ILP_arc"
 solver_name = "ILP_path"
-solver_name = "heuristic"
-solver_name = "cma"
+# solver_name = "heuristic"
+# solver_name = "cma"
 
 
 problem_instance, solver = solve(instance_name, solver_name, verbose=True)

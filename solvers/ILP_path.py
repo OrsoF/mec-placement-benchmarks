@@ -17,7 +17,7 @@ import time
 
 
 class Solver(GenericSolver):
-    def __init__(self, problem_instance: ProblemInstance, maximum_path_number: int = 1):
+    def __init__(self, problem_instance: ProblemInstance, maximum_path_number: int = 3):
         self.problem_instance = problem_instance
         self.services: list[Service] = self.problem_instance.service_package.services
         self.G: nx.DiGraph = self.problem_instance.network_graph.nx_graph
@@ -51,11 +51,11 @@ class Solver(GenericSolver):
         self.capacities = self.network_graph.capacities
         self.available_resources = self.network_graph.available_resources
 
-        self.S = len(self.services)
-        self.Sd = [service.task_number for service in self.services]
-        self.D = sum(self.Sd)
-        self.U = self.G.number_of_nodes()
-        self.A = self.G.number_of_edges()
+        self.service_nb = len(self.services)
+        self.task_nb_list = [service.task_number for service in self.services]
+        self.demand_nb = sum(self.task_nb_list)
+        self.node_nb = self.G.number_of_nodes()
+        self.edge_nb = self.G.number_of_edges()
         self.arc_dic = {elem: i for i, elem in enumerate(self.G.edges)}
         self.arc_list = list(self.G.edges)
         self.origins = [
@@ -78,7 +78,7 @@ class Solver(GenericSolver):
         self.alpha = [self.G.edges[edge]["alpha"] for edge in self.G.edges]
         self.beta = [self.G.edges[edge]["beta"] for edge in self.G.edges]
 
-        self.shortest_paths = [
+        self.paths = [
             [
                 path
                 for target in self.G.nodes
@@ -89,27 +89,27 @@ class Solver(GenericSolver):
                     self.maximum_path_number,
                 )
             ]
-            for d in range(self.D)
+            for d in range(self.demand_nb)
         ]
 
         self.all_shortest_paths = [
-            elem for path_list in self.shortest_paths for elem in path_list
+            elem for path_list in self.paths for elem in path_list
         ]
-        self.C = sum(len(elem) for elem in self.shortest_paths)
+        self.C = sum(len(elem) for elem in self.paths)
         self.m = max(self.Pdmax)
         self.n = max(self.latencies)
         self.D_path_number = [
-            i for i, path_list in enumerate(self.shortest_paths) for _ in path_list
+            i for i, path_list in enumerate(self.paths) for _ in path_list
         ]
 
     def _build_model(self):
         self.model = pyo.ConcreteModel()
 
     def _build_sets(self):
-        self.model.D = pyo.Set(initialize=range(self.D))
-        self.model.S = pyo.Set(initialize=range(self.S))
-        self.model.U = pyo.Set(initialize=range(self.U))
-        self.model.A = pyo.Set(initialize=range(self.A))
+        self.model.D = pyo.Set(initialize=range(self.demand_nb))
+        self.model.S = pyo.Set(initialize=range(self.service_nb))
+        self.model.U = pyo.Set(initialize=range(self.node_nb))
+        self.model.A = pyo.Set(initialize=range(self.edge_nb))
         self.model.C = pyo.Set(initialize=range(self.C))
 
     def _build_variables(self):
@@ -127,31 +127,31 @@ class Solver(GenericSolver):
     def _build_params(self):
         self.model.origins = pyo.Param(
             self.model.D,
-            initialize={d: self.origins[d] for d in range(self.D)},
+            initialize={d: self.origins[d] for d in range(self.demand_nb)},
             mutable=False,
             within=pyo.NonNegativeIntegers,
         )
         self.model.Pdmin = pyo.Param(
             self.model.D,
-            initialize={d: self.Pdmin[d] for d in range(self.D)},
+            initialize={d: self.Pdmin[d] for d in range(self.demand_nb)},
             mutable=False,
             within=pyo.NonNegativeIntegers,
         )
         self.model.Pdmax = pyo.Param(
             self.model.D,
-            initialize={d: self.Pdmax[d] for d in range(self.D)},
+            initialize={d: self.Pdmax[d] for d in range(self.demand_nb)},
             mutable=False,
             within=pyo.NonNegativeIntegers,
         )
         self.model.latencies = pyo.Param(
             self.model.D,
-            initialize={d: self.latencies[d] for d in range(self.D)},
+            initialize={d: self.latencies[d] for d in range(self.demand_nb)},
             mutable=False,
             within=pyo.NonNegativeReals,
         )
         self.model.resources = pyo.Param(
             self.model.S,
-            initialize={s: self.resources[s] for s in range(self.S)},
+            initialize={s: self.resources[s] for s in range(self.service_nb)},
             mutable=False,
             within=pyo.NonNegativeIntegers,
         )
@@ -172,7 +172,7 @@ class Solver(GenericSolver):
         self.model.node_resources = pyo.Param(
             self.model.U,
             initialize={
-                u: self.G.nodes[u]["available_resources"] for u in range(self.U)
+                u: self.G.nodes[u]["available_resources"] for u in range(self.node_nb)
             },
             mutable=False,
             within=pyo.NonNegativeIntegers,
@@ -204,7 +204,7 @@ class Solver(GenericSolver):
                         for i in range(len(self.all_shortest_paths[c]) - 1)
                     ]
                 )
-                for a in range(self.A)
+                for a in range(self.edge_nb)
                 for c in range(self.C)
             },
             mutable=False,
@@ -236,10 +236,10 @@ class Solver(GenericSolver):
             within=pyo.Any,
         )
         self.model.path_demand = pyo.Param(
-            range(self.D + 1),
+            range(self.demand_nb + 1),
             initialize={
-                d: sum(len(elem) for elem in self.shortest_paths[:d])
-                for d in range(self.D + 1)
+                d: sum(len(elem) for elem in self.paths[:d])
+                for d in range(self.demand_nb + 1)
             },
             mutable=False,
             within=pyo.NonNegativeIntegers,
@@ -263,11 +263,11 @@ class Solver(GenericSolver):
             initialize={
                 (c, u): self.all_shortest_paths[c][-1] == u
                 for c in range(self.C)
-                for u in range(self.U)
+                for u in range(self.node_nb)
             },
         )
         D_path = [
-            i for i, path_list in enumerate(self.shortest_paths) for _ in path_list
+            i for i, path_list in enumerate(self.paths) for _ in path_list
         ]
         self.model.D_path = pyo.Param(
             self.model.C,
