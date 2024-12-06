@@ -46,7 +46,7 @@ def make_tree_instance(
     nx_graph.add_edge(WAP_NODE, CLOUD_NODE)
 
     resources = [10 + randomize * rng_gen.integers(10)] * number_of_users + [
-        100 + randomize * rng_gen.integers(100),
+        50 + randomize * rng_gen.integers(100),
         1000 + randomize * rng_gen.integers(1000),
     ]
 
@@ -76,14 +76,14 @@ def make_tree_instance(
         demand_user = Demand(
             origin_node_index=user_index,
             flow_min=1,
-            flow_max=100 + randomize * rng_gen.integers(100),
-            max_latency=10 * number_of_users + randomize * rng_gen.integers(10),
+            flow_max=50 + randomize * rng_gen.integers(100),
+            max_latency=5 * number_of_users + randomize * rng_gen.integers(10),
         )
         demand_server = Demand(
             origin_node_index=nx_graph.number_of_nodes() - 1,
             flow_min=1,
-            flow_max=100 + randomize * rng_gen.integers(100),
-            max_latency=10 * number_of_users + randomize * rng_gen.integers(10),
+            flow_max=50 + randomize * rng_gen.integers(100),
+            max_latency=5 * number_of_users + randomize * rng_gen.integers(10),
         )
         service = Service(
             task_list=[

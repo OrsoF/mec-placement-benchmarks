@@ -1,33 +1,16 @@
 \begin{frame}
     \frametitle{Results}
-    \framesubtitle{Small instances}
-    \begin{table}[]
-        \begin{tabular}{llll}
-            Method         & Computation time & Optimality Gap & Objective \\ \hline
-            ILP exact      & 3465.1s          & 100\%          & 1186      \\
-            ILP with 10 SP & 3500.0s          & 100\%          & 1186      \\
-            RL PPO         & 1583.1s          & 91\%           & 1079      \\
-            RL A2C         & 1342.0s          & 91\%           & 1078      \\
-            Heuristic      & 0.1s             & 89\%           & 1053      \\
-            CMAES          & 23.3s            & 85\%           & 1005
-        \end{tabular}
-        \caption{Solving time and performance on Tree\_12\_10}
-    \end{table}
-\end{frame}
-
-\begin{frame}
-    \frametitle{Results}
     \framesubtitle{Medium instances}
     \begin{table}[]
         \begin{tabular}{llll}
             Method         & Computation time & Optimality Gap & Objective \\ \hline
-            ILP exact      & 1.3s             & 100\%          & 2200      \\
-            ILP with 10 SP &                  & \%             &           \\
-            RL PPO         &                  & \%             &           \\
-            RL A2C         &                  & \%             &           \\
-            Heuristic      &                  & \%             &           \\
-            CMAES          &                  & \%             &
+            ILP exact      & 43.8s            & 100\%          & 1142      \\
+            ILP with 10 SP & ---              & --- \%         & ---       \\
+            RL PPO         & 1200.0s          & 81\%           & 925       \\
+            RL A2C         & 1500.0s          & 74\%           & 845       \\
+            Heuristic      & 0.1s             & 93\%           & 1058      \\
+            CMAES          & 57.9s            & 93\%           & 1065
         \end{tabular}
-        \caption{Solving time and performance on Tree\_12\_10}
+        \caption{Solving time and performance on Tree\_22\_10}
     \end{table}
 \end{frame}
