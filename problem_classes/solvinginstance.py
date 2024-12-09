@@ -152,8 +152,6 @@ class SolvingInstance:
 
         self.quantities[demand_index] = new_quantity
 
-        print(self.paths_used[demand_index])
-
         for edge in path_node_to_path_tuple(self.paths_used[demand_index]):
             self.graph.edges[edge]["remaining_capacity"] += difference
             self.graph.edges[edge]["latency"] -= (

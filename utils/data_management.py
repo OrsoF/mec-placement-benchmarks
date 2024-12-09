@@ -17,7 +17,7 @@ def pickle_save(object_instance: object, file_name: str):
         pkl.dump(object_instance, handle, protocol=pkl.HIGHEST_PROTOCOL)
 
 
-def pickle_load(file_name:str):
+def pickle_load(file_name: str):
     """Load any pickle file."""
     with open(file_name, "rb") as handle:
         python_variable = pkl.load(handle)
@@ -183,12 +183,17 @@ def solve(
     check_solution: bool = False,
     initial_variable=None,
     verbose: bool = False,
+    instance: ProblemInstance = None,
+    solver: GenericSolver = None,
 ) -> tuple[ProblemInstance, GenericSolver]:
     """
     Allows to solve an instance by its name and by the solver name.
     """
-    instance = import_instance_from_file(instance_name)
-    solver = import_solver_from_file(solver_name, instance)
+    if instance is None:
+        instance = import_instance_from_file(instance_name)
+
+    if solver is None:
+        solver = import_solver_from_file(solver_name, instance)
 
     if verbose:
         print("Start solving...")

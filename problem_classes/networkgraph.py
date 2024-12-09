@@ -76,6 +76,9 @@ class NetworkGraph:
         nx.classes.function.set_node_attributes(self.nx_graph, attribute_map, name)
 
     def set_edge_attribute(self, attributes: list[float], name: str):
+        if len(attributes) == self.nx_graph.number_of_edges() // 2:
+            for ind in range(len(attributes)):
+                attributes.insert(ind, attributes[ind])
         assert (
             len(attributes) == self.nx_graph.number_of_edges()
         ), "{} parameters not equal to {} edges in graph.".format(
