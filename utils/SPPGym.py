@@ -205,7 +205,7 @@ class SPPGym(gym.Env):
         plt.legend()
         plt.savefig("results.png")
 
-    def _select_shortest_path(self, source: int, destination: int, index: int) -> list:
+    def _compute_nth_shortest_path(self, source: int, destination: int, index: int) -> list:
         """
         Returns the index-th shortest path from source to destination.
         """
@@ -245,7 +245,7 @@ class SPPGym(gym.Env):
             service_index = self.problem_instance.demand_to_service[demand_index]
             origin = self.problem_instance.origins[demand_index]
             target = service_placement[service_index]
-            path = self._select_shortest_path(origin, target, sp_indices[demand_index])
+            path = self._compute_nth_shortest_path(origin, target, sp_indices[demand_index])
             demand_path = path_node_to_path_tuple(path)
 
             for edge in demand_path:
@@ -296,7 +296,7 @@ class SPPGym(gym.Env):
             origin = self.problem_instance.origins[demand_index]
             target = service_placement[service_index]
             demand_path = path_node_to_path_tuple(
-                self._select_shortest_path(origin, target, sp_indices[demand_index])
+                self._compute_nth_shortest_path(origin, target, sp_indices[demand_index])
             )
             latency = sum(self.graph.edges[edge]["latency"] for edge in demand_path)
             if latency > self.problem_instance.latencies[demand_index]:
@@ -404,7 +404,7 @@ class SPPGym(gym.Env):
             origin = self.problem_instance.origins[demand_index]
             target = service_placement[service_index]
             demand_path = path_node_to_path_tuple(
-                self._select_shortest_path(origin, target, sp_indices[demand_index])
+                self._compute_nth_shortest_path(origin, target, sp_indices[demand_index])
             )
             for edge in demand_path:
                 edge_index = self.network_graph.arc_index_dictionary[edge]
@@ -484,4 +484,4 @@ class SPPGym(gym.Env):
         service_index = self.problem_instance.demand_to_service[demand_index]
         origin = self.problem_instance.origins[demand_index]
         target = service_placement[service_index]
-        return self._select_shortest_path(origin, target, sp_indices[demand_index])
+        return self._compute_nth_shortest_path(origin, target, sp_indices[demand_index])
