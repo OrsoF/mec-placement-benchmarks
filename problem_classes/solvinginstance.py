@@ -13,11 +13,14 @@ from utils.graph_utils import (
     edges_to_path,
 )
 
+rnd_gen = np.random.default_rng(0)
+
 
 class SolvingInstance:
     def __init__(self, problem_instance: ProblemInstance, verbose: bool = True):
         self.problem_instance = problem_instance
         self.graph = nx.Graph(self.problem_instance.network_graph.nx_graph)
+        self.saved_shortest_path = {}
 
         # Variables
         self.service_placement: list
@@ -424,14 +427,15 @@ class SolvingInstance:
         demands = list(set(demands))
         return demands
 
-    def get_remaining_quantity_possible(self, demand_index: int):
+    def get_remaining_quantity_possible(
+        self, demand_index: int, placement, routing, quantities
+    ):
         """
         Les chemins de demandes peuvent s'intersecter !
         """
-        path = path_node_to_path_tuple(self.paths_used[demand_index])
+        path = path_node_to_path_tuple(routing[demand_index])
         remaining_flow = (
-            self.problem_instance.max_flows[demand_index]
-            - self.quantities[demand_index]
+            self.problem_instance.max_flows[demand_index] - quantities[demand_index]
         )
 
         if not len(path):
@@ -454,7 +458,7 @@ class SolvingInstance:
             assert remaining_quantity_capacity >= 0
             assert remaining_flow >= 0
 
-            crossing_demands = self.get_crossing_demands(self.paths_used[demand_index])
+            crossing_demands = self.get_crossing_demands(routing[demand_index])
 
             remaining_quantities_crossing_demands = min(
                 [
@@ -476,13 +480,34 @@ class SolvingInstance:
                     remaining_quantities_crossing_demands,
                 )
             )
-            return remaining_quantity
+            return
+
+    def maximize_quantities(self, placement, routing, quantities):
+        assert self.test_solution(placement, routing, quantities)
+
+        step = (
+            10
+            * self.problem_instance.total_number_of_demands
+            * self.problem_instance.max_flows[0]
+        )
+
+        for _ in range(step):
+            new_quantites = quantities.copy()
+            new_quantites[
+                rnd_gen.integers(self.problem_instance.total_number_of_demands)
+            ] += 1
+            if self.test_solution(placement, routing, new_quantites):
+                quantities = new_quantites
+
+        return placement, routing, quantities
 
     def _maximize_quantities_greedy(self, placement, routing, quantities):
+
         remaining_quantities = [
             self.get_remaining_quantity_possible(demand_index)
             for demand_index in range(self.problem_instance.total_number_of_demands)
         ]
+
         while max(remaining_quantities) >= 1:
             demand_index = np.argmax(remaining_quantities)
             new_quantity = (
