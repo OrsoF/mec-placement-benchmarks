@@ -15,32 +15,85 @@ from utils.graph_utils import (
 
 
 class SolvingInstance:
-    def __init__(self, problem_instance: ProblemInstance, verbose:bool=True):
+    def __init__(self, problem_instance: ProblemInstance, verbose: bool = True):
         self.problem_instance = problem_instance
-        self.verbose = verbose
-        self.graph = self.problem_instance.network_graph.nx_graph.copy()
-        self.reset_instance()
+        self.graph = nx.Graph(self.problem_instance.network_graph.nx_graph)
 
-    def reset_instance(self):
-        """Allows to reset the solving instance."""
-        self.graph = self.problem_instance.network_graph.nx_graph.copy()
-        self.reset_routing()
-        self.reset_placement()
+        # Variables
+        self.service_placement: list
+        self.routing: list
+        self.quantities: list
 
-    def _initialize_graph(self):
-        """
-        Initialize graph with trivial placement on cloud servers.
-        """
-        for node in self.graph.nodes:
-            self.graph.nodes[node]["remaining_resources"] = self.graph.nodes[node][
+        self.basic_placement_and_routing()
+
+    def initialize_graph_attributes(self, graph: nx.Graph) -> nx.Graph:
+        """Set graph attributes the first time."""
+        for node in graph.nodes:
+            graph.nodes[node]["remaining_resources"] = graph.nodes[node][
                 "available_resources"
             ]
 
-        for edge in self.graph.edges:
-            self.graph.edges[edge]["remaining_capacity"] = self.graph.edges[edge][
-                "capacity"
-            ]
-            self.graph.edges[edge]["latency"] = self.graph.edges[edge]["alpha"]
+        for edge in graph.edges:
+            graph.edges[edge]["remaining_capacity"] = graph.edges[edge]["capacity"]
+            graph.edges[edge]["latency"] = graph.edges[edge]["beta"]
+
+        return graph
+
+    def update_graph_attributes(
+        self, graph: nx.Graph, placement: list, routing: list, quantities: list
+    ) -> nx.Graph:
+        for demand_index in range(self.problem_instance.total_number_of_demands):
+            service_index = self.problem_instance.demand_to_service[demand_index]
+            origin = self.problem_instance.origins[demand_index]
+            target = placement[service_index]
+            path = self.compute_nth_shortest_path(origin, target, routing[demand_index])
+            demand_path = path_node_to_path_tuple(path)
+
+            for edge in demand_path:
+                graph.edges[edge]["remaining_capacity"] -= quantities[demand_index]
+                graph.edges[edge]["latency"] += (
+                    quantities[demand_index] * graph.edges[edge]["alpha"]
+                )
+
+        for service_index in range(self.problem_instance.number_of_service):
+            target_node = placement[service_index]
+            required_resources = self.problem_instance.needed_resources[service_index]
+            graph.nodes[target_node]["remaining_resources"] -= required_resources
+
+        return graph
+
+    def validate_graph_attributes(
+        self, graph: nx.Graph, placement: list, routing: list, quantities: list
+    ) -> bool:
+        for edge in graph.edges:  # Capacité pour chaque arc
+            if graph.edges[edge]["remaining_capacity"] < 0.0:  # Edge capacity
+                return False
+
+        for demand_index in range(
+            self.problem_instance.total_number_of_demands
+        ):  # Pour chaque demande, quantité et latence limite
+            if (
+                quantities[demand_index] > self.problem_instance.max_flows[demand_index]
+            ):  # Max flows
+                return False
+
+            service_index = self.problem_instance.demand_to_service[
+                demand_index
+            ]  # Latency
+            origin = self.problem_instance.origins[demand_index]
+            target = placement[service_index]
+            demand_path = path_node_to_path_tuple(
+                self.compute_nth_shortest_path(origin, target, routing[demand_index])
+            )
+            latency = sum(graph.edges[edge]["latency"] for edge in demand_path)
+            if latency > self.problem_instance.latencies[demand_index]:
+                return False
+
+        for node in graph.nodes:  # Ressource pour chaque noeud
+            if graph.nodes[node]["remaining_resources"] < 0.0:
+                return False
+
+        return True
 
     def place_service(self, service_index: int, node: int, force: bool = False):
         assert self.service_placement[service_index] == -1, "Already placed"
@@ -118,20 +171,18 @@ class SolvingInstance:
             self.route_demand(demand_index, q_variable[demand_index], path)
 
     def basic_placement_and_routing(self):
+        """All services in the cloud, shortest paths and smallest quantities."""
         cloud_node = np.argmax(
             [self.graph.nodes[node]["available_resources"] for node in self.graph.nodes]
         )
-        for service_index in trange(self.problem_instance.number_of_service):
-            self.place_service(service_index, cloud_node)
 
-        for demand_index in trange(self.problem_instance.total_number_of_demands):
-            origin = self.problem_instance.origins[demand_index]
-            path = (
-                nx.shortest_path(self.graph, origin, cloud_node)
-                if origin != cloud_node
-                else []
-            )
-            self.route_demand(demand_index, 1.0, path)
+        self.service_placement = [
+            cloud_node for _ in range(self.problem_instance.number_of_service)
+        ]
+        self.routing = [1 for _ in range(self.problem_instance.total_number_of_demands)]
+        self.quantities = [
+            1 for _ in range(self.problem_instance.total_number_of_demands)
+        ]
 
     def change_demand_quantity(
         self,
@@ -207,7 +258,7 @@ class SolvingInstance:
 
     def unplace_service(self, service_index: int):
         self.display_variables()
-        
+
         demands_in_service = (
             self.problem_instance.demand_per_service[service_index] * service_index,
             self.problem_instance.demand_per_service[service_index]
@@ -461,12 +512,27 @@ class SolvingInstance:
             self.display_variables()
             assert False
 
-    def display_variables(self):
-        if self.verbose:
-            print('Placement:')
-            print(self.service_placement)
-            print('Paths:')
-            print(self.paths_used)
-            print('Q:')
-            print(self.quantities)
-            print()
+    def compute_nth_shortest_path(
+        self, source: int, destination: int, index: int
+    ) -> list:
+        """
+        Returns the index-th shortest path from source to destination.
+        """
+        index = int(index)
+
+        if (source, destination, index) in self.saved_shortest_path:
+            return self.saved_shortest_path[(source, destination, index)]
+
+        for i, path in enumerate(
+            nx.algorithms.simple_paths.shortest_simple_paths(
+                self.graph,
+                source,
+                destination,
+            )
+        ):
+            last_visited_path = path
+            if i == index:
+                break
+
+        self.saved_shortest_path[(source, destination, index)] = last_visited_path
+        return last_visited_path
