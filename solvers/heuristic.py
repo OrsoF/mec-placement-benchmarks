@@ -15,13 +15,12 @@ rnd_gen = np.random.default_rng(0)
 
 
 class Solver(GenericSolver):
-    def __init__(self, problem_instance: ProblemInstance, limit_shortest_path: int = 1):
+    def __init__(self, problem_instance: ProblemInstance, limit_shortest_path: int):
         self.problem_instance = problem_instance
         self.limit_shortest_path = limit_shortest_path
 
         self.nx_graph: nx.DiGraph = self.problem_instance.network_graph.nx_graph
         self.solver_name = "heuristic"
-
         self.solving_instance = SolvingInstance(self.problem_instance)
 
     def run(
@@ -31,7 +30,8 @@ class Solver(GenericSolver):
 
         self.visited_objectives = []
 
-        self.solving_instance.basic_placement_and_routing()
+        placement, routing, quantities = self.solving_instance.basic_placement_and_routing()
+        
 
         self.solving_instance._maximize_quantities_greedy()
 

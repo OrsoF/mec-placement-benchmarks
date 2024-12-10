@@ -95,6 +95,12 @@ class SolvingInstance:
 
         return True
 
+    def test_solution(self, placement: list, routing: list, quantities: list) -> bool:
+        graph = self.graph.copy()
+        graph = self.initialize_graph_attributes(graph)
+        graph = self.update_graph_attributes(graph, placement, routing, quantities)
+        return self.validate_graph_attributes(graph, placement, routing, quantities)
+
     def place_service(self, service_index: int, node: int, force: bool = False):
         assert self.service_placement[service_index] == -1, "Already placed"
         assert service_index < self.problem_instance.number_of_service
@@ -170,19 +176,17 @@ class SolvingInstance:
             path = edges_to_path(edges_used, start, end)
             self.route_demand(demand_index, q_variable[demand_index], path)
 
-    def basic_placement_and_routing(self):
+    def basic_placement_and_routing(self) -> tuple:
         """All services in the cloud, shortest paths and smallest quantities."""
         cloud_node = np.argmax(
             [self.graph.nodes[node]["available_resources"] for node in self.graph.nodes]
         )
 
-        self.service_placement = [
-            cloud_node for _ in range(self.problem_instance.number_of_service)
-        ]
-        self.routing = [1 for _ in range(self.problem_instance.total_number_of_demands)]
-        self.quantities = [
-            1 for _ in range(self.problem_instance.total_number_of_demands)
-        ]
+        placement = [cloud_node for _ in range(self.problem_instance.number_of_service)]
+        routing = [1 for _ in range(self.problem_instance.total_number_of_demands)]
+        quantities = [1 for _ in range(self.problem_instance.total_number_of_demands)]
+
+        return (placement, routing, quantities)
 
     def change_demand_quantity(
         self,
@@ -474,7 +478,7 @@ class SolvingInstance:
             )
             return remaining_quantity
 
-    def _maximize_quantities_greedy(self):
+    def _maximize_quantities_greedy(self, placement, routing, quantities):
         remaining_quantities = [
             self.get_remaining_quantity_possible(demand_index)
             for demand_index in range(self.problem_instance.total_number_of_demands)
@@ -489,6 +493,7 @@ class SolvingInstance:
                 self.get_remaining_quantity_possible(demand_index)
                 for demand_index in range(self.problem_instance.total_number_of_demands)
             ]
+        return (placement, routing, quantities)
 
     def get_actual_state(self) -> np.ndarray:
         state = self.service_placement + self.quantities
