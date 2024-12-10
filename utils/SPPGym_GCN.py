@@ -18,7 +18,7 @@ moving_avg = lambda data, window: [
 ]
 
 
-def nx_to_torch_geometric(graph:nx.DiGraph, node_attr_name:str):
+def nx_to_torch_geometric(graph: nx.DiGraph, node_attr_name: str):
     node_features = [data[node_attr_name] for _, data in graph.nodes(data=True)]
     x = torch.tensor(node_features, dtype=torch.float)
     edge_index = torch.tensor(list(graph.edges), dtype=torch.long).t().contiguous()

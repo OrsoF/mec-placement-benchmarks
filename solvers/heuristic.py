@@ -29,6 +29,8 @@ class Solver(GenericSolver):
     ):
         start_time = time.time()
 
+        self.visited_objectives = []
+
         self.solving_instance.basic_placement_and_routing()
 
         self.solving_instance._maximize_quantities_greedy()
