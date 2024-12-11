@@ -25,7 +25,7 @@ def nx_to_torch_geometric(graph: nx.DiGraph, node_attr_name: str):
     return Data(x=x, edge_index=edge_index)
 
 
-class SPPGym(gym.Env):
+class SPPGymGNN(gym.Env):
     def __init__(
         self,
         problem_instance: ProblemInstance,

@@ -16,7 +16,7 @@ import os
 import numpy as np
 from utils.generic_solver import GenericSolver
 from stable_baselines3 import A2C, PPO
-from utils.SPPGym import SPPGym
+from utils.SPPGym_GCN import SPPGymGNN
 from tqdm import trange, tqdm
 from utils.custom_policy import CustomActorCriticPolicy
 
@@ -55,7 +55,7 @@ class Solver(GenericSolver):
         train_step = self.train_step
         evaluation_step = self.evaluation_step
 
-        env = SPPGym(
+        env = SPPGymGNN(
             problem_instance=self.problem_instance,
             max_step=max_step,
             list_of_instances=self.training_instances_database,
