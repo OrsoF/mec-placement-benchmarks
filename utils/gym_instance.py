@@ -71,6 +71,8 @@ class SPPEnv(gym.Env):
 
     def reset(self, seed: float = 0, initial_instance: bool = False):
         """Reset environment."""
+        self.plot_average_reward()
+
         if self.list_of_instances is not None:
             new_instance = np.random.choice(self.list_of_instances)
             self.__init__(
@@ -87,6 +89,7 @@ class SPPEnv(gym.Env):
                 self.max_pcc,
                 self.list_of_instances,
             )
+
         self.state = self._initial_state()
         self.steps_done = 0
         return self._observe(self.state), {}
@@ -146,10 +149,15 @@ class SPPEnv(gym.Env):
     def step(self, action: tuple):
         self.steps_done += 1
         done = False
-        terminated = self.steps_done >= self.max_step
 
-        if self.steps_done > self.max_step:
-            return self._observe(self.state), 0, terminated, terminated, {}
+        truncated = self.steps_done >= self.max_step
+        terminated = False
+        info = {}
+
+        if truncated:
+            terminated = False
+            reward = 0.0
+            return self._observe(self.state), reward, terminated, truncated, info
 
         state = self.state
 
@@ -176,7 +184,7 @@ class SPPEnv(gym.Env):
             reward = -1 if done else -2
 
         else:  # On change Q
-            state, done = self._update_quantity(state, selected_demand, action_q)
+            state, _ = self._update_quantity(state, selected_demand, action_q)
             # Reward:
             current_q = sum(self._state_to_vectors(state)[2])
             best_q = self._max_score_episode()
@@ -184,16 +192,12 @@ class SPPEnv(gym.Env):
 
         self.state = state
         obs = self._observe(state)
-        info = {}
 
         self.rewards.append(reward)
         self.scores.append(sum(self._state_to_vectors(self.state)[2]))
         self.solutions.append(self._state_to_variables(self.state))
 
-        if terminated:
-            self.plot_average_reward()
-
-        return obs, reward / 100, done, terminated, {}
+        return obs, reward / 100, terminated, truncated, info
 
     def plot_average_reward(self):
         """
@@ -203,12 +207,12 @@ class SPPEnv(gym.Env):
             return
 
         plt.cla()
-        for episode in range(3):
+        for episode in range(1, 4):
             bounds = (-(episode + 1) * self.max_step, -episode * self.max_step)
             rewards = self.rewards[bounds[0] : bounds[1]]
             plt.plot(rewards, label=f"Episode {episode} rewards")
             scores = self.scores[bounds[0] : bounds[1]]
-            plt.plot(scores, label=f"Episode {episode} scores")
+            plt.plot(0.01 * np.array(scores), label=f"Episode {episode} scores")
         plt.legend()
         plt.savefig("results.png")
 
@@ -402,6 +406,13 @@ class SPPEnv(gym.Env):
 
     def _max_score_episode(self) -> float:
         return max(self.scores[-self.steps_done :])
+
+    def _max_score_previous_episodes(self) -> float:
+        return (
+            max(self.scores[: -self.max_step])
+            if len(self.scores) >= self.max_step
+            else 0
+        )
 
     def _best_solution_ever(self) -> tuple:
         index = np.argmax(self.scores)
