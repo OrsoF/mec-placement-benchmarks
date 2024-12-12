@@ -1,12 +1,10 @@
 import gymnasium as gym
 import numpy as np
-from gymnasium.spaces import Tuple, Discrete, Box, MultiDiscrete
+from gymnasium.spaces import Tuple, Box, MultiDiscrete
 import networkx as nx
-from typing import List
-import itertools
 from problem_classes.solvinginstance import SolvingInstance
 from problem_classes.probleminstance import ProblemInstance
-from utils.graph_utils import path_node_to_path_tuple, path_tuple_to_path_node
+from utils.graph_utils import path_node_to_path_tuple
 import matplotlib.pyplot as plt
 
 
