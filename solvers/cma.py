@@ -16,12 +16,14 @@ from utils.generic_solver import GenericSolver
 from stable_baselines3 import A2C
 from utils.gym_instance import SPPEnv
 import cma
+from problem_classes.solvinginstance import SolvingInstance
 
 
 class Solver(GenericSolver):
-    def __init__(self, problem_instance: ProblemInstance):
+    def __init__(self, problem_instance: ProblemInstance, max_pcc: int):
         self.problem_instance = problem_instance
         self.nx_graph = self.problem_instance.network_graph.nx_graph
+        self.max_pcc = max_pcc
 
         self.solver_name = "rl_base"
 
@@ -38,20 +40,11 @@ class Solver(GenericSolver):
         - Solve it with base RL
         """
 
+        self.max_value = 0
         start_time = time.time()
 
-        self.max_pcc = 3
-
-        self.env = SPPEnv(
-            main_problem_instance=self.problem_instance,
-            max_step=1000,
-            max_pcc=self.max_pcc,
-        )
-        self.env.reset()
-        self.max_value = 0
-
-        self.env.reset()
-        x0 = np.array(self.env.state).astype(np.float64)
+        self.sol_ins = SolvingInstance(self.problem_instance)
+        x0 = self.initial_value()
         print(self.objective(x0))
 
         es = cma.CMAEvolutionStrategy(x0, 2)
@@ -67,28 +60,28 @@ class Solver(GenericSolver):
         self.score = self.max_value
 
     def objective(self, value: np.ndarray):
-        value = np.array(value)
         S = self.problem_instance.number_of_service
         D = self.problem_instance.total_number_of_demands
-        assert value.shape[0] == S + 2 * D
 
-        value[:S] = np.clip(value[:S], 0, self.nx_graph.number_of_nodes() - 1).astype(
-            int
-        )
-        value[S : S + D] = np.clip(value[S : S + D], 0, self.max_pcc).astype(int)
-        value[-D:] = np.clip(value[-D:], 1, self.problem_instance.max_flows[0]).astype(
-            int
-        )
-        value = [int(elem) for elem in value]
+        placement = [
+            max(0, min(int(elem), self.nx_graph.number_of_nodes() - 1))
+            for elem in value[:S]
+        ]
+        routing = [max(0, min(int(elem), self.max_pcc)) for elem in value[S : S + D]]
+        quantities = [
+            max(1, min(int(elem), self.problem_instance.max_flows[0]))
+            for elem in value[-D:]
+        ]
+        it_works = self.sol_ins.test_solution(placement, routing, quantities)
 
-        self.env.state = value
-        
-        try:
-            assert self.env._test_solution(self.env.state)
-            obj = np.sum(self.env.state[-D:])
-            if obj > self.max_value:
-                self.max_value = obj
-
-            return -obj
-        except AssertionError:
+        if it_works:
+            if sum(quantities) > self.max_value:
+                self.max_value = sum(quantities)
+                print(self.max_value)
+            return -sum(quantities)
+        else:
             return 0.0
+
+    def initial_value(self) -> np.ndarray:
+        placement, routing, quantities = self.sol_ins.basic_placement_and_routing()
+        return np.array(placement + routing + quantities)

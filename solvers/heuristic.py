@@ -60,7 +60,9 @@ class Solver(GenericSolver):
                 rnd_gen.integers(self.problem_instance.total_number_of_demands)
             ] = self.limit_shortest_path
             new_quantities = [1] * self.problem_instance.total_number_of_demands
-            if self.solving_instance.test_solution(new_placement, new_routing, new_quantities):
+            if self.solving_instance.test_solution(
+                new_placement, new_routing, new_quantities
+            ):
                 placement = new_placement
                 routing = new_routing
                 placement, routing, quantities = (
@@ -68,10 +70,11 @@ class Solver(GenericSolver):
                         placement, routing, new_quantities
                     )
                 )
-                
+
                 self.visited_objectives.append(sum(quantities))
 
-        print()
+        score = max(self.visited_objectives)
+        print(f"Heuristic score: {score}")
 
         self.runtime = time.time() - start_time
 

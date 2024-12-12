@@ -99,6 +99,20 @@ class SolvingInstance:
         return True
 
     def test_solution(self, placement: list, routing: list, quantities: list) -> bool:
+        # Vérifier les inputs ici
+        np_placement = np.array(placement)
+        assert 0 <= np_placement.all() < self.graph.number_of_nodes()
+
+        np_routing = np.array(routing)
+        assert np.all(0 <= np_routing)
+
+        np_quantities = np.array(quantities)
+        assert (
+            self.problem_instance.min_flows[0]
+            <= np_quantities.all()
+            <= self.problem_instance.max_flows[0]
+        )
+
         graph = self.graph.copy()
         graph = self.initialize_graph_attributes(graph)
         graph = self.update_graph_attributes(graph, placement, routing, quantities)

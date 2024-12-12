@@ -7,7 +7,7 @@ from problem_classes.probleminstance import ProblemInstance
 from utils.graph_utils import path_node_to_path_tuple
 import matplotlib.pyplot as plt
 
-
+rnd_gen = np.random.default_rng(0)
 moving_avg = lambda data, window: [
     sum(data[i : i + window]) / window for i in range(len(data) - window + 1)
 ]
@@ -72,7 +72,7 @@ class SPPEnv(gym.Env):
         self.plot_average_reward()
 
         if self.list_of_instances is not None:
-            new_instance = np.random.choice(self.list_of_instances)
+            new_instance = rnd_gen.choice(self.list_of_instances)
             self.__init__(
                 new_instance,
                 self.max_step,
