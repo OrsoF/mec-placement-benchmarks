@@ -14,7 +14,7 @@ import os
 import numpy as np
 from utils.generic_solver import GenericSolver
 from stable_baselines3 import A2C
-from utils.SPPGym import SPPGym
+from utils.gym_instance import SPPEnv
 import cma
 
 
@@ -42,8 +42,8 @@ class Solver(GenericSolver):
 
         self.max_pcc = 3
 
-        self.env = SPPGym(
-            problem_instance=self.problem_instance,
+        self.env = SPPEnv(
+            main_problem_instance=self.problem_instance,
             max_step=1000,
             max_pcc=self.max_pcc,
         )

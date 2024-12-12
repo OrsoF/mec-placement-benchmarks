@@ -1,4 +1,4 @@
-from utils.SPPGym import SPPGym
+from utils.gym_instance import SPPEnv
 from utils.make_tree_instance import make_tree_instance
 from utils.data_management import solve
 from stable_baselines3 import A2C
@@ -17,7 +17,7 @@ problem_instance = make_tree_instance(
 
 from utils.SPPGym_fast import SPPGym
 
-env = SPPGym(problem_instance, 10, 2000)
+env = SPPEnv(problem_instance, 10, 2000)
 env.reset()
 
 t = time.time()

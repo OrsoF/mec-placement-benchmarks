@@ -15,24 +15,24 @@ moving_avg = lambda data, window: [
 ]
 
 
-class SPPGym(gym.Env):
+class SPPEnv(gym.Env):
     def __init__(
         self,
-        problem_instance: ProblemInstance,
+        main_problem_instance: ProblemInstance,
         max_step: int,  # Limit of the number of evolving steps
         max_pcc: int = 3,  # Max number of explored shortest paths
-        list_of_instances: list = None,  # Eventual other instances
+        training_set: list[ProblemInstance] = None,  # Eventual other instances
     ):
         # Problem data
-        self.problem_instance = problem_instance
+        self.problem_instance = main_problem_instance
         self.max_pcc = max_pcc
         self.max_step = max_step
         self.saved_shortest_path = {}
         self.network_graph = self.problem_instance.network_graph
         self.graph = self.network_graph.nx_graph
-        self.list_of_instances = list_of_instances
+        self.list_of_instances = training_set
         if not hasattr(self, "first_time"):
-            self.initial_instance = problem_instance
+            self.initial_instance = main_problem_instance
         self.first_time = False
 
         # Gym
@@ -147,6 +147,10 @@ class SPPGym(gym.Env):
         self.steps_done += 1
         done = False
         terminated = self.steps_done >= self.max_step
+
+        if self.steps_done > self.max_step:
+            return self._observe(self.state), 0, terminated, terminated, {}
+
         state = self.state
 
         # Action : Choix_Action x Choix_Service x Placement x Choix_Demande x Changement_Quantité x Changement PCC
@@ -189,23 +193,28 @@ class SPPGym(gym.Env):
         if terminated:
             self.plot_average_reward()
 
-        return obs, reward / 100, terminated, terminated, {}
+        return obs, reward / 100, done, terminated, {}
 
     def plot_average_reward(self):
-        self.count = 0 if not hasattr(self, "count") else self.count + 1
-        episodes_count = len(self.rewards) // self.max_step
-        rewards = self.rewards[: episodes_count * self.max_step]
-        plt.cla()
+        """
+        Take the self.rewards variable and plot it.
+        """
+        if len(self.rewards) < 3 * self.max_step:
+            return
 
-        rewards_array = np.array(rewards).reshape((episodes_count, self.max_step))
-        for index, rewards_list in enumerate(rewards_array[-3:]):
-            rewards_list = moving_avg(rewards_list, 5)
-            plt.plot(rewards_list, label=f"Episode {index + self.count} rewards")
-            plt.plot(np.array(self.scores[-self.max_step :]) / 100)
+        plt.cla()
+        for episode in range(3):
+            bounds = (-(episode + 1) * self.max_step, -episode * self.max_step)
+            rewards = self.rewards[bounds[0] : bounds[1]]
+            plt.plot(rewards, label=f"Episode {episode} rewards")
+            scores = self.scores[bounds[0] : bounds[1]]
+            plt.plot(scores, label=f"Episode {episode} scores")
         plt.legend()
         plt.savefig("results.png")
 
-    def _compute_nth_shortest_path(self, source: int, destination: int, index: int) -> list:
+    def _compute_nth_shortest_path(
+        self, source: int, destination: int, index: int
+    ) -> list:
         """
         Returns the index-th shortest path from source to destination.
         """
@@ -245,7 +254,9 @@ class SPPGym(gym.Env):
             service_index = self.problem_instance.demand_to_service[demand_index]
             origin = self.problem_instance.origins[demand_index]
             target = service_placement[service_index]
-            path = self._compute_nth_shortest_path(origin, target, sp_indices[demand_index])
+            path = self._compute_nth_shortest_path(
+                origin, target, sp_indices[demand_index]
+            )
             demand_path = path_node_to_path_tuple(path)
 
             for edge in demand_path:
@@ -296,7 +307,9 @@ class SPPGym(gym.Env):
             origin = self.problem_instance.origins[demand_index]
             target = service_placement[service_index]
             demand_path = path_node_to_path_tuple(
-                self._compute_nth_shortest_path(origin, target, sp_indices[demand_index])
+                self._compute_nth_shortest_path(
+                    origin, target, sp_indices[demand_index]
+                )
             )
             latency = sum(self.graph.edges[edge]["latency"] for edge in demand_path)
             if latency > self.problem_instance.latencies[demand_index]:
@@ -321,6 +334,18 @@ class SPPGym(gym.Env):
         self._update_edge_attributes(state)
         self._update_node_attributes(state)
         return self._test_all_constraints(state)
+
+    def _test_solution(self, state: list) -> bool:
+        """
+        Test if a given solution self.state is doable or not.
+        - Capacity conditions
+        - Latency conditions
+        - Max flow conditions
+        - Resources conditions
+        """
+        sol_ins = SolvingInstance(self.problem_instance)
+        placement, routing, quantities = self._state_to_vectors(state)
+        return sol_ins.test_solution(placement, routing, quantities)
 
     def _make_action_observation_spaces(self):
         """
@@ -404,7 +429,9 @@ class SPPGym(gym.Env):
             origin = self.problem_instance.origins[demand_index]
             target = service_placement[service_index]
             demand_path = path_node_to_path_tuple(
-                self._compute_nth_shortest_path(origin, target, sp_indices[demand_index])
+                self._compute_nth_shortest_path(
+                    origin, target, sp_indices[demand_index]
+                )
             )
             for edge in demand_path:
                 edge_index = self.network_graph.arc_index_dictionary[edge]
