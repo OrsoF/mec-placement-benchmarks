@@ -75,8 +75,11 @@ class Solver(GenericSolver):
 
         score = max(self.visited_objectives)
         print(f"Heuristic score: {score}")
-
         self.runtime = time.time() - start_time
+
+        self.placement = placement
+        self.routing = routing
+        self.quantities = quantities
 
     def continue_search(self) -> bool:
         if len(self.visited_objectives) < self.step_no_progression:

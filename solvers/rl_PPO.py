@@ -13,7 +13,7 @@ class Solver(RLSolver):
         max_step,
         train_step,
         evaluation_step,
-        method='PPO',
+        method="PPO",
     ):
         super().__init__(
             problem_instance,

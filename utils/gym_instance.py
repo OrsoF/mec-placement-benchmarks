@@ -1,11 +1,13 @@
 import gymnasium as gym
 import numpy as np
-from gymnasium.spaces import Tuple, Box, MultiDiscrete
 import networkx as nx
+
+from gymnasium.spaces import Tuple, Box, MultiDiscrete
 from problem_classes.solvinginstance import SolvingInstance
 from problem_classes.probleminstance import ProblemInstance
 from utils.graph_utils import path_node_to_path_tuple
 import matplotlib.pyplot as plt
+from solvers.heuristic import Solver
 
 rnd_gen = np.random.default_rng(0)
 moving_avg = lambda data, window: [
@@ -20,6 +22,7 @@ class SPPEnv(gym.Env):
         max_step: int,  # Limit of the number of evolving steps
         max_pcc: int = 3,  # Max number of explored shortest paths
         training_set: list[ProblemInstance] = None,  # Eventual other instances
+        warm_start_heuristic: bool = False,  # Warm start with heuristically found solution
     ):
         # Problem data
         self.problem_instance = main_problem_instance
@@ -29,6 +32,8 @@ class SPPEnv(gym.Env):
         self.network_graph = self.problem_instance.network_graph
         self.graph = self.network_graph.nx_graph
         self.list_of_instances = training_set
+        self.warm_start_heuristic = warm_start_heuristic
+
         if not hasattr(self, "first_time"):
             self.initial_instance = main_problem_instance
         self.first_time = False
@@ -64,6 +69,15 @@ class SPPEnv(gym.Env):
 
         # Min flows
         choosen_quantities = self.problem_instance.min_flows
+
+        if self.warm_start_heuristic:
+            heur_sol = Solver(self.problem_instance, 10)
+            heur_sol.run()
+
+            service_placement = heur_sol.placement
+            pcc_indices = heur_sol.routing
+            choosen_quantities = heur_sol.quantities
+
         state = service_placement + pcc_indices + choosen_quantities
         return state
 
