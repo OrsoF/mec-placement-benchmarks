@@ -143,11 +143,10 @@ class SPPEnv(gym.Env):
         """
         For a given demand, apply +-1 or 0 along action_q.
         """
-        action_q = int(action_q == 2) - int(action_q == 0)
+        action_q = action_q - 1
+        state_index = -self.problem_instance.total_number_of_demands + selected_demand
         new_state = state.copy()
-        new_state[
-            -self.problem_instance.total_number_of_demands + selected_demand
-        ] += action_q
+        new_state[state_index] += action_q
 
         done = self._test_solution(new_state)
         if done:
@@ -337,19 +336,19 @@ class SPPEnv(gym.Env):
 
         return True
 
-    def _test_solution(self, state: list) -> bool:
-        """
-        Test if a given solution self.state is doable or not.
-        - Capacity conditions
-        - Latency conditions
-        - Max flow conditions
-        - Resources conditions
-        """
-        self._reset_edge_attributes()
-        self._reset_node_attributes()
-        self._update_edge_attributes(state)
-        self._update_node_attributes(state)
-        return self._test_all_constraints(state)
+    # def _test_solution(self, state: list) -> bool:
+    #     """
+    #     Test if a given solution self.state is doable or not.
+    #     - Capacity conditions
+    #     - Latency conditions
+    #     - Max flow conditions
+    #     - Resources conditions
+    #     """
+    #     self._reset_edge_attributes()
+    #     self._reset_node_attributes()
+    #     self._update_edge_attributes(state)
+    #     self._update_node_attributes(state)
+    #     return self._test_all_constraints(state)
 
     def _test_solution(self, state: list) -> bool:
         """

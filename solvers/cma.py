@@ -20,7 +20,7 @@ from problem_classes.solvinginstance import SolvingInstance
 
 
 class Solver(GenericSolver):
-    def __init__(self, problem_instance: ProblemInstance, max_pcc: int):
+    def __init__(self, problem_instance: ProblemInstance, max_pcc: int = 10):
         self.problem_instance = problem_instance
         self.nx_graph = self.problem_instance.network_graph.nx_graph
         self.max_pcc = max_pcc
@@ -45,7 +45,6 @@ class Solver(GenericSolver):
 
         self.sol_ins = SolvingInstance(self.problem_instance)
         x0 = self.initial_value()
-        print(self.objective(x0))
 
         es = cma.CMAEvolutionStrategy(x0, 2)
         while not es.stop():
@@ -77,7 +76,6 @@ class Solver(GenericSolver):
         if it_works:
             if sum(quantities) > self.max_value:
                 self.max_value = sum(quantities)
-                print(self.max_value)
             return -sum(quantities)
         else:
             return 0.0

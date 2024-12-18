@@ -73,8 +73,8 @@ class Solver(GenericSolver):
 
                 self.visited_objectives.append(sum(quantities))
 
-        score = max(self.visited_objectives)
-        print(f"Heuristic score: {score}")
+        self.score = max(self.visited_objectives)
+        print(f"Heuristic score: {self.score}")
         self.runtime = time.time() - start_time
 
         self.placement = placement

@@ -36,12 +36,12 @@ def experience(user_count: int, neighbor_count: int):
         solver = solver(problem_instance)
         solver.run()
         results[("tree", solver_name, user_count, neighbor_count)] = (
-            solver.score,
-            solver.runtime,
+            float(solver.score),
+            float(solver.runtime),
         )
 
     pickle_save(results, path_file)
 
 
-experience(5, 0)
+experience(2, 0)
 print(pickle_load(path_file))
