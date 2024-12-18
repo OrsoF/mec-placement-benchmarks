@@ -382,9 +382,10 @@ class Solver(GenericSolver):
         self._build_objective()
 
         opt = pyo.SolverFactory(solver)
-        opt.options["TimeLimit"] = solving_time_limit
+        # opt.options["TimeLimit"] = 600
         opt.options["threads"] = thread_limit
         opt.options["MemLimit"] = 8
+        opt.options['TimeLimit'] = 600
 
         var_count = len([v for v in self.model.component_data_objects(pyo.Var)])
         print(f"Number of variables: {var_count}")

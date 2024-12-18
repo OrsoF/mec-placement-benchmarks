@@ -7,6 +7,11 @@ instance_type = "tree"
 
 path_file = os.path.join("results", "dict_scores.pkl")
 results_dict = pickle_load(path_file)
+
+for item in results_dict.items():
+    print(item)
+
+
 results_dict = {
     key: results_dict[key]
     for key in results_dict.keys()
@@ -15,7 +20,7 @@ results_dict = {
 
 solvers_list = [key[1] for key in results_dict.keys()]
 solvers_label = {solvers_list[index]: index for index in range(len(solvers_list))}
-colormap = plt.cm.get_cmap("tab10", len(solvers_list))
+# colormap = plt.cm.get_cmap("tab10", len(solvers_list))
 
 complexities = []
 

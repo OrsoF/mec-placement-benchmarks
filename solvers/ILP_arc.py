@@ -338,8 +338,9 @@ class Solver(GenericSolver):
             self._set_initial_value(initial_value)
 
         opt = pyo.SolverFactory("gurobi")
-        opt.options["threads"] = 1
+        # opt.options["threads"] = 1
         opt.options['Heuristics'] = 0
+        opt.options['TimeLimit'] = 600
 
         num_variables = len([v for v in self.model.component_data_objects(pyo.Var)])
         print("Number of variables:", num_variables)

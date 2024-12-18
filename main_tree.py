@@ -27,7 +27,7 @@ if not os.path.exists(path_file):
     pickle_save(results, path_file)
 
 
-def experience(user_count: int, neighbor_count: int = 0):
+def experience(user_count: int, neighbor_count: int = 2):
     results = pickle_load(path_file)
 
     problem_instance = make_tree_instance(
@@ -45,5 +45,6 @@ def experience(user_count: int, neighbor_count: int = 0):
     pickle_save(results, path_file)
 
 
-experience(4)
+for i in range(10, 30, 2):
+    experience(i)
 print(pickle_load(path_file))
