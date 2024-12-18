@@ -1,7 +1,9 @@
+import os
+
 from utils.make_tree_instance import make_tree_instance
 from utils.data_management import solve
 from utils.pickle import pickle_load, pickle_save
-import os
+
 from solvers.ILP_arc import Solver as Solver_ILP_arc
 from solvers.ILP_path import Solver as Solver_ILP_path
 from solvers.heuristic import Solver as Heuristic
@@ -25,7 +27,7 @@ if not os.path.exists(path_file):
     pickle_save(results, path_file)
 
 
-def experience(user_count: int, neighbor_count: int):
+def experience(user_count: int, neighbor_count: int = 0):
     results = pickle_load(path_file)
 
     problem_instance = make_tree_instance(
@@ -43,5 +45,5 @@ def experience(user_count: int, neighbor_count: int):
     pickle_save(results, path_file)
 
 
-experience(2, 0)
+experience(4)
 print(pickle_load(path_file))
