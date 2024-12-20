@@ -45,6 +45,6 @@ def experience(user_count: int, neighbor_count: int = 2):
     pickle_save(results, path_file)
 
 
-for i in range(10, 30, 2):
+for i in range(14, 30, 2):
     experience(i)
 print(pickle_load(path_file))

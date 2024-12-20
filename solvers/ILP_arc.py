@@ -325,7 +325,7 @@ class Solver(GenericSolver):
         thread_limit: int = 1,
         initial_value=None,
     ):
-        print('Building Gurobi model...')
+        # print('Building Gurobi model...')
         self._model_parameters()
         self._build_model()
         self._build_sets()
@@ -342,15 +342,15 @@ class Solver(GenericSolver):
         opt.options['Heuristics'] = 0
         opt.options['TimeLimit'] = 600
 
-        num_variables = len([v for v in self.model.component_data_objects(pyo.Var)])
-        print("Number of variables:", num_variables)
+        # num_variables = len([v for v in self.model.component_data_objects(pyo.Var)])
+        # print("Number of variables:", num_variables)
 
-        num_constraints = len(
-            [c for c in self.model.component_data_objects(pyo.Constraint)]
-        )
-        print("Number of constraints:", num_constraints)
+        # num_constraints = len(
+        #     [c for c in self.model.component_data_objects(pyo.Constraint)]
+        # )
+        # print("Number of constraints:", num_constraints)
 
-        print('Start solving process...')
+        # print('Start solving process...')
         solver_result = opt.solve(self.model)
 
         (
