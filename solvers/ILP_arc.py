@@ -325,6 +325,8 @@ class Solver(GenericSolver):
         thread_limit: int = 1,
         initial_value=None,
     ):
+        start_time = time.time()
+
         # print('Building Gurobi model...')
         self._model_parameters()
         self._build_model()
@@ -378,4 +380,7 @@ class Solver(GenericSolver):
         self.q_variable = np.array(
             [self.model.p[dd].value for dd in range(self.total_number_of_demands)]
         )
+
+        
         self.score = sum(self.q_variable)
+        self.runtime += time.time() - start_time
