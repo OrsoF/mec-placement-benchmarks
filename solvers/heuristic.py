@@ -25,7 +25,7 @@ class Solver(GenericSolver):
         self,
         problem_instance: ProblemInstance,
         limit_shortest_path: int = 10,
-        step_no_progression: int = 10,
+        step_no_progression: int = 100,
     ):
         self.problem_instance = problem_instance
         self.limit_shortest_path = limit_shortest_path
@@ -51,6 +51,7 @@ class Solver(GenericSolver):
         self.visited_objectives.append(sum(quantities))
 
         while self.continue_search():
+            print(self.visited_objectives[-1])
             new_placement = placement.copy()
             new_placement[rnd_gen.integers(self.problem_instance.number_of_service)] = (
                 rnd_gen.integers(self.nx_graph.number_of_nodes())
@@ -71,7 +72,10 @@ class Solver(GenericSolver):
                     )
                 )
 
-                self.visited_objectives.append(sum(quantities))
+                if sum(quantities) > self.visited_objectives[-1]:
+                    self.visited_objectives.append(sum(quantities))
+                else:
+                    self.visited_objectives.append(self.visited_objectives[-1])
 
         self.score = max(self.visited_objectives)
         print(f"Heuristic score: {self.score}")
@@ -82,9 +86,7 @@ class Solver(GenericSolver):
         self.quantities = quantities
 
     def continue_search(self) -> bool:
-        if len(self.visited_objectives) < self.step_no_progression:
-            return True
-        else:
-            False
-            # last_visited = self.visited_objectives[-self.step_no_progression :]
-            # return min(last_visited) != max(last_visited)
+        return len(self.visited_objectives) < self.step_no_progression or (
+            min(self.visited_objectives[-self.step_no_progression :])
+            != max(self.visited_objectives[-self.step_no_progression :])
+        )

@@ -134,7 +134,7 @@ def reorder_columns(df1, df2):
         raise TypeError("Input arguments must be Pandas DataFrames.")
 
 
-def get_result_informations(solver_result:str) -> list:
+def get_result_informations(solver_result: str) -> list:
     results = [0, 0, 0, 0]
     results[0] = get_info_from_results(solver_result, "Time: ")
     results[1] = get_info_from_results(solver_result, "Lower bound: ")
@@ -225,10 +225,10 @@ def solve(
         instance.check_current_solution()
     return instance, solver
 
-def print_constraint_variables(model: pyo.Model) -> None:
+
+def print_constraint_variables(model) -> None:
     num_variables = len([v for v in model.component_data_objects(pyo.Var)])
     print("Number of variables:", num_variables)
 
     num_constraints = len([c for c in model.component_data_objects(pyo.Constraint)])
     print("Number of constraints:", num_constraints)
-
