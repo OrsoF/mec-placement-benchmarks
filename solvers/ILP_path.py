@@ -266,9 +266,7 @@ class Solver(GenericSolver):
                 for u in range(self.node_nb)
             },
         )
-        D_path = [
-            i for i, path_list in enumerate(self.paths) for _ in path_list
-        ]
+        D_path = [i for i, path_list in enumerate(self.paths) for _ in path_list]
         self.model.D_path = pyo.Param(
             self.model.C,
             initialize={c: D_path[c] for c in range(self.C)},
@@ -367,12 +365,9 @@ class Solver(GenericSolver):
 
     def run(
         self,
-        options: dict = None,
-        solving_time_limit: float = 600,
-        thread_limit: int = 1,
-        solver: str = "gurobi",
     ):
-        print("Building Gurobi model...")
+        start_time = time.time()
+
         self._model_parameters()
         self._build_model()
         self._build_sets()
@@ -381,11 +376,11 @@ class Solver(GenericSolver):
         self._build_constraints()
         self._build_objective()
 
-        opt = pyo.SolverFactory(solver)
-        # opt.options["TimeLimit"] = 600
-        opt.options["threads"] = thread_limit
+        opt = pyo.SolverFactory("gurobi")
+        # opt.options["threads"] = 1
+        opt.options["Heuristics"] = 0
         opt.options["MemLimit"] = 8
-        opt.options['TimeLimit'] = 600
+        opt.options["TimeLimit"] = 600
 
         var_count = len([v for v in self.model.component_data_objects(pyo.Var)])
         print(f"Number of variables: {var_count}")
@@ -396,14 +391,14 @@ class Solver(GenericSolver):
             print("Start solving process...")
             solver_result = opt.solve(self.model)
             (
-                self.runtime,
+                solver_runtime,
                 self.lower_bound,
                 self.upper_bound,
                 self.solving_status,
             ) = get_result_informations(solver_result)
 
         except ValueError:
-            self.runtime, self.lower_bound, self.upper_bound = solving_time_limit, 0, 0
+            solver_runtime, self.lower_bound, self.upper_bound = 600, 0, 0
 
         # self.lambda_variable = np.array(
         #     [
@@ -424,4 +419,6 @@ class Solver(GenericSolver):
         #     [self.model.p[dd].value for dd in range(self.total_number_of_demands)]
         # )
 
+        self.runtime = time.time() - start_time
         self.score = self.lower_bound
+        print(f'Build time: {self.runtime - solver_runtime}')

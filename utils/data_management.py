@@ -3,6 +3,7 @@ import importlib
 import pandas as pd
 import pickle as pkl
 import tqdm
+import pyomo as pyo
 from problem_classes.probleminstance import ProblemInstance, ToyInstance
 from importlib.util import spec_from_file_location, module_from_spec
 from utils.generic_solver import GenericSolver
@@ -133,7 +134,7 @@ def reorder_columns(df1, df2):
         raise TypeError("Input arguments must be Pandas DataFrames.")
 
 
-def get_result_informations(solver_result) -> list:
+def get_result_informations(solver_result:str) -> list:
     results = [0, 0, 0, 0]
     results[0] = get_info_from_results(solver_result, "Time: ")
     results[1] = get_info_from_results(solver_result, "Lower bound: ")
@@ -223,3 +224,11 @@ def solve(
         )
         instance.check_current_solution()
     return instance, solver
+
+def print_constraint_variables(model: pyo.Model) -> None:
+    num_variables = len([v for v in model.component_data_objects(pyo.Var)])
+    print("Number of variables:", num_variables)
+
+    num_constraints = len([c for c in model.component_data_objects(pyo.Constraint)])
+    print("Number of constraints:", num_constraints)
+

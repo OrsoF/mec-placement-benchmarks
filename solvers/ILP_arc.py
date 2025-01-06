@@ -322,12 +322,10 @@ class Solver(GenericSolver):
 
     def run(
         self,
-        thread_limit: int = 1,
         initial_value=None,
     ):
         start_time = time.time()
 
-        # print('Building Gurobi model...')
         self._model_parameters()
         self._build_model()
         self._build_sets()
@@ -341,22 +339,14 @@ class Solver(GenericSolver):
 
         opt = pyo.SolverFactory("gurobi")
         # opt.options["threads"] = 1
-        opt.options['Heuristics'] = 0
-        opt.options['TimeLimit'] = 600
+        opt.options["Heuristics"] = 0
+        opt.options["MemLimit"] = 8
+        opt.options["TimeLimit"] = 600
 
-        # num_variables = len([v for v in self.model.component_data_objects(pyo.Var)])
-        # print("Number of variables:", num_variables)
-
-        # num_constraints = len(
-        #     [c for c in self.model.component_data_objects(pyo.Constraint)]
-        # )
-        # print("Number of constraints:", num_constraints)
-
-        # print('Start solving process...')
         solver_result = opt.solve(self.model)
 
         (
-            self.runtime,
+            solver_runtime,
             self.lower_bound,
             self.upper_bound,
             self.solving_status,
@@ -381,6 +371,8 @@ class Solver(GenericSolver):
             [self.model.p[dd].value for dd in range(self.total_number_of_demands)]
         )
 
-        
         self.score = sum(self.q_variable)
         self.runtime += time.time() - start_time
+        print(f'Build time: {self.runtime - solver_runtime}')
+
+
