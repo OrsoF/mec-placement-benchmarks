@@ -16,7 +16,7 @@ import os
 import numpy as np
 from utils.generic_solver import GenericSolver
 from stable_baselines3 import A2C, PPO
-from utils.SPPGym_GCN import SPPGymGNN
+from utils.gym_instance import Spp
 from tqdm import trange, tqdm
 from utils.custom_policy import CustomActorCriticPolicy
 

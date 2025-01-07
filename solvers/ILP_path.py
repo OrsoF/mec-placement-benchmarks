@@ -382,23 +382,18 @@ class Solver(GenericSolver):
         opt.options["MemLimit"] = 8
         opt.options["TimeLimit"] = 600
 
-        var_count = len([v for v in self.model.component_data_objects(pyo.Var)])
-        print(f"Number of variables: {var_count}")
-        cons_count = len([c for c in self.model.component_data_objects(pyo.Constraint)])
-        print(f"Number of constraints: {cons_count}")
-
         try:
             print("Start solving process...")
             solver_result = opt.solve(self.model)
             (
                 solver_runtime,
-                self.lower_bound,
-                self.upper_bound,
+                lower_bound,
+                _,
                 self.solving_status,
             ) = get_result_informations(solver_result)
 
         except ValueError:
-            solver_runtime, self.lower_bound, self.upper_bound = 600, 0, 0
+            solver_runtime, lower_bound, _ = 600, 0, 0
 
         # self.lambda_variable = np.array(
         #     [
@@ -420,5 +415,5 @@ class Solver(GenericSolver):
         # )
 
         self.runtime = time.time() - start_time
-        self.score = self.lower_bound
-        print(f'Build time: {self.runtime - solver_runtime}')
+        self.score = float(lower_bound)
+        print(f'Build time: {self.runtime - float(solver_runtime)}')

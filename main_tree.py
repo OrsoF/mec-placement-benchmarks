@@ -13,8 +13,8 @@ from solvers.rl_PPO import Solver as Ppo
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 solvers = {
-    "ilp_arc": Solver_ILP_arc,
-    "ilp_path": Solver_ILP_path,
+    # "ilp_arc": Solver_ILP_arc,
+    # "ilp_path": Solver_ILP_path,
     "heuristic": Heuristic,
     "cma": Cma,
     "A2C": A2c,

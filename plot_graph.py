@@ -24,5 +24,5 @@ nx.draw(
 )
 
 # Show the plot
-plt.title("Tree shaped graph")
+plt.title("Parallel trees shaped graph")
 plt.show()

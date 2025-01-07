@@ -51,7 +51,7 @@ class Solver(GenericSolver):
         self.visited_objectives.append(sum(quantities))
 
         while self.continue_search():
-            print(self.visited_objectives[-1])
+            # print(self.visited_objectives[-1])
             new_placement = placement.copy()
             new_placement[rnd_gen.integers(self.problem_instance.number_of_service)] = (
                 rnd_gen.integers(self.nx_graph.number_of_nodes())
