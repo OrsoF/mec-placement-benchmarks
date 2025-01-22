@@ -6,16 +6,16 @@ import numpy as np
 class GenericSolver:
     def __init__(self, problem_instance: ProblemInstance, **args) -> None:
         self.problem_instance = problem_instance
-        self.runtime: float
-        self.lower_bound: float
-        self.upper_bound: float
-        self.solver_name = ""
+
+        self.solver_name = "generic_solver"
 
         self.x_variable: np.ndarray
         self.y_variable: np.ndarray
         self.q_variable: np.ndarray
 
         self.score: float
+        self.runtime: float
+        self.build_time: float = 0
 
     def run(
         self,
