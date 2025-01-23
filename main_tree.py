@@ -78,17 +78,5 @@ def experience(users: int):
             solver.build_time,
         )
 
-
-<<<<<<< HEAD
-for user_count in range(15, 16, 1):
-=======
-<<<<<<< HEAD
-
-for i in range(16, 30, 2):
-    experience(i)
-print(pickle_load(path_file))
-=======
-for user_count in range(4, 100, 6):
->>>>>>> a14218815e7c1b01ece2c6734c962d8f0849a321
+for user_count in range(5, 500, 5):
     experience(user_count)
->>>>>>> 10eee011ed09204a53dbb6fb0165f200e7b25df2

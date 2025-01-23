@@ -6,7 +6,7 @@ import pandas as pd
 CSV_PATH = "results_22_01_25.csv"
 df = pd.read_csv(CSV_PATH)
 
-instance_type = "parallel"
+instance_type = "tree"
 neighbors = 1
 
 df = df[df["instance"] == instance_type]
