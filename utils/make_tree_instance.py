@@ -91,7 +91,7 @@ def make_tree_instance(
                 demand_server,
             ],
             network_graph=network_graph,
-            resources_needed=5,
+            resources_needed=1,
         )
         services.append(service)
 

@@ -416,4 +416,4 @@ class Solver(GenericSolver):
 
         self.runtime = time.time() - start_time
         self.score = float(lower_bound)
-        print(f'Build time: {self.runtime - float(solver_runtime)}')
+        self.build_time = self.runtime - float(solver_runtime)

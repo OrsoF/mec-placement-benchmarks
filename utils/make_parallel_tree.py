@@ -98,13 +98,13 @@ def make_parallel_tree_instance(
         demand_user = Demand(
             origin_node_index=user_index,
             flow_min=1,
-            flow_max=10,
+            flow_max=100,
             max_latency=number_of_users_per_group * number_of_groups * 5,
         )
         demand_server = Demand(
             origin_node_index=nx_graph.number_of_nodes() - 1,
             flow_min=1,
-            flow_max=10,
+            flow_max=100,
             max_latency=number_of_users_per_group * number_of_groups * 5,
         )
         service = Service(

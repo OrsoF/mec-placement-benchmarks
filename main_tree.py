@@ -1,8 +1,12 @@
 import os
+import pandas as pd
+
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 from utils.make_tree_instance import make_tree_instance
 from utils.data_management import solve
 from utils.pickle import pickle_load, pickle_save
+from utils.generic_solver import GenericSolver
 
 from solvers.ILP_arc import Solver as Solver_ILP_arc
 from solvers.ILP_path import Solver as Solver_ILP_path
@@ -11,9 +15,9 @@ from solvers.cma import Solver as Cma
 from solvers.rl_A2C import Solver as A2c
 from solvers.rl_PPO import Solver as Ppo
 
-os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+CSV_PATH = "results.csv"
 solvers = {
-    # "ilp_arc": Solver_ILP_arc,
+    "ilp_arc": Solver_ILP_arc,
     # "ilp_path": Solver_ILP_path,
     "heuristic": Heuristic,
     "cma": Cma,
@@ -21,30 +25,59 @@ solvers = {
     "PPO": Ppo,
 }
 
-results = {}
-path_file = os.path.join("results", "dict_scores.pkl")
-if not os.path.exists(path_file):
-    pickle_save(results, path_file)
 
-
-def experience(user_count: int, neighbor_count: int = 2):
-    results = pickle_load(path_file)
-
-    problem_instance = make_tree_instance(
-        number_of_users=user_count, neighbors_connection=neighbor_count
+def update_csv(
+    instance: str,
+    solver: str,
+    users: str,
+    neighbors: str,
+    groups: str,
+    score: float,
+    runtime: float,
+    buildtime: float,
+) -> None:
+    df = pd.read_csv(CSV_PATH)
+    new_df = pd.DataFrame(
+        {
+            "instance": instance,
+            "solver": solver,
+            "users": users,
+            "neighbors": neighbors,
+            "groups": groups,
+            "score": score,
+            "runtime": runtime,
+            "buildtime": buildtime,
+        },
+        index=[len(df)],
     )
+    df = pd.concat([df, new_df], axis=0)
+    df.to_csv(CSV_PATH, index=False)
+
+
+def experience(users: int):
+    neighbors, groups, instance = 1, 1, "tree"
+
+    problem_instance = make_tree_instance(users, neighbors)
+
     for solver_name, solver in solvers.items():
         print(solver_name)
-        solver = solver(problem_instance)
+        solver: GenericSolver = solver(problem_instance)
         solver.run()
-        results[("tree", solver_name, user_count, neighbor_count)] = (
-            float(solver.score),
-            float(solver.runtime),
+
+        if not hasattr(solver, "build_time"):
+            solver.build_time = 0.0
+
+        update_csv(
+            instance,
+            solver_name,
+            users,
+            neighbors,
+            groups,
+            solver.score,
+            solver.runtime,
+            solver.build_time,
         )
 
-    pickle_save(results, path_file)
 
-
-for i in range(14, 30, 2):
-    experience(i)
-print(pickle_load(path_file))
+for user_count in range(4, 100, 6):
+    experience(user_count)

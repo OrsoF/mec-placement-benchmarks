@@ -6,7 +6,6 @@ import numpy as np
 class GenericSolver:
     def __init__(self, problem_instance: ProblemInstance, **args) -> None:
         self.problem_instance = problem_instance
-
         self.solver_name = "generic_solver"
 
         self.x_variable: np.ndarray
@@ -22,7 +21,7 @@ class GenericSolver:
         initial_variable: tuple,
     ):
         # To be implemented in the real solver.
-        pass
+        assert False, "To be implemented."
 
     def _end_solving(self):
         assert (
