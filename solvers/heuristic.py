@@ -25,7 +25,7 @@ class Solver(GenericSolver):
         self,
         problem_instance: ProblemInstance,
         limit_shortest_path: int = 10,
-        step_no_progression: int = 100,
+        step_no_progression: int = 10,
     ):
         self.problem_instance = problem_instance
         self.limit_shortest_path = limit_shortest_path
