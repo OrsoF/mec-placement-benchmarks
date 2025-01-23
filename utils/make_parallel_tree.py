@@ -19,6 +19,12 @@ def make_parallel_tree_instance(
     neighbors_connection: int,
     number_of_groups: int,
 ) -> ProblemInstance:
+    assert number_of_users_per_group >= 1
+    assert neighbors_connection >= 0
+    assert number_of_groups >= 1
+
+    assert neighbors_connection <= number_of_users_per_group // 2
+
     nx_graph = nx.Graph()
 
     # # Nodes (resources)
@@ -92,14 +98,14 @@ def make_parallel_tree_instance(
         demand_user = Demand(
             origin_node_index=user_index,
             flow_min=1,
-            flow_max=10,
-            max_latency=number_of_users_per_group * number_of_groups,
+            flow_max=100,
+            max_latency=number_of_users_per_group * number_of_groups * 5,
         )
         demand_server = Demand(
             origin_node_index=nx_graph.number_of_nodes() - 1,
             flow_min=1,
-            flow_max=10,
-            max_latency=number_of_users_per_group * number_of_groups,
+            flow_max=100,
+            max_latency=number_of_users_per_group * number_of_groups * 5,
         )
         service = Service(
             task_list=[

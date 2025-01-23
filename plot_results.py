@@ -1,0 +1,42 @@
+import os
+import matplotlib.pyplot as plt
+from utils.pickle import pickle_load, pickle_save
+import pandas as pd
+
+CSV_PATH = "results.csv"
+df = pd.read_csv(CSV_PATH)
+
+instance_type = "tree"
+neighbors = 1
+
+df = df[df["instance"] == instance_type]
+df = df[df["neighbors"] == neighbors]
+df = df.drop(["instance", "neighbors", "groups"], axis=1)
+
+plt.figure(figsize=(10, 6))
+for solver_name in set(df['solver']):
+    df_temp = df[df['solver'] == solver_name]
+    plt.plot(df_temp['users'], df_temp['score'], marker="o", label=solver_name)
+
+plt.xlabel("Graph size", fontsize=14)
+plt.ylabel("Score", fontsize=14)
+plt.title(f"{instance_type} score vs graph size for each solver", fontsize=16)
+plt.legend(title="Method", fontsize=10)
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+
+plt.figure(figsize=(10, 6))
+for solver_name in set(df['solver']):
+    df_temp = df[df['solver'] == solver_name]
+    plt.plot(df_temp['users'], df_temp['runtime'], marker="o", label=solver_name)
+    if df_temp['buildtime'].iloc[0] > 0.0:
+        plt.plot(df_temp['users'], df_temp['buildtime'], marker="o", label=f"Build time {solver_name}")
+
+plt.xlabel("Graph size", fontsize=14)
+plt.ylabel("runtime", fontsize=14)
+plt.title(f"{instance_type} runtime vs graph size for each solver", fontsize=16)
+plt.legend(title="Method", fontsize=10)
+plt.grid(True)
+plt.tight_layout()
+plt.show()

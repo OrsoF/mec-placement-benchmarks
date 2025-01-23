@@ -24,7 +24,7 @@ class Solver(GenericSolver):
     def __init__(
         self,
         problem_instance: ProblemInstance,
-        limit_shortest_path: int = 10,
+        limit_shortest_path: int = 5,
         step_no_progression: int = 10,
     ):
         self.problem_instance = problem_instance

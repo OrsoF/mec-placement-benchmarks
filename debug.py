@@ -1,5 +1,5 @@
 from utils.gym_instance import SPPEnv
-from utils.make_tree_instance import make_tree_instance
+from utils.make_parallel_tree import make_parallel_tree_instance
 from utils.data_management import solve
 import os
 
@@ -7,7 +7,7 @@ os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 users = 5
 neighbors = 4
-problem_instance = make_tree_instance(
+problem_instance = make_parallel_tree_instance(
     number_of_users=users, neighbors_connection=neighbors
 )
 
