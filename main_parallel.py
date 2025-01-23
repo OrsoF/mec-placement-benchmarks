@@ -3,7 +3,7 @@ import pandas as pd
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
-from utils.make_parallel_tree import make_parallel_tree_instance
+from utils.make_parallel_instance import make_parallel_tree_instance
 from utils.data_management import solve
 from utils.pickle import pickle_load, pickle_save
 from utils.generic_solver import GenericSolver
@@ -15,14 +15,14 @@ from solvers.cma import Solver as Cma
 from solvers.rl_A2C import Solver as A2c
 from solvers.rl_PPO import Solver as Ppo
 
-CSV_PATH = "results.csv"
+CSV_PATH = "results_23_01_25.csv"
 solvers = {
     "ilp_arc": Solver_ILP_arc,
     # "ilp_path": Solver_ILP_path,
     "heuristic": Heuristic,
     "cma": Cma,
-    "A2C": A2c,
-    "PPO": Ppo,
+    # "A2C": A2c,
+    # "PPO": Ppo,
 }
 
 
@@ -70,7 +70,7 @@ def experience(users: int):
 
         if not hasattr(solver, "build_time"):
             solver.build_time = 0.0
-            
+
         update_csv(
             instance,
             solver_name,
@@ -83,5 +83,5 @@ def experience(users: int):
         )
 
 
-for user_count in range(4, 100, 6):
+for user_count in range(3, 4, 1):
     experience(user_count)

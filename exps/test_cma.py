@@ -1,4 +1,4 @@
-from utils.make_parallel_tree import make_parallel_tree_instance
+from utils.make_parallel_instance import make_parallel_tree_instance
 from utils.make_tree_instance import make_tree_instance
 
 instance = make_parallel_tree_instance(

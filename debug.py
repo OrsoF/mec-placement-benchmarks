@@ -1,5 +1,5 @@
 from utils.gym_instance import SPPEnv
-from utils.make_parallel_tree import make_parallel_tree_instance
+from utils.make_parallel_instance import make_parallel_tree_instance
 from utils.data_management import solve
 import os
 

@@ -375,4 +375,4 @@ class Solver(GenericSolver):
         self.runtime = time.time() - start_time
         self.build_time = self.runtime - float(solver_runtime)
 
-
+        print(f"ILP score : {self.score}")

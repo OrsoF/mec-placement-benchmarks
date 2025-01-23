@@ -40,12 +40,12 @@ def make_parallel_tree_instance(
     nx_graph.add_node("cloud")
 
     # Resources
-    resources_nodes = [1] * number_of_groups * number_of_users_per_group
-    resources_wap = [number_of_users_per_group] * number_of_groups
-    resources_cloud = [number_of_groups * number_of_users_per_group]
+    resources_nodes = (
+        [int(rng_gen.random() < 0.5)] * number_of_groups * number_of_users_per_group
+    )
+    resources_wap = [rng_gen.integers(number_of_users_per_group)] * number_of_groups
+    resources_cloud = [1 * number_of_groups * number_of_users_per_group]
     resources = resources_nodes + resources_wap + resources_cloud
-
-    edge_count = 0
 
     # # Edges
     # Between users
@@ -57,32 +57,32 @@ def make_parallel_tree_instance(
                 destination_node = f"user_{group_index}_{connected_node}"
                 if origin_node != destination_node:
                     nx_graph.add_edge(origin_node, destination_node)
-                    edge_count += 1
 
     # Between user and wap
     for group_index in range(number_of_groups):
         for user_index in range(number_of_users_per_group):
             nx_graph.add_edge(f"user_{group_index}_{user_index}", f"wap_{group_index}")
-            edge_count += 1
 
     # Between wap and cloud
     for group_index in range(number_of_groups):
         nx_graph.add_edge(f"wap_{group_index}", "cloud")
-        edge_count += 1
 
     # Capacities
     capacity_user_user = (
-        [10] * number_of_users_per_group * neighbors_connection * number_of_groups
+        [1 * number_of_users_per_group]
+        * number_of_users_per_group
+        * neighbors_connection
+        * number_of_groups
     )
     capacity_user_wap = (
-        [10 * number_of_users_per_group] * number_of_users_per_group * number_of_groups
+        [1 * number_of_users_per_group] * number_of_users_per_group * number_of_groups
     )
     capacity_wap_cloud = [
-        15 * number_of_users_per_group * number_of_groups
+        1 * number_of_users_per_group * number_of_groups
     ] * number_of_groups
     capacities = capacity_user_user + capacity_user_wap + capacity_wap_cloud
-    latency_alphas = [1.0] * nx_graph.number_of_edges()
-    latency_betas = [1.0] * nx_graph.number_of_edges()
+    latency_alphas = [3.0] * nx_graph.number_of_edges()
+    latency_betas = [3.0] * nx_graph.number_of_edges()
 
     network_graph = NetworkGraph(
         base_graph=nx_graph,
@@ -98,14 +98,14 @@ def make_parallel_tree_instance(
         demand_user = Demand(
             origin_node_index=user_index,
             flow_min=1,
-            flow_max=100,
-            max_latency=number_of_users_per_group * number_of_groups * 5,
+            flow_max=10,
+            max_latency=5 * number_of_users_per_group * number_of_groups,
         )
         demand_server = Demand(
             origin_node_index=nx_graph.number_of_nodes() - 1,
             flow_min=1,
-            flow_max=100,
-            max_latency=number_of_users_per_group * number_of_groups * 5,
+            flow_max=2,
+            max_latency=5 * number_of_users_per_group * number_of_groups,
         )
         service = Service(
             task_list=[

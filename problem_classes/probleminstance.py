@@ -192,7 +192,7 @@ class ProblemInstance:
         assert np.all(
             self.x_variable.T.dot(self.q_variable)
             <= np.array(self.network_graph.capacities)
-        )  # Check edges capacities
+        ), f"Edge capacity exceeded : {self.x_variable.T.dot(self.q_variable)} <= {np.array(self.network_graph.capacities)}"  # Check edges capacities
 
         for demand_index in range(self.total_number_of_demands):  # Check routing
             if not len(

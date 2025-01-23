@@ -15,14 +15,14 @@ from solvers.cma import Solver as Cma
 from solvers.rl_A2C import Solver as A2c
 from solvers.rl_PPO import Solver as Ppo
 
-CSV_PATH = "results.csv"
+CSV_PATH = "results_23_01_25.csv"
 solvers = {
     "ilp_arc": Solver_ILP_arc,
     # "ilp_path": Solver_ILP_path,
     "heuristic": Heuristic,
     "cma": Cma,
-    "A2C": A2c,
-    "PPO": Ppo,
+    # "A2C": A2c,
+    # "PPO": Ppo,
 }
 
 
@@ -79,5 +79,5 @@ def experience(users: int):
         )
 
 
-for user_count in range(4, 100, 6):
+for user_count in range(15, 16, 1):
     experience(user_count)

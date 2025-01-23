@@ -45,23 +45,22 @@ def make_tree_instance(
 
     nx_graph.add_edge(WAP_NODE, CLOUD_NODE)
 
-    resources = [10 + randomize * rng_gen.integers(10)] * number_of_users + [
-        50 + randomize * rng_gen.integers(100),
-        1000 + randomize * rng_gen.integers(1000),
+    resources = [10] * number_of_users + [
+        50,
+        1000,
     ]
 
     # Capacités des arcs
-    capacities = (
-        [number_of_users * 5 + randomize * rng_gen.integers(10)]
-        * 2
-        * (nx_graph.number_of_edges() - number_of_users - 1)
-        + [100 + randomize * rng_gen.integers(100)] * 2 * number_of_users
-        + [100 + randomize * rng_gen.integers(100)] * 2
-    )
+    capacities = list()
+    capacities += (
+        [number_of_users * 10] * 2 * (nx_graph.number_of_edges() - number_of_users - 1)
+    )  # Between Users
+    capacities += [50] * 2 * number_of_users  # Edge - Users
+    capacities += [3 * number_of_users] * 2  # Edge - Cloud
 
     # Build graph
-    latency_alphas = [1.0] * nx_graph.number_of_edges() * 2
-    latency_betas = [1.0] * nx_graph.number_of_edges() * 2
+    latency_alphas = [3.0] * nx_graph.number_of_edges() * 2
+    latency_betas = [3.0] * nx_graph.number_of_edges() * 2
     network_graph = NetworkGraph(
         base_graph=nx_graph,
         node_resources=resources,
@@ -76,14 +75,14 @@ def make_tree_instance(
         demand_user = Demand(
             origin_node_index=user_index,
             flow_min=1,
-            flow_max=50 + randomize * rng_gen.integers(100),
-            max_latency=5 * number_of_users + randomize * rng_gen.integers(10),
+            flow_max=10,
+            max_latency=10 * number_of_users,
         )
         demand_server = Demand(
             origin_node_index=nx_graph.number_of_nodes() - 1,
             flow_min=1,
-            flow_max=50 + randomize * rng_gen.integers(100),
-            max_latency=5 * number_of_users + randomize * rng_gen.integers(10),
+            flow_max=2,
+            max_latency=10 * number_of_users,
         )
         service = Service(
             task_list=[

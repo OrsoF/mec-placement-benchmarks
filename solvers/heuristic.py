@@ -24,8 +24,8 @@ class Solver(GenericSolver):
     def __init__(
         self,
         problem_instance: ProblemInstance,
-        limit_shortest_path: int = 5,
-        step_no_progression: int = 10,
+        limit_shortest_path: int = 2,
+        step_no_progression: int = 5,
     ):
         self.problem_instance = problem_instance
         self.limit_shortest_path = limit_shortest_path
@@ -80,6 +80,8 @@ class Solver(GenericSolver):
         self.score = max(self.visited_objectives)
         print(f"Heuristic score: {self.score}")
         self.runtime = time.time() - start_time
+
+        print(placement, routing, quantities)
 
         self.placement = placement
         self.routing = routing
