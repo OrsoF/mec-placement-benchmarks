@@ -16,7 +16,7 @@ import os
 import numpy as np
 from utils.generic_solver import GenericSolver
 from stable_baselines3 import A2C, PPO
-from utils.gym_instance import Spp
+from utils.gym_instance import SPPEnv
 from tqdm import trange, tqdm
 from utils.custom_policy import CustomActorCriticPolicy
 
@@ -55,13 +55,14 @@ class Solver(GenericSolver):
         train_step = self.train_step
         evaluation_step = self.evaluation_step
 
-        env = SPPGymGNN(
-            problem_instance=self.problem_instance,
+        env = SPPEnv(
+            main_problem_instance=self.problem_instance,
             max_step=max_step,
-            list_of_instances=self.training_instances_database,
+            training_set=None,
+            observation_type='gcn'
         )
         env.reset()
-        model = A2C(CustomActorCriticPolicy, env, verbose=0, seed=0)
+        model = PPO(CustomActorCriticPolicy, env, verbose=0, seed=0)
         model.learn(total_timesteps=train_step, progress_bar=True)
 
         start_time = time.time()

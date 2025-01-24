@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from utils.pickle import pickle_load, pickle_save
 import pandas as pd
 
-CSV_PATH = "results_23_01_25.csv"
+CSV_PATH = "results_24_01_25.csv"
 df = pd.read_csv(CSV_PATH)
 
 instance_type = "parallel"

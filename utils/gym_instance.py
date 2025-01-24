@@ -1,6 +1,7 @@
 import gymnasium as gym
 import numpy as np
 import networkx as nx
+from torch_geometric.utils.convert import from_networkx
 
 from gymnasium.spaces import Tuple, Box, MultiDiscrete
 from problem_classes.solvinginstance import SolvingInstance
@@ -23,6 +24,7 @@ class SPPEnv(gym.Env):
         max_pcc: int = 3,  # Max number of explored shortest paths
         training_set: list[ProblemInstance] = None,  # Eventual other instances
         warm_start_heuristic: bool = True,  # Warm start with heuristically found solution
+        observation_type: str = "vector",
     ):
         # Problem data
         self.problem_instance = main_problem_instance
@@ -33,6 +35,7 @@ class SPPEnv(gym.Env):
         self.graph = self.network_graph.nx_graph
         self.list_of_instances = training_set
         self.warm_start_heuristic = warm_start_heuristic
+        self.observation_type = observation_type
 
         if not hasattr(self, "first_time"):
             self.initial_instance = main_problem_instance
@@ -45,7 +48,7 @@ class SPPEnv(gym.Env):
         # Evolution
         self.steps_done = 0
         self.rewards = [-10]
-        if not hasattr(self, 'scores'):
+        if not hasattr(self, "scores"):
             self.scores = [0]
         self.solutions = [self._state_to_variables(self.state)]
 
@@ -478,7 +481,15 @@ class SPPEnv(gym.Env):
         choosen_quantities = state[S + D : S + 2 * D]
         return service_placement, sp_indices, choosen_quantities
 
-    def _observe(self, state: list) -> np.ndarray:
+    def _observe(self, state: list):
+        if self.observation_type == "vector":
+            return self._observe_vector(state)
+        elif self.observation_type == "gcn":
+            return self._observe_gcn(state)
+        else:
+            assert False, "Unknown observation space."
+
+    def _observe_vector(self, state: list) -> np.ndarray:
         """
         Transform a given state into the observation vector.
         """
@@ -522,6 +533,16 @@ class SPPEnv(gym.Env):
             + self.problem_instance.needed_resources
             + longueur_chemins
         )
+
+    def _observe_gcn(self, state: list):
+        """Transform a given state into a graph element."""
+        self._reset_edge_attributes()
+        self._reset_node_attributes()
+        self._update_edge_attributes(state)
+        self._update_node_attributes(state)
+        data = from_networkx(self.graph)
+        print(data)
+        return data
 
     def _get_latency_demand(self, demand_index: int, state: list) -> float:
         """For a given demand, get its associated latency."""
