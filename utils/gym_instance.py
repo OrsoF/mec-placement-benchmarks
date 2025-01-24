@@ -22,7 +22,7 @@ class SPPEnv(gym.Env):
         max_step: int,  # Limit of the number of evolving steps
         max_pcc: int = 3,  # Max number of explored shortest paths
         training_set: list[ProblemInstance] = None,  # Eventual other instances
-        warm_start_heuristic: bool = False,  # Warm start with heuristically found solution
+        warm_start_heuristic: bool = True,  # Warm start with heuristically found solution
     ):
         # Problem data
         self.problem_instance = main_problem_instance
@@ -45,7 +45,8 @@ class SPPEnv(gym.Env):
         # Evolution
         self.steps_done = 0
         self.rewards = [-10]
-        self.scores = [0]
+        if not hasattr(self, 'scores'):
+            self.scores = [0]
         self.solutions = [self._state_to_variables(self.state)]
 
     def _initial_state(self) -> list:

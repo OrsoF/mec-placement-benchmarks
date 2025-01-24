@@ -53,7 +53,7 @@ class Solver(GenericSolver):
             es.logger.add()  # write data to disc to be plotted
             es.disp()
 
-        print("Meilleure solution CMA: {}".format(self.max_value))
+        # print("Meilleure solution CMA: {}".format(self.max_value))
 
         self.runtime = time.time() - start_time
         self.score = self.max_value

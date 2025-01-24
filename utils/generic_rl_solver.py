@@ -50,4 +50,4 @@ class Solver(GenericSolver):
             action, _ = self.model.predict(obs)
 
         self.runtime = time.time() - start_time
-        self.score = max(self.env.scores[-self.evaluation_step :])
+        self.score = max(self.env.scores)
