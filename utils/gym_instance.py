@@ -74,13 +74,17 @@ class SPPEnv(gym.Env):
         # Min flows
         choosen_quantities = self.problem_instance.min_flows
 
+        if not hasattr(self, "scores"):
+            self.scores = [0]
+
         if self.warm_start_heuristic:
-            heur_sol = Solver(self.problem_instance, 10)
+            heur_sol = Solver(self.problem_instance, 5, 5)
             heur_sol.run()
 
             service_placement = heur_sol.placement
             pcc_indices = heur_sol.routing
             choosen_quantities = heur_sol.quantities
+            self.scores.append(sum(choosen_quantities))
 
         state = service_placement + pcc_indices + choosen_quantities
         return state
@@ -512,7 +516,7 @@ class SPPEnv(gym.Env):
 
         server_saturation = [
             self.graph.nodes[node]["remaining_resources"]
-            / self.graph.nodes[node]["available_resources"]
+            / (self.graph.nodes[node]["available_resources"] + 0.01)
             for node in self.graph.nodes
         ]
 
