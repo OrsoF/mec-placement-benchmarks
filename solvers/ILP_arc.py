@@ -337,13 +337,21 @@ class Solver(GenericSolver):
         if initial_value is not None:
             self._set_initial_value(initial_value)
 
+        time_limit = 1800
+
         opt = pyo.SolverFactory("gurobi")
         # opt.options["threads"] = 1
         opt.options["Heuristics"] = 0
         opt.options["MemLimit"] = 8
-        opt.options["TimeLimit"] = 600
+        opt.options["TimeLimit"] = time_limit
+        opt.options["MIPGap"] = 0.95
 
-        solver_result = opt.solve(self.model)
+        try:
+            solver_result = opt.solve(self.model)
+            print(solver_result)
+        except ValueError:
+            print("TimeLimit Exceeded")
+        
 
         (
             solver_runtime,
