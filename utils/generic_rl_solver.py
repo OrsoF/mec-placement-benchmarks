@@ -19,6 +19,8 @@ class Solver(GenericSolver):
         evaluation_step: int,
         method: str,
     ):
+        self.problem_instance = problem_instance
+        self.train_step = train_step
         self.solver_name = f"rl_{method}"
         self.evaluation_step = evaluation_step
 
@@ -36,18 +38,22 @@ class Solver(GenericSolver):
         else:
             assert False, "Not a known method."
 
-        self.model.learn(total_timesteps=train_step, progress_bar=True)
+        
 
     def run(
         self,
     ):
         start_time = time.time()
-
-        obs, _ = self.env.reset(initial_instance=True)
-        action, _ = self.model.predict(obs)
-        for _ in trange(self.evaluation_step):
-            obs, _, _, _, _ = self.env.step(action)
-            action, _ = self.model.predict(obs)
+        
+        self.model.learn(total_timesteps=self.train_step, progress_bar=True)
 
         self.runtime = time.time() - start_time
         self.score = max(self.env.scores)
+
+        # obs, _ = self.env.reset(initial_instance=True)
+        # action, _ = self.model.predict(obs)
+        # for _ in trange(self.evaluation_step):
+        #     obs, _, _, _, _ = self.env.step(action)
+        #     action, _ = self.model.predict(obs)
+
+
