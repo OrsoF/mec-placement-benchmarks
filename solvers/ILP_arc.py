@@ -344,7 +344,6 @@ class Solver(GenericSolver):
         opt.options["Heuristics"] = 0
         opt.options["MemLimit"] = 8
         opt.options["TimeLimit"] = time_limit
-        opt.options["MIPGap"] = 0.95
 
         try:
             solver_result = opt.solve(self.model)
