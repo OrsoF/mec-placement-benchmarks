@@ -348,7 +348,6 @@ class Solver(GenericSolver):
 
         try:
             solver_result = opt.solve(self.model)
-            print(solver_result)
         except ValueError:
             print("TimeLimit Exceeded")
         

@@ -16,6 +16,14 @@ from solvers.rl_A2C import Solver as A2c
 from solvers.rl_PPO import Solver as Ppo
 
 CSV_PATH = "results_27_01_25.csv"
+
+# Solvers à inclure de manière générale:
+# - ILP
+# - Heuristique
+# - RL
+# - Placement heuristique avec résolution ILP
+# - ILP 95
+
 solvers = {
     "ilp_arc": Solver_ILP_arc,
     # "ilp_path": Solver_ILP_path,
@@ -78,5 +86,6 @@ def experience(users: int):
             solver.build_time,
         )
 
-for user_count in [10, 50, 100, 150, 200]:
+
+for user_count in [50, 60, 70, 80, 90, 100, 150, 200]:
     experience(user_count)
