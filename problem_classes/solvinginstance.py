@@ -473,15 +473,17 @@ class SolvingInstance:
 
         for _ in range(step):
             new_quantites = quantities.copy()
-            new_quantites[
-                rnd_gen.integers(self.problem_instance.total_number_of_demands)
-            ] += 1
+            concerned_demand = rnd_gen.integers(
+                self.problem_instance.total_number_of_demands
+            )
+
+            new_quantites[concerned_demand] += 1
             if self.test_solution(placement, routing, new_quantites):
                 quantities = new_quantites
 
         return placement, routing, quantities
 
-    def _get_remaining_quantity(
+    def _get_remaining_quantity_per_demand(
         self, placement: list, routing: list, quantities: list, demand_index: int
     ):
         assert self._are_variable_correct(
@@ -492,11 +494,41 @@ class SolvingInstance:
         graph = self.initialize_graph_attributes(graph)
         graph = self.update_graph_attributes(graph, placement, routing, quantities)
 
-        # On peut ajouter des trucs sur la latence
-        # On peut ajouter des trucs sur les capacités
-        # On peut ajouter des trucs sur le flow max
-
+        service_index = self.problem_instance.demand_to_service[demand_index]
+        origin = self.problem_instance.origins[demand_index]
+        target = placement[service_index]
+        path = self.compute_nth_shortest_path(origin, target, routing[demand_index])
+        if len(path) == 1:
+            return self.problem_instance.max_flows[demand_index] - quantities[demand_index]
         
+        demand_path = path_node_to_path_tuple(path)
+
+        # On peut ajouter des trucs sur la latence
+        remaining_latency = self.problem_instance.latencies[demand_index] - sum(
+            graph.edges[edge]["latency"] for edge in demand_path
+        )
+        remaining_quantity_latency = remaining_latency / min(
+            graph.edges[edge]["alpha"] for edge in demand_path
+        )
+
+        # On peut ajouter des trucs sur les capacités
+        remaining_quantity_capacity = min(
+            graph.edges[edge]["remaining_capacity"] for edge in demand_path
+        )
+
+        # On peut ajouter des trucs sur le flow max
+        remaining_quantity_flow_max = (
+            self.problem_instance.max_flows[demand_index] - quantities[demand_index]
+        )
+
+        remaining_quantity_to_add = min(
+            remaining_quantity_latency,
+            remaining_quantity_capacity,
+            remaining_quantity_flow_max,
+        )
+        assert remaining_quantity_to_add >= 0
+
+        return np.round(remaining_quantity_to_add)
 
     def get_actual_state(self) -> np.ndarray:
         state = self.service_placement + self.quantities
