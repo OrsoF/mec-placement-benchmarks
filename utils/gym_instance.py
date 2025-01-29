@@ -47,10 +47,11 @@ class SPPEnv(gym.Env):
 
         # Evolution
         self.steps_done = 0
-        self.rewards = [-10]
         if not hasattr(self, "scores"):
             self.scores = [0]
-        self.solutions = [self._state_to_variables(self.state)]
+
+        # self.rewards = [-10]
+        # self.solutions = [self._state_to_variables(self.state)]
 
     def _initial_state(self) -> list:
         """
@@ -78,7 +79,7 @@ class SPPEnv(gym.Env):
             self.scores = [0]
 
         if self.warm_start_heuristic:
-            heur_sol = Solver(self.problem_instance, 5, 5)
+            heur_sol = Solver(self.problem_instance, 3, 3)
             heur_sol.run()
 
             service_placement = heur_sol.placement
@@ -212,28 +213,28 @@ class SPPEnv(gym.Env):
         self.state = state
         obs = self._observe(state)
 
-        self.rewards.append(reward)
+        # self.rewards.append(reward)
         self.scores.append(sum(self._state_to_vectors(self.state)[2]))
-        self.solutions.append(self._state_to_variables(self.state))
+        # self.solutions.append(self._state_to_variables(self.state))
 
         return obs, reward / 100, terminated, truncated, info
 
-    def plot_average_reward(self):
-        """
-        Take the self.rewards variable and plot it.
-        """
-        if len(self.rewards) < 3 * self.max_step:
-            return
+    # def plot_average_reward(self):
+    #     """
+    #     Take the self.rewards variable and plot it.
+    #     """
+    #     if len(self.rewards) < 3 * self.max_step:
+    #         return
 
-        plt.cla()
-        for episode in range(1, 4):
-            bounds = (-(episode + 1) * self.max_step, -episode * self.max_step)
-            rewards = self.rewards[bounds[0] : bounds[1]]
-            plt.plot(rewards, label=f"Episode {episode} rewards")
-            scores = self.scores[bounds[0] : bounds[1]]
-            plt.plot(0.01 * np.array(scores), label=f"Episode {episode} scores")
-        plt.legend()
-        plt.savefig("results.png")
+    #     plt.cla()
+    #     for episode in range(1, 4):
+    #         bounds = (-(episode + 1) * self.max_step, -episode * self.max_step)
+    #         rewards = self.rewards[bounds[0] : bounds[1]]
+    #         plt.plot(rewards, label=f"Episode {episode} rewards")
+    #         scores = self.scores[bounds[0] : bounds[1]]
+    #         plt.plot(0.01 * np.array(scores), label=f"Episode {episode} scores")
+    #     plt.legend()
+    #     plt.savefig("results.png")
 
     def _compute_nth_shortest_path(
         self, source: int, destination: int, index: int
@@ -433,9 +434,9 @@ class SPPEnv(gym.Env):
             else 0
         )
 
-    def _best_solution_ever(self) -> tuple:
-        index = np.argmax(self.scores)
-        return self.solutions[index]
+    # def _best_solution_ever(self) -> tuple:
+    #     index = np.argmax(self.scores)
+    #     return self.solutions[index]
 
     def _state_to_variables(self, state: list) -> tuple:
         """

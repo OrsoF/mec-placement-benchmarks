@@ -22,7 +22,7 @@ solvers = {
     # "heuristic": Heuristic,
     # "cma": Cma,
     # "A2C": A2c,
-    # "PPO": Ppo,
+    "PPO": Ppo,
 }
 
 
@@ -83,5 +83,5 @@ def experience(users: int):
         )
 
 
-for user_count in [10, 12, 14, 16, 18, 20, 25, 50, 75, 100, 150, 200]:
+for user_count in range(20, 500, 10):
     experience(user_count)
