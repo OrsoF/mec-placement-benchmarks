@@ -86,6 +86,9 @@ class Solver(GenericSolver):
         self.quantities = quantities
 
     def continue_search(self) -> bool:
+        """
+        If not enough experiences or no progression, end search.
+        """
         return len(self.visited_objectives) < self.step_no_progression or (
             min(self.visited_objectives[-self.step_no_progression :])
             != max(self.visited_objectives[-self.step_no_progression :])

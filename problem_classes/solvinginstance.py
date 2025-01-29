@@ -100,23 +100,22 @@ class SolvingInstance:
 
     def test_solution(self, placement: list, routing: list, quantities: list) -> bool:
         # Vérifier les inputs ici
-        np_placement = np.array(placement)
-        if not 0 <= np_placement.all() < self.graph.number_of_nodes():
+
+        if not all(0 <= elem < self.graph.number_of_nodes() for elem in placement):
             return False
 
-        np_routing = np.array(routing)
-        if not np.all(0 <= np_routing):
+        if not all(0 <= elem for elem in routing):
             return False
 
-        np_quantities = np.array(quantities)
-        if not (
+        if not all(
             self.problem_instance.min_flows[0]
-            <= np_quantities.all()
+            <= elem
             <= self.problem_instance.max_flows[0]
+            for elem in quantities
         ):
             return False
 
-        graph = self.graph.copy()
+        graph = self.graph# .copy()
         graph = self.initialize_graph_attributes(graph)
         graph = self.update_graph_attributes(graph, placement, routing, quantities)
         return self.validate_graph_attributes(graph, placement, routing, quantities)

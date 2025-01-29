@@ -10,9 +10,12 @@ class Solver(RLSolver):
         self,
         problem_instance,
         training_instances_database=None,
-        max_step=5000,
-        train_step=50000,
-        evaluation_step=5000,
+        # max_step=5000,
+        # train_step=50000,
+        # evaluation_step=5000,
+        max_step=100,
+        train_step=1000,
+        evaluation_step=100,
         method="PPO",
     ):
         super().__init__(

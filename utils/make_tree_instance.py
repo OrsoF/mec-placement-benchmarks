@@ -100,11 +100,10 @@ def make_tree_instance(
         "instances",
         PROBLEM_NAME + ".pkl",  # + f"{np.random.randint(100)}.pkl"
     )
-    print("Instance creation...")
 
     service_package = ServicePackage(services, PROBLEM_NAME)
     problem_instance = ProblemInstance(network_graph, service_package, PROBLEM_NAME)
 
-    pickle_save(problem_instance, INSTANCE_PATH)
+    # pickle_save(problem_instance, INSTANCE_PATH)
 
     return problem_instance

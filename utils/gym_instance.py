@@ -37,6 +37,8 @@ class SPPEnv(gym.Env):
         self.warm_start_heuristic = warm_start_heuristic
         self.observation_type = observation_type
 
+        self.sol_ins = SolvingInstance(self.problem_instance)
+
         if not hasattr(self, "first_time"):
             self.initial_instance = main_problem_instance
         self.first_time = False
@@ -92,7 +94,7 @@ class SPPEnv(gym.Env):
 
     def reset(self, seed: float = 0, initial_instance: bool = False):
         """Reset environment."""
-        self.plot_average_reward()
+        # self.plot_average_reward()
 
         if self.list_of_instances is not None:
             new_instance = rnd_gen.choice(self.list_of_instances)
@@ -367,9 +369,8 @@ class SPPEnv(gym.Env):
         - Max flow conditions
         - Resources conditions
         """
-        sol_ins = SolvingInstance(self.problem_instance)
         placement, routing, quantities = self._state_to_vectors(state)
-        return sol_ins.test_solution(placement, routing, quantities)
+        return self.sol_ins.test_solution(placement, routing, quantities)
 
     def _make_action_observation_spaces(self):
         """
