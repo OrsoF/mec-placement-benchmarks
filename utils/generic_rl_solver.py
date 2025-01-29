@@ -3,9 +3,8 @@
 from utils.generic_solver import GenericSolver
 from problem_classes.probleminstance import ProblemInstance
 import time
-from utils.generic_solver import GenericSolver
 from stable_baselines3 import A2C, PPO
-from utils.gym_instance import SPPEnv
+from utils.gym_instance_2 import SPPEnv
 from tqdm import trange, tqdm
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 

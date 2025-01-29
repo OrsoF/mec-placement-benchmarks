@@ -12,9 +12,6 @@ import torch.nn.functional as F
 from torch_geometric.nn import GCNConv
 
 
-
-
-
 class CustomNetwork(nn.Module):
     """
     Custom network for policy and value function.
