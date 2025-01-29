@@ -78,7 +78,7 @@ class SPPEnv(gym.Env):
             self.scores = [0]
 
         if self.warm_start_heuristic:
-            heur_sol = Solver(self.problem_instance, 5, 5)
+            heur_sol = Solver(self.problem_instance, 3, 3)
             heur_sol.run()
 
             service_placement = heur_sol.placement
