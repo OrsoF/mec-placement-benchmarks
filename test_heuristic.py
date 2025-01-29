@@ -1,8 +1,9 @@
 from utils.make_parallel_instance import make_parallel_tree_instance
+from solvers.heuristic import Solver
+import numpy as np
 
 instance = make_parallel_tree_instance(5, 2, 3)
-
-from solvers.heuristic import Solver
-
 solver = Solver(instance, 3, 10)
 solver.run()
+
+print(np.round(solver.runtime, 2), solver.score)
