@@ -98,6 +98,25 @@ class SolvingInstance:
 
         return True
 
+    def _are_variable_correct(
+        self, placement: list, routing: list, quantities: list
+    ) -> bool:
+        if not all(0 <= elem < self.graph.number_of_nodes() for elem in placement):
+            return False
+
+        if not all(0 <= elem for elem in routing):
+            return False
+
+        if not all(
+            self.problem_instance.min_flows[0]
+            <= elem
+            <= self.problem_instance.max_flows[0]
+            for elem in quantities
+        ):
+            return False
+
+        return True
+
     def test_solution(self, placement: list, routing: list, quantities: list) -> bool:
         # Vérifier les inputs ici
 
@@ -115,7 +134,7 @@ class SolvingInstance:
         ):
             return False
 
-        graph = self.graph# .copy()
+        graph = self.graph  # .copy()
         graph = self.initialize_graph_attributes(graph)
         graph = self.update_graph_attributes(graph, placement, routing, quantities)
         return self.validate_graph_attributes(graph, placement, routing, quantities)
@@ -461,6 +480,23 @@ class SolvingInstance:
                 quantities = new_quantites
 
         return placement, routing, quantities
+
+    def _get_remaining_quantity(
+        self, placement: list, routing: list, quantities: list, demand_index: int
+    ):
+        assert self._are_variable_correct(
+            placement, routing, quantities
+        ), "The current placement and routing are not correct."
+
+        graph = self.graph
+        graph = self.initialize_graph_attributes(graph)
+        graph = self.update_graph_attributes(graph, placement, routing, quantities)
+
+        # On peut ajouter des trucs sur la latence
+        # On peut ajouter des trucs sur les capacités
+        # On peut ajouter des trucs sur le flow max
+
+        
 
     def get_actual_state(self) -> np.ndarray:
         state = self.service_placement + self.quantities
