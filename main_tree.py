@@ -88,8 +88,5 @@ def experience(users: int):
             solver.build_time,
         )
 
-# for user_count in range(100, 500, 20):
-#     experience(user_count)
-
-for user_count in range(10, 20, 20):
+for user_count in range(100, 500, 20):
     experience(user_count)

@@ -13,8 +13,8 @@ class Solver(RLSolver):
         # max_step=5000,
         # train_step=50000,
         # evaluation_step=5000,
-        max_step=1000,
-        train_step=10000,
+        max_step=500,
+        train_step=5000,
         evaluation_step=100,
         method="PPO",
     ):

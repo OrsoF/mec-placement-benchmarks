@@ -64,6 +64,10 @@ class SPPEnv(gym.Env):
         #       x Quantité de chaque demande (taille d, max q_dmax)
 
         # On place tout sur le noeud le plus large
+
+        if hasattr(self, "lapremieresolution"):
+            return self.lapremieresolution
+
         node_with_max_resources = np.argmax(
             [self.graph.nodes[node]["available_resources"] for node in self.graph.nodes]
         )
@@ -89,6 +93,23 @@ class SPPEnv(gym.Env):
             choosen_quantities = heur_sol.quantities
             self.scores.append(sum(choosen_quantities))
 
+            self.lapremieresolution = (
+                service_placement + pcc_indices + choosen_quantities
+            )
+
+        state = service_placement + pcc_indices + choosen_quantities
+
+        return state
+
+    def _basic_placement_state(self) -> list:
+        node_with_max_resources = np.argmax(
+            [self.graph.nodes[node]["available_resources"] for node in self.graph.nodes]
+        )
+        service_placement = [
+            node_with_max_resources
+        ] * self.problem_instance.number_of_service
+        pcc_indices = [0] * self.problem_instance.total_number_of_demands
+        choosen_quantities = self.problem_instance.min_flows
         state = service_placement + pcc_indices + choosen_quantities
         return state
 

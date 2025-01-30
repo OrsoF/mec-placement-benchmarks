@@ -19,7 +19,7 @@ CSV_PATH = "results_27_01_25.csv"
 solvers = {
     "ilp_arc": Solver_ILP_arc,
     # "ilp_path": Solver_ILP_path,
-    # "heuristic": Heuristic,
+    "heuristic": Heuristic,
     # "cma": Cma,
     # "A2C": A2c,
     "PPO": Ppo,
@@ -70,6 +70,8 @@ def experience(users: int):
 
         if not hasattr(solver, "build_time"):
             solver.build_time = 0.0
+
+        print(f"Solver {solver_name} with size {users} : score {solver.score} and runtime {solver.runtime}")
 
         update_csv(
             instance,
