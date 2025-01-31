@@ -3,11 +3,11 @@ import matplotlib.pyplot as plt
 from utils.pickle import pickle_load, pickle_save
 import pandas as pd
 
-CSV_PATH = "results_25_01_25.csv"
+CSV_PATH = "results_27_01_25.csv"
 df = pd.read_csv(CSV_PATH)
 
 instance_type = "parallel"
-# instance_type = "tree"
+instance_type = "tree"
 neighbors = 1
 
 df = df[df["instance"] == instance_type]
