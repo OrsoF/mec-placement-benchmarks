@@ -7,7 +7,7 @@ CSV_PATH = "results_03_02_25.csv"
 df = pd.read_csv(CSV_PATH)
 
 instance_type = "parallel"
-instance_type = "tree"
+# instance_type = "tree"
 neighbors = 1
 
 df = df[df["instance"] == instance_type]
@@ -48,7 +48,7 @@ for solver_name in set(df['solver']):
     plt.plot(df_temp['score'], df_temp['runtime'], marker="o", label=solver_name)
 
 plt.xlabel("Score", fontsize=14)
-plt.ylabel("Performance", fontsize=14)
+plt.ylabel("Runtime", fontsize=14)
 plt.title(f"{instance_type} Performance vs Score for the differents methods.", fontsize=16)
 plt.legend(title="Method", fontsize=10)
 plt.grid(True)
