@@ -477,7 +477,7 @@ class SolvingInstance:
                 self.problem_instance.total_number_of_demands
             )
 
-            new_quantites[concerned_demand] += 1
+            new_quantites[concerned_demand] += 10
             if self.test_solution(placement, routing, new_quantites):
                 quantities = new_quantites
 

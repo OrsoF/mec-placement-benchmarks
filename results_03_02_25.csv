@@ -1,1 +1,6 @@
 instance,solver,users,neighbors,groups,score,runtime,buildtime
+parallel,heuristic,20,1,4,480,313.24572587013245,0.0
+parallel,PPO,20,1,4,454,92.88342070579527,0.0
+parallel,heuristic,20,1,4,160,17.717896938323975,0.0
+parallel,PPO,20,1,4,256,89.82288122177124,0.0
+parallel,heuristic,30,1,4,240,36.21609282493591,0.0

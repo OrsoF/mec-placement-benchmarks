@@ -337,7 +337,7 @@ class Solver(GenericSolver):
         if initial_value is not None:
             self._set_initial_value(initial_value)
 
-        time_limit = 1800
+        time_limit = 900
 
         opt = pyo.SolverFactory("gurobi")
         # opt.options["threads"] = 1
