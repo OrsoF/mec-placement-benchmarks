@@ -17,7 +17,7 @@ from solvers.rl_PPO import Solver as Ppo
 
 CSV_PATH = "results_03_02_25.csv"
 solvers = {
-    # "ilp_arc": Solver_ILP_arc,
+    "ilp_arc": Solver_ILP_arc,
     # "ilp_path": Solver_ILP_path,
     "heuristic": Heuristic,
     # "cma": Cma,
@@ -85,5 +85,5 @@ def experience(users: int):
         )
 
 
-for user_count in range(20, 500, 10):
+for user_count in range(20, 500, 5):
     experience(user_count)

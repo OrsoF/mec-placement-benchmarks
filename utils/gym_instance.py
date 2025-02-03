@@ -8,7 +8,7 @@ from problem_classes.solvinginstance import SolvingInstance
 from problem_classes.probleminstance import ProblemInstance
 from utils.graph_utils import path_node_to_path_tuple
 import matplotlib.pyplot as plt
-from solvers.heuristic import Solver
+from solvers.heuristicprecise import Solver
 
 rnd_gen = np.random.default_rng(0)
 moving_avg = lambda data, window: [

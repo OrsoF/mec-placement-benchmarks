@@ -462,7 +462,7 @@ class SolvingInstance:
         demands = list(set(demands))
         return demands
 
-    def maximize_quantities(self, placement, routing, quantities):
+    def maximize_quantities(self, placement, routing, quantities, addten=True):
         assert self.test_solution(placement, routing, quantities)
 
         step = (
@@ -477,6 +477,7 @@ class SolvingInstance:
                 self.problem_instance.total_number_of_demands
             )
 
+            add = 10 if addten else 1
             new_quantites[concerned_demand] += 10
             if self.test_solution(placement, routing, new_quantites):
                 quantities = new_quantites
