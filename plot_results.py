@@ -47,11 +47,10 @@ for solver_name in set(df['solver']):
     df_temp = df[df['solver'] == solver_name]
     plt.plot(df_temp['score'], df_temp['runtime'], marker="o", label=solver_name)
 
-plt.xlabel("Graph size", fontsize=14)
-plt.ylabel("runtime", fontsize=14)
-plt.title(f"{instance_type} runtime vs graph size for each solver", fontsize=16)
+plt.xlabel("Score", fontsize=14)
+plt.ylabel("Performance", fontsize=14)
+plt.title(f"{instance_type} Performance vs Score for the differents methods.", fontsize=16)
 plt.legend(title="Method", fontsize=10)
 plt.grid(True)
 plt.tight_layout()
 plt.show()
-

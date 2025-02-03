@@ -25,7 +25,7 @@ CSV_PATH = "results_03_02_25.csv"
 # - ILP 95
 
 solvers = {
-    "ilp_arc": Solver_ILP_arc,
+    # "ilp_arc": Solver_ILP_arc,
     # "ilp_path": Solver_ILP_path,
     "heuristic": Heuristic,
     # "cma": Cma,
@@ -88,5 +88,5 @@ def experience(users: int):
             solver.build_time,
         )
 
-for user_count in range(80, 500, 10):
+for user_count in range(140, 500, 10):
     experience(user_count)
