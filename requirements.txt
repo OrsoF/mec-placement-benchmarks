@@ -2,3 +2,6 @@ numpy
 networkx
 pyomo
 gurobipy
+stable_baselines3
+cma
+torch-geometric

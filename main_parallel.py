@@ -15,9 +15,9 @@ from solvers.cma import Solver as Cma
 from solvers.rl_A2C import Solver as A2c
 from solvers.rl_PPO import Solver as Ppo
 
-CSV_PATH = "results_27_01_25.csv"
+CSV_PATH = "results_03_02_25.csv"
 solvers = {
-    "ilp_arc": Solver_ILP_arc,
+    # "ilp_arc": Solver_ILP_arc,
     # "ilp_path": Solver_ILP_path,
     "heuristic": Heuristic,
     # "cma": Cma,

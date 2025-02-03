@@ -1,7 +1,7 @@
 import gymnasium as gym
 import numpy as np
 import networkx as nx
-from torch_geometric.utils.convert import from_networkx
+# from torch_geometric.utils.convert import from_networkx
 
 from gymnasium.spaces import Tuple, Box, MultiDiscrete
 from problem_classes.solvinginstance import SolvingInstance

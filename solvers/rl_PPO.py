@@ -8,13 +8,13 @@ from problem_classes.probleminstance import ProblemInstance
 class Solver(RLSolver):
     def __init__(
         self,
-        problem_instance,
+        problem_instance: ProblemInstance,
         training_instances_database=None,
         # max_step=5000,
         # train_step=50000,
         # evaluation_step=5000,
-        max_step=500,
-        train_step=5000,
+        max_step=1000,
+        train_step=10000,
         evaluation_step=100,
         method="PPO",
     ):
