@@ -6,6 +6,8 @@ import pandas as pd
 CSV_PATH = "results_03_02_25.csv"
 df = pd.read_csv(CSV_PATH)
 
+
+
 instance_type = "parallel"
 # instance_type = "tree"
 neighbors = 1
