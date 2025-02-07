@@ -6,11 +6,17 @@ import pandas as pd
 CSV_PATH = "results_03_02_25.csv"
 df = pd.read_csv(CSV_PATH)
 
+import argparse as ap
 
+arg = ap.ArgumentParser()
 
-instance_type = "parallel"
-# instance_type = "tree"
-neighbors = 1
+arg.add_argument("--instance", type=str)
+arg.add_argument("--neighbors", type=int, default=1)
+arg.add_argument("--save", type=bool, default=False)
+
+instance_type = arg.parse_args().instance
+neighbors = arg.parse_args().neighbors
+save = arg.parse_args().save
 
 df = df[df["instance"] == instance_type]
 df = df[df["neighbors"] == neighbors]
@@ -29,6 +35,8 @@ plt.title(f"{instance_type} score vs graph size for each solver", fontsize=16)
 plt.legend(title="Method", fontsize=10)
 plt.grid(True)
 plt.tight_layout()
+if save:
+    plt.savefig(f"{instance_type}_score.png")
 plt.show()
 
 plt.figure(figsize=(10, 6))
@@ -49,7 +57,10 @@ plt.title(f"{instance_type} runtime vs graph size for each solver", fontsize=16)
 plt.legend(title="Method", fontsize=10)
 plt.grid(True)
 plt.tight_layout()
+if save:
+    plt.savefig(f"{instance_type}_runtime.png")
 plt.show()
+
 
 plt.figure(figsize=(10, 6))
 for solver_name in set(df["solver"]):
@@ -64,4 +75,7 @@ plt.title(
 plt.legend(title="Method", fontsize=10)
 plt.grid(True)
 plt.tight_layout()
+
+if save:
+    plt.savefig(f"{instance_type}_performance.png")
 plt.show()
