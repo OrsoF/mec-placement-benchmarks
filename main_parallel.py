@@ -14,15 +14,19 @@ from solvers.heuristic import Solver as Heuristic
 from solvers.cma import Solver as Cma
 from solvers.rl_A2C import Solver as A2c
 from solvers.rl_PPO import Solver as Ppo
+from solvers.ILP_arc_95 import Solver as Solver_ILP_arc_95
+from solvers.ILP_arc_hws import Solver as Solver_ILP_arc_hws
 
 CSV_PATH = "results_03_02_25.csv"
 solvers = {
-    "ilp_arc": Solver_ILP_arc,
+    # "ilp_arc": Solver_ILP_arc,
     # "ilp_path": Solver_ILP_path,
-    "heuristic": Heuristic,
+    # "heuristic": Heuristic,
     # "cma": Cma,
     # "A2C": A2c,
-    "PPO": Ppo,
+    # "PPO": Ppo,
+    # "ilp_arc_95": Solver_ILP_arc_95,
+    "ilp_arc_hws": Solver_ILP_arc_hws,
 }
 
 
@@ -91,5 +95,36 @@ def experience(users: int):
         )
 
 
-for user_count in range(4, 20, 2):
+for user_count in [
+    # 4,
+    # 6,
+    # 8,
+    # 10,
+    # 12,
+    # 14,
+    # 16,
+    18,
+    20,
+    25,
+    30,
+    35,
+    40,
+    45,
+    50,
+    55,
+    60,
+    65,
+    70,
+    75,
+    80,
+    85,
+    90,
+    95,
+    100,
+    105,
+    110,
+    115,
+    120,
+    125,
+]:
     experience(user_count)

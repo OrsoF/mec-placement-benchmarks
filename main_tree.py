@@ -9,11 +9,13 @@ from utils.pickle import pickle_load, pickle_save
 from utils.generic_solver import GenericSolver
 
 from solvers.ILP_arc import Solver as Solver_ILP_arc
+from solvers.ILP_arc_95 import Solver as Solver_ILP_arc_95
 from solvers.ILP_path import Solver as Solver_ILP_path
 from solvers.heuristic import Solver as Heuristic
 from solvers.cma import Solver as Cma
 from solvers.rl_A2C import Solver as A2c
 from solvers.rl_PPO import Solver as Ppo
+from solvers.ILP_arc_hws import Solver as Solver_ILP_arc_hws
 
 CSV_PATH = "results_03_02_25.csv"
 
@@ -25,12 +27,14 @@ CSV_PATH = "results_03_02_25.csv"
 # - ILP 95
 
 solvers = {
-    "ilp_arc": Solver_ILP_arc,
+    # "ilp_arc": Solver_ILP_arc,
     # "ilp_path": Solver_ILP_path,
     # "heuristic": Heuristic,
     # "cma": Cma,
     # "A2C": A2c,
     # "PPO": Ppo,
+    # 'ilp_arc_95': Solver_ILP_arc_95,
+    "ilp_arc_hws": Solver_ILP_arc_hws,
 }
 
 
@@ -68,14 +72,16 @@ def experience(users: int):
     problem_instance = make_tree_instance(users, neighbors)
 
     for solver_name, solver in solvers.items():
-        
+
         solver: GenericSolver = solver(problem_instance)
         solver.run()
 
         if not hasattr(solver, "build_time"):
             solver.build_time = 0.0
 
-        print(f"Solver {solver_name} with size {users} : score {solver.score} and runtime {solver.runtime}")
+        print(
+            f"Solver {solver_name} with size {users} : score {solver.score} and runtime {solver.runtime}"
+        )
 
         update_csv(
             instance,
@@ -88,5 +94,46 @@ def experience(users: int):
             solver.build_time,
         )
 
-for user_count in range(10, 80, 10):
+
+for user_count in [
+    # 10,
+    # 20,
+    # 30,
+    # 40,
+    # 50,
+    # 60,
+    # 70,
+    80,
+    90,
+    100,
+    110,
+    120,
+    130,
+    140,
+    150,
+    160,
+    170,
+    180,
+    190,
+    200,
+    210,
+    220,
+    230,
+    240,
+    250,
+    260,
+    270,
+    280,
+    290,
+    300,
+    310,
+    320,
+    330,
+    340,
+    350,
+    360,
+    370,
+    380,
+    390,
+]:
     experience(user_count)
