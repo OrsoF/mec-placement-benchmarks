@@ -1,6 +1,6 @@
-from utils.build_instance_parallel import make_parallel_tree_instance
+from utils.build_instance_parallel import make_parallel_instance
 
-instance = make_parallel_tree_instance(5, 2, 3)
+instance = make_parallel_instance(5, 2, 3)
 
 from solvers.rl_A2C import Solver
 

@@ -1,21 +1,24 @@
 import matplotlib.pyplot as plt
 import pandas as pd
-
-CSV_PATH = "results_11_02_25.csv"
-df = pd.read_csv(CSV_PATH)
-
 import argparse as ap
+from datetime import datetime
 
 arg = ap.ArgumentParser()
-
 arg.add_argument("--instance", type=str, required=True)
+arg.add_argument("--file", type=str, required=True)
 arg.add_argument("--neighbors", type=int, default=1)
 arg.add_argument("--save", type=bool, default=False)
+args = arg.parse_args()
 
-instance_type = arg.parse_args().instance
+instance_type = args.instance
 assert instance_type in ["tree", "parallel"]
-neighbors = arg.parse_args().neighbors
-save = arg.parse_args().save
+neighbors = args.neighbors
+save = args.save
+
+current_date = datetime.now().strftime("%d_%m_%y")
+CSV_PATH = f"results_{current_date}.csv"
+
+df = pd.read_csv(CSV_PATH)
 
 df = df[df["instance"] == instance_type]
 df = df[df["neighbors"] == neighbors]

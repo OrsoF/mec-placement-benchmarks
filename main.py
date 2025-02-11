@@ -1,32 +1,44 @@
 import os
 import pandas as pd
-
-os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-
-from utils.build_instance_parallel import make_parallel_tree_instance
+import argparse
+from datetime import datetime
+from utils.build_instance_tree import make_tree_instance
+from utils.build_instance_parallel import make_parallel_instance
 from utils.data_management import solve
 from utils.pickle import pickle_load, pickle_save
 from utils.generic_solver import GenericSolver
-
 from solvers.ILP_arc import Solver as Solver_ILP_arc
+from solvers.ILP_arc_95 import Solver as Solver_ILP_arc_95
 from solvers.ILP_path import Solver as Solver_ILP_path
 from solvers.heuristic import Solver as Heuristic
 from solvers.cma import Solver as Cma
 from solvers.rl_A2C import Solver as A2c
 from solvers.rl_PPO import Solver as Ppo
-from solvers.ILP_arc_95 import Solver as Solver_ILP_arc_95
 from solvers.ILP_arc_hws import Solver as Solver_ILP_arc_hws
+from solvers.ILP_arc_heuristic_placement import (
+    Solver as Solver_ILP_arc_heuristic_placement,
+)
 
-CSV_PATH = "results_03_02_25.csv"
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+argparser = argparse.ArgumentParser(description="Run the tree instance")
+argparser.add_argument("--instance", type=str, required=True)
+args = argparser.parse_args()
+instance = args.instance
+assert instance in {"tree", "parallel"}
+
+current_date = datetime.now().strftime("%d_%m_%y")
+CSV_PATH = f"results_{current_date}.csv"
+
 solvers = {
-    # "ilp_arc": Solver_ILP_arc,
+    "ilp_arc": Solver_ILP_arc,
     # "ilp_path": Solver_ILP_path,
-    # "heuristic": Heuristic,
+    "heuristic": Heuristic,
     # "cma": Cma,
     # "A2C": A2c,
-    # "PPO": Ppo,
-    # "ilp_arc_95": Solver_ILP_arc_95,
-    "ilp_arc_hws": Solver_ILP_arc_hws,
+    "PPO": Ppo,
+    # 'ilp_arc_95': Solver_ILP_arc_95,
+    # "ilp_arc_hws": Solver_ILP_arc_hws,
+    # "ilp_arc_heuristic_placement": Solver_ILP_arc_heuristic_placement,
 }
 
 
@@ -59,22 +71,17 @@ def update_csv(
 
 
 def experience(users: int):
-    neighbors, groups, instance = 1, 4, "parallel"
+    neighbors, groups = 1, 4
 
-    problem_instance = make_parallel_tree_instance(
-        number_of_users_per_group=user_count,
-        neighbors_connection=neighbors,
-        number_of_groups=groups,
-    )
+    if instance == "tree":
+        problem_instance = make_tree_instance(users, neighbors)
+    elif instance == "parallel":
+        problem_instance = make_parallel_instance(users, neighbors, groups)
 
     for solver_name, solver in solvers.items():
-        print(solver_name)
+
         solver: GenericSolver = solver(problem_instance)
-        try:
-            solver.run()
-        except:
-            print(f"Solver {solver_name} with size {users} : failed")
-            continue
+        solver.run()
 
         if not hasattr(solver, "build_time"):
             solver.build_time = 0.0
@@ -94,37 +101,10 @@ def experience(users: int):
             solver.build_time,
         )
 
+if instance == "tree":
+    users = range(10, 410, 10)
+elif instance == "parallel":
+    users = list(range(10, 130, 5))
 
-for user_count in [
-    # 4,
-    # 6,
-    # 8,
-    # 10,
-    # 12,
-    # 14,
-    # 16,
-    18,
-    20,
-    25,
-    30,
-    35,
-    40,
-    45,
-    50,
-    55,
-    60,
-    65,
-    70,
-    75,
-    80,
-    85,
-    90,
-    95,
-    100,
-    105,
-    110,
-    115,
-    120,
-    125,
-]:
+for user_count in users:
     experience(user_count)

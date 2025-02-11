@@ -1,4 +1,4 @@
-from utils.build_instance_parallel import make_parallel_tree_instance
+from utils.build_instance_parallel import make_parallel_instance
 from utils.build_instance_tree import make_tree_instance
 import argparse
 
@@ -15,7 +15,7 @@ instance_type = args.instance
 assert instance_type in ["parallel", "tree"]
 
 if instance_type == "parallel":
-    instance = make_parallel_tree_instance(6, 1, 4)
+    instance = make_parallel_instance(6, 1, 4)
 else:
     instance = make_tree_instance(5, 2)
 

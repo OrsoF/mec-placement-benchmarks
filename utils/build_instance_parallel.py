@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 rng_gen = np.random.default_rng(seed=0)
 
 
-def make_parallel_tree_instance(
+def make_parallel_instance(
     number_of_users_per_group: int,
     neighbors_connection: int,
     number_of_groups: int,
