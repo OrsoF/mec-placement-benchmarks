@@ -1,7 +1,7 @@
 import gymnasium as gym
 import numpy as np
 import networkx as nx
-# from torch_geometric.utils.convert import from_networkx
+from torch_geometric.utils.convert import from_networkx
 
 from gymnasium.spaces import Tuple, Box, MultiDiscrete
 from problem_classes.solvinginstance import SolvingInstance
@@ -397,51 +397,56 @@ class SPPEnv(gym.Env):
         """
         Build the Gym action and observation spaces.
         """
-        # Action :
-        #   Choix action (service demande ou quantité)
-        # x Choix_Service
-        # x Placement
-        # x Choix_Demande
-        # x Changement_Quantité
-        # x Choix PCC
-        # x latences
-        self.action_space = MultiDiscrete(
-            [
-                3,  # Déplacer service, changer PCC ou change Q
-                self.problem_instance.number_of_service,  # Choisir un service
-                self.graph.number_of_nodes(),  # Le placer ici
-                self.problem_instance.total_number_of_demands,  # Choisir une demande
-                3,  # Augmenter ou diminuer sa quantité
-                self.max_pcc,  # Choisir l'indice du PCC
-            ]
-        )
+        if self.observation_type == "vector":
+            # Action :
+            #   Choix action (service demande ou quantité)
+            # x Choix_Service
+            # x Placement
+            # x Choix_Demande
+            # x Changement_Quantité
+            # x Choix PCC
+            # x latences
+            self.action_space = MultiDiscrete(
+                [
+                    3,  # Déplacer service, changer PCC ou change Q
+                    self.problem_instance.number_of_service,  # Choisir un service
+                    self.graph.number_of_nodes(),  # Le placer ici
+                    self.problem_instance.total_number_of_demands,  # Choisir une demande
+                    3,  # Augmenter ou diminuer sa quantité
+                    self.max_pcc,  # Choisir l'indice du PCC
+                ]
+            )
 
-        # State : Ou sont placés les services (taille S, max n)
-        #       x Quel est l'indice du PCC pour chaque demande (taille d, max sp_number)
-        #       x Quantité de chaque demande (taille d, max q_dmax)
+            # State : Ou sont placés les services (taille S, max n)
+            #       x Quel est l'indice du PCC pour chaque demande (taille d, max sp_number)
+            #       x Quantité de chaque demande (taille d, max q_dmax)
 
-        high = max(
-            self.graph.number_of_nodes(),
-            self.max_pcc,
-            self.problem_instance.max_flows[0],
-        )
-        observation_shape = (
-            self.problem_instance.number_of_service  # Placement pour chaque service
-            + self.problem_instance.total_number_of_demands  # PCC indices pour chaque demande
-            + self.problem_instance.total_number_of_demands  # Flow pour chaque demande
-            + self.problem_instance.total_number_of_demands  # Latence en proportion pour chaque demande
-            + self.graph.number_of_edges()  # Capacité de chaque arc en proportion
-            + self.graph.number_of_nodes()  # Ressources de chaque noeud
-            + self.problem_instance.total_number_of_demands  # Flow max
-            + self.problem_instance.total_number_of_demands  # Latences max
-            + self.graph.number_of_edges()  # Capacité de chaque arc
-            + self.graph.number_of_nodes()  # Ressources disponibles pour chaque serveur
-            + self.problem_instance.number_of_service  # Ressources nécessaires par service
-            + self.problem_instance.total_number_of_demands  # Longueur de chaque chemin utilisé
-        )
-        low_array = np.zeros(observation_shape)
-        high_array = high * np.ones(observation_shape)
-        self.observation_space = Box(low=low_array, high=high_array)
+            high = max(
+                self.graph.number_of_nodes(),
+                self.max_pcc,
+                self.problem_instance.max_flows[0],
+            )
+            observation_shape = (
+                self.problem_instance.number_of_service  # Placement pour chaque service
+                + self.problem_instance.total_number_of_demands  # PCC indices pour chaque demande
+                + self.problem_instance.total_number_of_demands  # Flow pour chaque demande
+                + self.problem_instance.total_number_of_demands  # Latence en proportion pour chaque demande
+                + self.graph.number_of_edges()  # Capacité de chaque arc en proportion
+                + self.graph.number_of_nodes()  # Ressources de chaque noeud
+                + self.problem_instance.total_number_of_demands  # Flow max
+                + self.problem_instance.total_number_of_demands  # Latences max
+                + self.graph.number_of_edges()  # Capacité de chaque arc
+                + self.graph.number_of_nodes()  # Ressources disponibles pour chaque serveur
+                + self.problem_instance.number_of_service  # Ressources nécessaires par service
+                + self.problem_instance.total_number_of_demands  # Longueur de chaque chemin utilisé
+            )
+            low_array = np.zeros(observation_shape)
+            high_array = high * np.ones(observation_shape)
+            self.observation_space = Box(low=low_array, high=high_array)
+        elif self.observation_type == 'graph':
+            self.observation_space = Box(low=0, high=np.inf, shape=)
+        else:
+            assert False, "Unknown observation space."
 
     def _max_score_ever(self) -> float:
         return max(self.scores)

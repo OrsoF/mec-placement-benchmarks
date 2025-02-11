@@ -1,7 +1,23 @@
 from utils.make_parallel_instance import make_parallel_tree_instance
 from utils.make_tree_instance import make_tree_instance
+import argparse
 
-instance = make_tree_instance(5, 2)
+argparser = argparse.ArgumentParser()
+argparser.add_argument(
+    "--instance",
+    type=str,
+    required=True,
+    help="Type of instance to plot. Either 'parallel' or 'tree'",
+)
+
+args = argparser.parse_args()
+instance_type = args.instance
+assert instance_type in ["parallel", "tree"]
+
+if instance_type == "parallel":
+    instance = make_parallel_tree_instance(6, 1, 4)
+else:
+    instance = make_tree_instance(5, 2)
 
 G = instance.network_graph.nx_graph
 
@@ -16,13 +32,13 @@ nx.draw(
     G,
     pos,
     with_labels=True,
-    node_color='skyblue',
+    node_color="skyblue",
     node_size=200,
     font_size=15,
-    font_color='black',
-    edge_color='gray',
+    font_color="black",
+    edge_color="gray",
 )
 
 # Show the plot
-plt.title("Parallel trees shaped graph")
+plt.title(f"{instance_type} shaped graph")
 plt.show()
