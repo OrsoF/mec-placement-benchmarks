@@ -29,6 +29,20 @@ assert instance in {"tree", "parallel"}
 
 current_date = datetime.now().strftime("%d_%m_%y")
 CSV_PATH = f"results_{current_date}.csv"
+if not os.path.exists(CSV_PATH):
+    df = pd.DataFrame(
+        columns=[
+            "instance",
+            "solver",
+            "users",
+            "neighbors",
+            "groups",
+            "score",
+            "runtime",
+            "buildtime",
+        ]
+    )
+    df.to_csv(CSV_PATH, index=False)
 
 solvers = {
     # "ilp_arc": Solver_ILP_arc,
@@ -103,10 +117,8 @@ def experience(users: int):
             solver.build_time,
         )
 
-if instance == "tree":
-    users = range(30, 410, 10)
-elif instance == "parallel":
-    users = list(range(10, 130, 5))
+
+users = range(30, 410, 10) if instance == "tree" else range(10, 130, 5)
 
 for user_count in users:
     experience(user_count)
