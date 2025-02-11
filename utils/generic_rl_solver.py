@@ -18,6 +18,7 @@ class Solver(GenericSolver):
         train_step: int,
         evaluation_step: int,
         method: str,
+        options: bool=False,
     ):
         self.problem_instance = problem_instance
         self.train_step = train_step
@@ -40,6 +41,7 @@ class Solver(GenericSolver):
             main_problem_instance=problem_instance,
             max_step=max_step,
             training_set=training_instances_database,
+            options=options,
         )
         self.env.reset()
 

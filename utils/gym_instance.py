@@ -12,9 +12,6 @@ import matplotlib.pyplot as plt
 from solvers.heuristicprecise import Solver
 
 rnd_gen = np.random.default_rng(0)
-moving_avg = lambda data, window: [
-    sum(data[i : i + window]) / window for i in range(len(data) - window + 1)
-]
 
 
 class SPPEnv(gym.Env):
@@ -26,6 +23,7 @@ class SPPEnv(gym.Env):
         training_set: list[ProblemInstance] = None,  # Eventual other instances
         warm_start_heuristic: bool = True,  # Warm start with heuristically found solution
         observation_type: str = "vector",
+        options: bool = False,
     ):
         # Problem data
         self.problem_instance = main_problem_instance
@@ -41,6 +39,7 @@ class SPPEnv(gym.Env):
             "vector",
             "gcn",
         ], "Unknown observation type, choose either vector or gcn."
+        self.options = options
 
         self.sol_ins = SolvingInstance(self.problem_instance)
 
@@ -51,6 +50,9 @@ class SPPEnv(gym.Env):
         # Gym
         self._make_action_observation_spaces()
         self.state = self._initial_state()
+
+        if self.options:
+            self.best_solution = (self.state, self._get_score(self.state))
 
         # Evolution
         self.steps_done = 0
@@ -139,7 +141,11 @@ class SPPEnv(gym.Env):
                 self.list_of_instances,
             )
 
-        self.state = self._initial_state()
+        if not self.options:
+            self.state = self._initial_state()
+        else:
+            self.state = self.best_solution[0]
+
         self.steps_done = 0
         return self._observe(self.state), {}
 
@@ -240,10 +246,12 @@ class SPPEnv(gym.Env):
 
         self.state = state
         obs = self._observe(state)
-
-        # self.rewards.append(reward)
         self.scores.append(sum(self._state_to_vectors(self.state)[2]))
-        # self.solutions.append(self._state_to_variables(self.state))
+
+        if self.options:
+            current_score = self._get_score(state)
+            if self.best_solution[1] < current_score:
+                self.best_solution = (state, current_score)
 
         return obs, reward / 100, terminated, truncated, info
 
@@ -576,19 +584,5 @@ class SPPEnv(gym.Env):
         target = service_placement[service_index]
         return self._compute_nth_shortest_path(origin, target, sp_indices[demand_index])
 
-
-def nx_to_numpy(graph):
-    mapping = {node: i for i, node in enumerate(graph.nodes())}
-    graph = nx.relabel_nodes(graph, mapping)
-
-    node_keys = list(next(iter(graph.nodes(data=True)))[1].keys())
-    edge_keys = list(next(iter(graph.edges(data=True)), (None, None, {}))[2].keys())
-
-    x = np.array([[graph.nodes[n][k] for k in node_keys] for n in graph.nodes()])
-    edge_attr = (
-        np.array([[graph.edges[e][k] for k in edge_keys] for e in graph.edges()])
-        if edge_keys
-        else None
-    )
-
-    return x, edge_attr
+    def _get_score(self, state):
+        return sum(self._state_to_vectors(state)[2])

@@ -18,6 +18,7 @@ from solvers.ILP_arc_hws import Solver as Solver_ILP_arc_hws
 from solvers.ILP_arc_heuristic_placement import (
     Solver as Solver_ILP_arc_heuristic_placement,
 )
+from solvers.rl_PPO_options import Solver as Ppo_options
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 argparser = argparse.ArgumentParser(description="Run the tree instance")
@@ -30,15 +31,16 @@ current_date = datetime.now().strftime("%d_%m_%y")
 CSV_PATH = f"results_{current_date}.csv"
 
 solvers = {
-    "ilp_arc": Solver_ILP_arc,
+    # "ilp_arc": Solver_ILP_arc,
     # "ilp_path": Solver_ILP_path,
-    "heuristic": Heuristic,
+    # "heuristic": Heuristic,
     # "cma": Cma,
     # "A2C": A2c,
-    "PPO": Ppo,
+    # "PPO": Ppo,
     # 'ilp_arc_95': Solver_ILP_arc_95,
     # "ilp_arc_hws": Solver_ILP_arc_hws,
     # "ilp_arc_heuristic_placement": Solver_ILP_arc_heuristic_placement,
+    "PPO_options": Ppo_options,
 }
 
 
@@ -102,7 +104,7 @@ def experience(users: int):
         )
 
 if instance == "tree":
-    users = range(10, 410, 10)
+    users = range(30, 410, 10)
 elif instance == "parallel":
     users = list(range(10, 130, 5))
 
