@@ -16,25 +16,22 @@ from solvers.cma import Solver as Cma
 from solvers.rl_A2C import Solver as A2c
 from solvers.rl_PPO import Solver as Ppo
 from solvers.ILP_arc_hws import Solver as Solver_ILP_arc_hws
+from solvers.ILP_arc_heuristic_placement import (
+    Solver as Solver_ILP_arc_heuristic_placement,
+)
 
-CSV_PATH = "results_03_02_25.csv"
-
-# Solvers à inclure de manière générale:
-# - ILP
-# - Heuristique
-# - RL
-# - Placement heuristique avec résolution ILP
-# - ILP 95
+CSV_PATH = "results_11_02_25.csv"
 
 solvers = {
     # "ilp_arc": Solver_ILP_arc,
     # "ilp_path": Solver_ILP_path,
-    # "heuristic": Heuristic,
+    "heuristic": Heuristic,
     # "cma": Cma,
     # "A2C": A2c,
-    # "PPO": Ppo,
+    "PPO": Ppo,
     # 'ilp_arc_95': Solver_ILP_arc_95,
-    "ilp_arc_hws": Solver_ILP_arc_hws,
+    # "ilp_arc_hws": Solver_ILP_arc_hws,
+    # "ilp_arc_heuristic_placement": Solver_ILP_arc_heuristic_placement,
 }
 
 
@@ -95,45 +92,5 @@ def experience(users: int):
         )
 
 
-for user_count in [
-    # 10,
-    # 20,
-    # 30,
-    # 40,
-    # 50,
-    # 60,
-    # 70,
-    80,
-    90,
-    100,
-    110,
-    120,
-    130,
-    140,
-    150,
-    160,
-    170,
-    180,
-    190,
-    200,
-    210,
-    220,
-    230,
-    240,
-    250,
-    260,
-    270,
-    280,
-    290,
-    300,
-    310,
-    320,
-    330,
-    340,
-    350,
-    360,
-    370,
-    380,
-    390,
-]:
+for user_count in range(10, 20, 10):
     experience(user_count)

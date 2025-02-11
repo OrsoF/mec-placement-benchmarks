@@ -2,6 +2,7 @@ import gymnasium as gym
 import numpy as np
 import networkx as nx
 from torch_geometric.utils.convert import from_networkx
+from torch_geometric.data import Data
 
 from gymnasium.spaces import Tuple, Box, MultiDiscrete
 from problem_classes.solvinginstance import SolvingInstance
@@ -36,6 +37,10 @@ class SPPEnv(gym.Env):
         self.list_of_instances = training_set
         self.warm_start_heuristic = warm_start_heuristic
         self.observation_type = observation_type
+        assert self.observation_type in [
+            "vector",
+            "gcn",
+        ], "Unknown observation type, choose either vector or gcn."
 
         self.sol_ins = SolvingInstance(self.problem_instance)
 
@@ -443,8 +448,21 @@ class SPPEnv(gym.Env):
             low_array = np.zeros(observation_shape)
             high_array = high * np.ones(observation_shape)
             self.observation_space = Box(low=low_array, high=high_array)
-        elif self.observation_type == 'graph':
-            self.observation_space = Box(low=0, high=np.inf, shape=)
+        elif self.observation_type == "gcn":
+            node_mat_shape = ()
+            edge_mat_shape = ()
+            self.observation_space = Tuple(Box(0, 1, shape=node_mat_shape), Box(0, 1, shape=edge_mat_shape))
+
+            self.action_space = MultiDiscrete(
+                [
+                    3,  # Déplacer service, changer PCC ou change Q
+                    self.problem_instance.number_of_service,  # Choisir un service
+                    self.graph.number_of_nodes(),  # Le placer ici
+                    self.problem_instance.total_number_of_demands,  # Choisir une demande
+                    3,  # Augmenter ou diminuer sa quantité
+                    self.max_pcc,  # Choisir l'indice du PCC
+                ]
+            )
         else:
             assert False, "Unknown observation space."
 
@@ -460,10 +478,6 @@ class SPPEnv(gym.Env):
             if len(self.scores) >= self.max_step
             else 0
         )
-
-    # def _best_solution_ever(self) -> tuple:
-    #     index = np.argmax(self.scores)
-    #     return self.solutions[index]
 
     def _state_to_variables(self, state: list) -> tuple:
         """
@@ -572,9 +586,10 @@ class SPPEnv(gym.Env):
         self._reset_node_attributes()
         self._update_edge_attributes(state)
         self._update_node_attributes(state)
-        data = from_networkx(self.graph)
-        print(data)
-        return data
+        data: Data = from_networkx(self.graph)
+        print(data.node_attrs())
+        print(data.edg)
+        return np.concatenate((data.x, data.edge_index, data.edge_attr), axis=0)
 
     def _get_latency_demand(self, demand_index: int, state: list) -> float:
         """For a given demand, get its associated latency."""
@@ -588,3 +603,16 @@ class SPPEnv(gym.Env):
         origin = self.problem_instance.origins[demand_index]
         target = service_placement[service_index]
         return self._compute_nth_shortest_path(origin, target, sp_indices[demand_index])
+
+
+def nx_to_numpy(graph):
+    mapping = {node: i for i, node in enumerate(graph.nodes())}
+    graph = nx.relabel_nodes(graph, mapping)
+
+    node_keys = list(next(iter(graph.nodes(data=True)))[1].keys())
+    edge_keys = list(next(iter(graph.edges(data=True)), (None, None, {}))[2].keys())
+
+    x = np.array([[graph.nodes[n][k] for k in node_keys] for n in graph.nodes()])
+    edge_attr = np.array([[graph.edges[e][k] for k in edge_keys] for e in graph.edges()]) if edge_keys else None
+
+    return x, edge_attr

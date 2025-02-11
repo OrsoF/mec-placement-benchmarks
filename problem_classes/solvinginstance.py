@@ -478,7 +478,7 @@ class SolvingInstance:
             )
 
             add = 10 if addten else 1
-            new_quantites[concerned_demand] += 10
+            new_quantites[concerned_demand] += add
             if self.test_solution(placement, routing, new_quantites):
                 quantities = new_quantites
 

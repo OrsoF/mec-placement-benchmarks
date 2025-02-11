@@ -1,18 +1,10 @@
 from utils.generic_solver import GenericSolver
-from problem_classes.servicepackage import ServicePackage
-from problem_classes.networkgraph import NetworkGraph
 from problem_classes.service import Service
 from problem_classes.probleminstance import ProblemInstance
-from utils.data_management import get_info_from_results
-from utils.graph_utils import get_encoded_incoming_arc, get_encoded_outgoing_arc
-from solvers.base_heuristic import greedy_server_allocation
 from solvers.ILP_arc import Solver as ilp_solver
 
-import pyomo.environ as pyo
 import time
-from networkx.readwrite.gml import read_gml
 import networkx as nx
-import os
 import numpy as np
 
 
@@ -67,10 +59,10 @@ class Solver(GenericSolver):
 
         # Go presolve le probleme
         start_time = time.time()
-        server_priority = [1 for _ in range(self.nx_graph.number_of_nodes())]
-        service_server_association = greedy_server_allocation(
-            self.available_resources, self.needed_resources, server_priority
-        )
+        biggest_server = np.argmax(self.available_resources)
+        service_server_association = [
+            biggest_server for _ in range(self.nx_graph.number_of_nodes())
+        ]
         presolving_time = time.time() - start_time
 
         # Go solve le probleme ILP arc en fixant les variables y
