@@ -3,7 +3,7 @@ import pandas as pd
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
-from utils.make_parallel_instance import make_parallel_tree_instance
+from utils.build_instance_parallel import make_parallel_tree_instance
 from utils.data_management import solve
 from utils.pickle import pickle_load, pickle_save
 from utils.generic_solver import GenericSolver

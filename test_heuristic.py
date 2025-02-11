@@ -1,4 +1,4 @@
-from utils.make_parallel_instance import make_parallel_tree_instance
+from utils.build_instance_parallel import make_parallel_tree_instance
 from solvers.heuristic import Solver
 import numpy as np
 

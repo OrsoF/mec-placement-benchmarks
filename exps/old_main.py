@@ -6,8 +6,8 @@ from utils.data_management import (
     create_dataframe_from_dict,
     folder_management,
 )
-from utils.make_instances_from_gml import make_instance_from_gml
-from utils.make_big_instances import make_big_instances
+from utils.build_instance_gml import make_instance_from_gml
+from utils.build_instance_large import make_big_instances
 import numpy as np
 from problem_classes.probleminstance import ProblemInstance
 from utils.generic_solver import GenericSolver

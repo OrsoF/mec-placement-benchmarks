@@ -3,7 +3,7 @@ import pandas as pd
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
-from utils.make_tree_instance import make_tree_instance
+from utils.build_instance_tree import make_tree_instance
 from utils.data_management import solve
 from utils.pickle import pickle_load, pickle_save
 from utils.generic_solver import GenericSolver
@@ -23,7 +23,7 @@ from solvers.ILP_arc_heuristic_placement import (
 CSV_PATH = "results_11_02_25.csv"
 
 solvers = {
-    # "ilp_arc": Solver_ILP_arc,
+    "ilp_arc": Solver_ILP_arc,
     # "ilp_path": Solver_ILP_path,
     "heuristic": Heuristic,
     # "cma": Cma,
@@ -92,5 +92,5 @@ def experience(users: int):
         )
 
 
-for user_count in range(10, 20, 10):
+for user_count in range(10, 50, 10):
     experience(user_count)

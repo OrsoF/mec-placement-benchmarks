@@ -1,7 +1,7 @@
 from utils.data_management import folder_management
-from utils.make_instances_from_gml import make_instance_from_gml
-from utils.make_big_instances import make_big_instances
-from utils.make_tree_instance import make_tree_instance
+from utils.build_instance_gml import make_instance_from_gml
+from utils.build_instance_large import make_big_instances
+from utils.build_instance_tree import make_tree_instance
 
 folder_management()
 

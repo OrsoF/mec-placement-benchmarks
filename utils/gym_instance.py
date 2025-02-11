@@ -247,23 +247,6 @@ class SPPEnv(gym.Env):
 
         return obs, reward / 100, terminated, truncated, info
 
-    # def plot_average_reward(self):
-    #     """
-    #     Take the self.rewards variable and plot it.
-    #     """
-    #     if len(self.rewards) < 3 * self.max_step:
-    #         return
-
-    #     plt.cla()
-    #     for episode in range(1, 4):
-    #         bounds = (-(episode + 1) * self.max_step, -episode * self.max_step)
-    #         rewards = self.rewards[bounds[0] : bounds[1]]
-    #         plt.plot(rewards, label=f"Episode {episode} rewards")
-    #         scores = self.scores[bounds[0] : bounds[1]]
-    #         plt.plot(0.01 * np.array(scores), label=f"Episode {episode} scores")
-    #     plt.legend()
-    #     plt.savefig("results.png")
-
     def _compute_nth_shortest_path(
         self, source: int, destination: int, index: int
     ) -> list:
@@ -373,20 +356,6 @@ class SPPEnv(gym.Env):
 
         return True
 
-    # def _test_solution(self, state: list) -> bool:
-    #     """
-    #     Test if a given solution self.state is doable or not.
-    #     - Capacity conditions
-    #     - Latency conditions
-    #     - Max flow conditions
-    #     - Resources conditions
-    #     """
-    #     self._reset_edge_attributes()
-    #     self._reset_node_attributes()
-    #     self._update_edge_attributes(state)
-    #     self._update_node_attributes(state)
-    #     return self._test_all_constraints(state)
-
     def _test_solution(self, state: list) -> bool:
         """
         Test if a given solution self.state is doable or not.
@@ -451,7 +420,9 @@ class SPPEnv(gym.Env):
         elif self.observation_type == "gcn":
             node_mat_shape = ()
             edge_mat_shape = ()
-            self.observation_space = Tuple(Box(0, 1, shape=node_mat_shape), Box(0, 1, shape=edge_mat_shape))
+            self.observation_space = Tuple(
+                Box(0, 1, shape=node_mat_shape), Box(0, 1, shape=edge_mat_shape)
+            )
 
             self.action_space = MultiDiscrete(
                 [
@@ -587,8 +558,9 @@ class SPPEnv(gym.Env):
         self._update_edge_attributes(state)
         self._update_node_attributes(state)
         data: Data = from_networkx(self.graph)
-        print(data.node_attrs())
-        print(data.edg)
+
+        assert False
+
         return np.concatenate((data.x, data.edge_index, data.edge_attr), axis=0)
 
     def _get_latency_demand(self, demand_index: int, state: list) -> float:
@@ -613,6 +585,10 @@ def nx_to_numpy(graph):
     edge_keys = list(next(iter(graph.edges(data=True)), (None, None, {}))[2].keys())
 
     x = np.array([[graph.nodes[n][k] for k in node_keys] for n in graph.nodes()])
-    edge_attr = np.array([[graph.edges[e][k] for k in edge_keys] for e in graph.edges()]) if edge_keys else None
+    edge_attr = (
+        np.array([[graph.edges[e][k] for k in edge_keys] for e in graph.edges()])
+        if edge_keys
+        else None
+    )
 
     return x, edge_attr

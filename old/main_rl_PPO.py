@@ -1,4 +1,4 @@
-from utils.make_tree_instance import make_tree_instance
+from utils.build_instance_tree import make_tree_instance
 from utils.data_management import solve, import_instance_from_file, import_solver_from_file
 import os
 from solvers.rl_PPO import Solver

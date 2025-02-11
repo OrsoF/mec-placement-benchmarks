@@ -46,7 +46,7 @@ class Solver(GenericSolver):
             self.solving_instance.basic_placement_and_routing()
         )
         placement, routing, quantities = self.solving_instance.maximize_quantities(
-            placement, routing, quantities
+            placement, routing, quantities, False
         )
         self.visited_objectives.append(sum(quantities))
 

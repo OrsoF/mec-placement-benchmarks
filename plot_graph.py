@@ -1,5 +1,5 @@
-from utils.make_parallel_instance import make_parallel_tree_instance
-from utils.make_tree_instance import make_tree_instance
+from utils.build_instance_parallel import make_parallel_tree_instance
+from utils.build_instance_tree import make_tree_instance
 import argparse
 
 argparser = argparse.ArgumentParser()
