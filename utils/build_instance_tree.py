@@ -75,7 +75,7 @@ def make_tree_instance(
         demand_user = Demand(
             origin_node_index=user_index,
             flow_min=1,
-            flow_max=10,
+            flow_max=5,
             max_latency=10 * number_of_users,
         )
         demand_server = Demand(

@@ -92,5 +92,8 @@ def experience(users: int):
         )
 
 
-for user_count in range(10, 50, 10):
+# for user_count in range(10, 400, 10):
+#     experience(user_count)
+
+for user_count in [10, 50, 100, 150, 200]:
     experience(user_count)
