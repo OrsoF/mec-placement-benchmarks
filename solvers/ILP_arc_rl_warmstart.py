@@ -339,7 +339,6 @@ class Solver(GenericSolver):
         initial_value=None,
     ):
 
-        print("Building Gurobi model...")
         self._model_parameters()
         self._build_model()
         self._build_sets()
@@ -354,7 +353,6 @@ class Solver(GenericSolver):
         opt.options["threads"] = 1
         opt.options["Heuristics"] = 0
 
-        print("Start solving process...")
         solver_result = opt.solve(self.model)
 
         (

@@ -557,7 +557,7 @@ class SolvingInstance:
         self, source: int, destination: int, index: int
     ) -> list:
         """
-        Returns the index-th shortest path from source to destination.
+        Returns the index-th shortest path from source to destination in the form [2, 1, 3].
         """
         index = int(index)
 

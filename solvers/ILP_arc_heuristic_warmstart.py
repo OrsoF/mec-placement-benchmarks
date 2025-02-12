@@ -311,32 +311,31 @@ class Solver(GenericSolver):
     def _set_initial_value(self, initial_value: tuple):
         x_variable, y_variable, q_variable = initial_value
         for demand_index in range(self.total_number_of_demands):
-            self.model.p[demand_index].Start = q_variable[demand_index]
+            self.model.p[demand_index].value = q_variable[demand_index]
             for arc_index in range(self.arc_number):
-                self.model.demand_arc_transit[demand_index, arc_index].Start = (
+                self.model.demand_arc_transit[demand_index, arc_index].value = (
                     x_variable[demand_index, arc_index]
                 )
         for service_index in range(self.number_of_services):
             for node_index in range(self.node_number):
-                self.model.y[service_index, node_index].Start = y_variable[
+                self.model.y[service_index, node_index].value = y_variable[
                     service_index, node_index
                 ]
 
     def set_heuristic_solution(self):
         from solvers.heuristic import Solver as Heursolv
 
-        solver = Heursolv(self.problem_instance)
-        solver.run()
-        x_var, y_var, q_var = solver.x_variable, solver.y_variable, solver.q_variable
-        self._set_initial_value((x_var, y_var, q_var))
+        heuristic_solver = Heursolv(self.problem_instance)
+        heuristic_solver.run()
+        self._set_initial_value(
+            (heuristic_solver.x_var, heuristic_solver.y_var, heuristic_solver.q_var)
+        )
 
     def run(
         self,
         thread_limit: int = 1,
         initial_value=None,
     ):
-
-        print("Building Gurobi model...")
         self._model_parameters()
         self._build_model()
         self._build_sets()
@@ -345,13 +344,12 @@ class Solver(GenericSolver):
         self._build_constraints()
         self._build_objective()
 
-        self.set_warm_start_solution()
+        self.set_heuristic_solution()
 
         opt = pyo.SolverFactory("gurobi")
         opt.options["threads"] = 1
         opt.options["Heuristics"] = 0
 
-        print("Start solving process...")
         solver_result = opt.solve(self.model)
 
         (

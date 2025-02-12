@@ -81,9 +81,37 @@ class Solver(GenericSolver):
         # print(f"Heuristic score: {self.score}")
         self.runtime = time.time() - start_time
         # print(placement, routing, quantities)
-        self.placement = placement
-        self.routing = routing
-        self.quantities = quantities
+
+        self.x_var = np.zeros(
+            (
+                self.problem_instance.total_number_of_demands,
+                self.nx_graph.number_of_edges(),
+            )
+        )
+        self.y_var = np.zeros(
+            (self.problem_instance.number_of_service, self.nx_graph.number_of_nodes())
+        )
+        self.q_var = np.zeros((self.problem_instance.total_number_of_demands))
+
+        for demand_index in range(self.problem_instance.total_number_of_demands):
+            self.q_var[demand_index] = quantities[demand_index]
+
+            service_index = self.problem_instance.demand_to_service[demand_index]
+            origin = self.problem_instance.origins[demand_index]
+            destination = placement[service_index]
+            path_index = routing[demand_index]
+            path = self.solving_instance.compute_nth_shortest_path(
+                origin, destination, path_index
+            )
+            path_tuple = path_node_to_path_tuple(path)
+            for edge in path_tuple:
+                edge_index = self.problem_instance.network_graph.arc_index_dictionary[
+                    edge
+                ]
+                self.x_var[demand_index, edge_index] = 1
+
+        for service_index in range(self.problem_instance.number_of_service):
+            self.y_var[service_index, placement[service_index]] = 1
 
     def continue_search(self) -> bool:
         """
