@@ -50,9 +50,7 @@ class SPPEnv(gym.Env):
         # Gym
         self._make_action_observation_spaces()
         self.state = self._initial_state()
-
-        if self.options:
-            self.best_solution = (self.state, self._get_score(self.state))
+        self.best_solution = (self.state, self._get_score(self.state))
 
         # Evolution
         self.steps_done = 0
@@ -248,10 +246,9 @@ class SPPEnv(gym.Env):
         obs = self._observe(state)
         self.scores.append(sum(self._state_to_vectors(self.state)[2]))
 
-        if self.options:
-            current_score = self._get_score(state)
-            if self.best_solution[1] < current_score:
-                self.best_solution = (state, current_score)
+        current_score = self._get_score(state)
+        if self.best_solution[1] < current_score:
+            self.best_solution = (state, current_score)
 
         return obs, reward / 100, terminated, truncated, info
 
@@ -503,7 +500,7 @@ class SPPEnv(gym.Env):
         D = self.problem_instance.total_number_of_demands
         service_placement = state[:S]
         sp_indices = state[S : S + D]
-        choosen_quantities = state[S + D : S + 2 * D]
+        choosen_quantities = state[S + D :]
         return service_placement, sp_indices, choosen_quantities
 
     def _observe(self, state: list):
@@ -585,4 +582,4 @@ class SPPEnv(gym.Env):
         return self._compute_nth_shortest_path(origin, target, sp_indices[demand_index])
 
     def _get_score(self, state):
-        return sum(self._state_to_vectors(state)[2])
+        return sum(state[: -self.problem_instance.total_number_of_demands])

@@ -322,21 +322,13 @@ class Solver(GenericSolver):
                     service_index, node_index
                 ]
 
-    def set_warm_start_solution(self):
+    def set_heuristic_solution(self):
         from solvers.heuristic import Solver as Heursolv
 
         solver = Heursolv(self.problem_instance)
         solver.run()
         x_var, y_var, q_var = solver.x_variable, solver.y_variable, solver.q_variable
         self._set_initial_value((x_var, y_var, q_var))
-        # for demand_index in range(self.problem_instance.total_number_of_demands):
-        #     self.model.p[demand_index] = q_var[demand_index]
-        #     for arc_index in range(self.nx_graph.number_of_edges()):
-        #         self.model.demand_arc_transit.set_value(x_var[demand_index, arc_index])
-
-        # for serv_index in range(self.problem_instance.number_of_service):
-        #     for node_index in range(self.nx_graph.number_of_nodes()):
-        #         self.model.y[serv_index, node_index] = y_var[serv_index, node_index]
 
     def run(
         self,
@@ -353,8 +345,7 @@ class Solver(GenericSolver):
         self._build_constraints()
         self._build_objective()
 
-        if initial_value is not None:
-            self._set_initial_value(initial_value)
+        self.set_warm_start_solution()
 
         opt = pyo.SolverFactory("gurobi")
         opt.options["threads"] = 1

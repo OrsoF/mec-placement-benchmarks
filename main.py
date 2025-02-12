@@ -14,10 +14,11 @@ from solvers.heuristic import Solver as Heuristic
 from solvers.cma import Solver as Cma
 from solvers.rl_A2C import Solver as A2c
 from solvers.rl_PPO import Solver as Ppo
-from solvers.ILP_arc_hws import Solver as Solver_ILP_arc_hws
+from solvers.ILP_arc_heuristic_warmstart import Solver as Solver_ILP_arc_hws
 from solvers.ILP_arc_heuristic_placement import (
     Solver as Solver_ILP_arc_heuristic_placement,
 )
+from solvers.ILP_arc_rl_warmstart import Solver as Solver_ILP_arc_rl_warm_start
 from solvers.rl_PPO_options import Solver as Ppo_options
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
@@ -45,18 +46,16 @@ if not os.path.exists(CSV_PATH):
     df.to_csv(CSV_PATH, index=False)
 
 solvers = {
-    # "ilp_arc": Solver_ILP_arc,
+    "ilp_arc": Solver_ILP_arc,
+    "ilp_arc_95": Solver_ILP_arc_95,
+    "ilp_arc_heuristic_placement": Solver_ILP_arc_heuristic_placement,
+    "ilp_arc_heuristic_warm_start": Solver_ILP_arc_hws,
+    "ilp_arc_rl_warm_start": Solver_ILP_arc_rl_warm_start,
     # "ilp_path": Solver_ILP_path,
-    # "heuristic": Heuristic,
-    # "cma": Cma,
-    # "A2C": A2c,
-    # "PPO": Ppo,
-    # 'ilp_arc_95': Solver_ILP_arc_95,
-    # "ilp_arc_hws": Solver_ILP_arc_hws,
-    # "ilp_arc_heuristic_placement": Solver_ILP_arc_heuristic_placement,
+    "heuristic": Heuristic,
+    "PPO": Ppo,
     "PPO_options": Ppo_options,
 }
-
 
 def update_csv(
     instance: str,
@@ -118,7 +117,7 @@ def experience(users: int):
         )
 
 
-users = range(30, 410, 10) if instance == "tree" else range(10, 130, 5)
+users = range(10, 410, 10) if instance == "tree" else range(5, 130, 5)
 
 for user_count in users:
     experience(user_count)

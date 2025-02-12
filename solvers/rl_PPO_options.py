@@ -19,6 +19,8 @@ class Solver(RLSolver):
         method="PPO",
         options=True,
     ):
+        max_step = 1000 + problem_instance.number_of_service * 50
+        train_step = 10000 + problem_instance.number_of_service * 200
         super().__init__(
             problem_instance=problem_instance,
             training_instances_database=training_instances_database,

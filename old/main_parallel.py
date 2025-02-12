@@ -15,7 +15,7 @@ from solvers.cma import Solver as Cma
 from solvers.rl_A2C import Solver as A2c
 from solvers.rl_PPO import Solver as Ppo
 from solvers.ILP_arc_95 import Solver as Solver_ILP_arc_95
-from solvers.ILP_arc_hws import Solver as Solver_ILP_arc_hws
+from solvers.ILP_arc_heuristic_warmstart import Solver as Solver_ILP_arc_hws
 
 CSV_PATH = "results_03_02_25.csv"
 solvers = {

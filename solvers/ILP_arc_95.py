@@ -351,7 +351,6 @@ class Solver(GenericSolver):
         except ValueError:
             print("TimeLimit Exceeded")
         
-
         (
             solver_runtime,
             lower_bound,
@@ -381,5 +380,3 @@ class Solver(GenericSolver):
         self.score = np.sum(self.q_variable)
         self.runtime = time.time() - start_time
         self.build_time = self.runtime - float(solver_runtime)
-
-        print(f"ILP score : {self.score}")

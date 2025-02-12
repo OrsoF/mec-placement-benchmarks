@@ -8,6 +8,7 @@ arg.add_argument("--instance", type=str, required=True)
 arg.add_argument("--file", type=str, required=True)
 arg.add_argument("--neighbors", type=int, default=1)
 arg.add_argument("--save", type=bool, default=False)
+arg.add_argument("--buildtime", type=bool, default=False)
 args = arg.parse_args()
 
 instance_type = args.instance
@@ -45,7 +46,7 @@ plt.figure(figsize=(10, 6))
 for solver_name in set(df["solver"]):
     df_temp = df[df["solver"] == solver_name]
     plt.plot(df_temp["users"], df_temp["runtime"], marker="o", label=solver_name)
-    if df_temp["buildtime"].iloc[0] > 0.0:
+    if df_temp["buildtime"].iloc[0] > 0.0 and args.buildtime:
         plt.plot(
             df_temp["users"],
             df_temp["buildtime"],

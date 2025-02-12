@@ -1,7 +1,7 @@
 from utils.generic_solver import GenericSolver
 from problem_classes.service import Service
 from problem_classes.probleminstance import ProblemInstance
-from solvers.ILP_arc import Solver as ilp_solver
+from solvers.ILP_arc import Solver as ILPSolver
 
 import time
 import networkx as nx
@@ -59,15 +59,13 @@ class Solver(GenericSolver):
 
         # Go presolve le probleme
         start_time = time.time()
+
         biggest_server = np.argmax(self.available_resources)
         service_server_association = [
             biggest_server for _ in range(self.nx_graph.number_of_nodes())
         ]
-        presolving_time = time.time() - start_time
 
-        # Go solve le probleme ILP arc en fixant les variables y
-
-        ilp_solver_arc = ilp_solver(self.problem_instance)
+        ilp_solver_arc = ILPSolver(self.problem_instance)
         ilp_solver_arc._model_parameters()
         ilp_solver_arc._build_model()
         ilp_solver_arc._build_sets()
@@ -83,6 +81,5 @@ class Solver(GenericSolver):
 
         ilp_solver_arc.run()
 
-        self.runtime = float(ilp_solver_arc.runtime) + presolving_time
-        self.lower_bound = ilp_solver_arc.lower_bound
-        self.upper_bound = ilp_solver_arc.upper_bound
+        self.score = np.sum(ilp_solver_arc.q_variable)
+        self.runtime = time.time() - start_time
