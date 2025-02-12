@@ -18,8 +18,8 @@ class Solver(RLSolver):
         evaluation_step=100,
         method="PPO",
     ):
-        max_step = 1000 + problem_instance.number_of_service * 50
-        train_step = 10000 + problem_instance.number_of_service * 200
+        max_step = 1000 + problem_instance.number_of_service * 10
+        train_step = 10000 + problem_instance.number_of_service * 20
         super().__init__(
             problem_instance,
             training_instances_database,

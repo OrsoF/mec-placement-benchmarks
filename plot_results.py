@@ -5,7 +5,6 @@ from datetime import datetime
 
 arg = ap.ArgumentParser()
 arg.add_argument("--instance", type=str, required=True)
-arg.add_argument("--file", type=str, required=True)
 arg.add_argument("--neighbors", type=int, default=1)
 arg.add_argument("--save", type=bool, default=False)
 arg.add_argument("--buildtime", type=bool, default=False)
