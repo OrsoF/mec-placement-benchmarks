@@ -106,6 +106,8 @@ def experience(users: int):
         if "ilp_arc" in solver_name and problem_instance.number_of_service > 150:
             continue
 
+        solver.run()
+
         if not hasattr(solver, "build_time"):
             solver.build_time = 0.0
 
