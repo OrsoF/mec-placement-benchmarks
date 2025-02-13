@@ -48,12 +48,12 @@ if not os.path.exists(CSV_PATH):
 
 solvers = {
     "ilp_arc": Solver_ILP_arc,
-    # "ilp_arc_95": Solver_ILP_arc_95,
-    # "ilp_arc_heuristic_placement": Solver_ILP_arc_heuristic_placement,
-    # "ilp_arc_heuristic_warm_start": Solver_ILP_arc_hws,
-    # "ilp_arc_rl_warm_start": Solver_ILP_arc_rl_warm_start,
-    # "ilp_path": Solver_ILP_path,
-    # "heuristic": Heuristic,
+    "ilp_arc_95": Solver_ILP_arc_95,
+    "ilp_arc_heuristic_placement": Solver_ILP_arc_heuristic_placement,
+    "ilp_arc_heuristic_warm_start": Solver_ILP_arc_hws,
+    "ilp_arc_rl_warm_start": Solver_ILP_arc_rl_warm_start,
+    "ilp_path": Solver_ILP_path,
+    "heuristic": Heuristic,
     "PPO": Ppo,
     # "PPO_options": Ppo_options,
 }
