@@ -17,6 +17,7 @@ save = args.save
 
 current_date = datetime.now().strftime("%d_%m_%y")
 CSV_PATH = f"results_{current_date}.csv"
+CSV_PATH = "results_12_02_25.csv"
 
 df = pd.read_csv(CSV_PATH)
 
