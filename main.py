@@ -103,7 +103,7 @@ def experience(users: int):
 
         solver: GenericSolver = solver(problem_instance)
 
-        if "ilp_arc" in solver_name and problem_instance.number_of_service > 120:
+        if "ilp_arc" in solver_name and problem_instance.number_of_service > 150:
             continue
 
         if not hasattr(solver, "build_time"):
