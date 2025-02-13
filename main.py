@@ -94,7 +94,7 @@ def experience(users: int):
         problem_instance = make_tree_instance(users, neighbors)
     elif instance == "parallel":
         problem_instance = make_parallel_instance(
-            user_count=users, neighbors_connection=neighbors, groups=groups
+            users, neighbors, groups
         )
 
     total_user_count = users if instance == "tree" else users * groups
