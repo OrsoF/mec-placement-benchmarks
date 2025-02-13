@@ -98,7 +98,7 @@ def make_parallel_instance(
         demand_user = Demand(
             origin_node_index=user_index,
             flow_min=1,
-            flow_max=10,
+            flow_max=5,
             max_latency=5 * number_of_users_per_group * number_of_groups,
         )
         demand_server = Demand(
