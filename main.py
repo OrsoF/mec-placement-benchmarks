@@ -58,6 +58,7 @@ solvers = {
     # "PPO_options": Ppo_options,
 }
 
+
 def update_csv(
     instance: str,
     solver: str,
@@ -92,28 +93,30 @@ def experience(users: int):
     if instance == "tree":
         problem_instance = make_tree_instance(users, neighbors)
     elif instance == "parallel":
-        problem_instance = make_parallel_instance(users, neighbors, groups)
+        problem_instance = make_parallel_instance(
+            user_count=users, neighbors_connection=neighbors, groups=groups
+        )
+
+    total_user_count = users if instance == "tree" else users * groups
 
     for solver_name, solver in solvers.items():
 
         solver: GenericSolver = solver(problem_instance)
-        try:
-            solver.run()
-        except:
-            print(f"Solver {solver_name} failed")
+
+        if "ilp_arc" in solver_name and problem_instance.number_of_service > 120:
             continue
 
         if not hasattr(solver, "build_time"):
             solver.build_time = 0.0
 
         print(
-            f"Solver {solver_name} with size {users} : score {solver.score} and runtime {solver.runtime}"
+            f"Solver {solver_name} with size {total_user_count} : score {solver.score} and runtime {solver.runtime}"
         )
 
         update_csv(
             instance,
             solver_name,
-            users,
+            total_user_count,
             neighbors,
             groups,
             solver.score,
@@ -122,7 +125,7 @@ def experience(users: int):
         )
 
 
-users = range(140, 410, 10) if instance == "tree" else range(10, 130, 5)
+users = range(10, 410, 10) if instance == "tree" else range(10, 130, 5)
 
 for user_count in users:
     experience(user_count)
