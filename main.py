@@ -30,7 +30,7 @@ assert instance in {"tree", "parallel"}
 
 current_date = datetime.now().strftime("%d_%m_%y")
 CSV_PATH = f"results_{current_date}.csv"
-CSV_PATH = "results_12_02_25.csv"
+# CSV_PATH = "results_12_02_25.csv"
 if not os.path.exists(CSV_PATH):
     df = pd.DataFrame(
         columns=[
@@ -47,15 +47,15 @@ if not os.path.exists(CSV_PATH):
     df.to_csv(CSV_PATH, index=False)
 
 solvers = {
-    # "ilp_arc": Solver_ILP_arc,
+    "ilp_arc": Solver_ILP_arc,
     # "ilp_arc_95": Solver_ILP_arc_95,
     # "ilp_arc_heuristic_placement": Solver_ILP_arc_heuristic_placement,
     # "ilp_arc_heuristic_warm_start": Solver_ILP_arc_hws,
     # "ilp_arc_rl_warm_start": Solver_ILP_arc_rl_warm_start,
     # "ilp_path": Solver_ILP_path,
-    "heuristic": Heuristic,
+    # "heuristic": Heuristic,
     "PPO": Ppo,
-    "PPO_options": Ppo_options,
+    # "PPO_options": Ppo_options,
 }
 
 def update_csv(
@@ -97,7 +97,11 @@ def experience(users: int):
     for solver_name, solver in solvers.items():
 
         solver: GenericSolver = solver(problem_instance)
-        solver.run()
+        try:
+            solver.run()
+        except:
+            print(f"Solver {solver_name} failed")
+            continue
 
         if not hasattr(solver, "build_time"):
             solver.build_time = 0.0
@@ -118,7 +122,7 @@ def experience(users: int):
         )
 
 
-users = range(140, 410, 10) if instance == "tree" else range(35, 130, 5)
+users = range(140, 410, 10) if instance == "tree" else range(10, 130, 5)
 
 for user_count in users:
     experience(user_count)

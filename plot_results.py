@@ -35,6 +35,7 @@ df = df[
             "ilp_arc_heuristic_warmstart",
             "heuristic",
             "ilp_arc_95",
+            "ilp_arc_rl_warm_start",
         ]
     )
 ]
