@@ -26,6 +26,18 @@ df = df[df["neighbors"] == neighbors]
 df = df.drop(["instance", "neighbors", "groups"], axis=1)
 
 df = df.sort_values(by=["users"])
+df = df[
+    df["solver"].isin(
+        [
+            "PPO",
+            "ilp_arc",
+            "ilp_arc_heuristic_placement",
+            "ilp_arc_heuristic_warmstart",
+            "heuristic",
+            "ilp_arc_95",
+        ]
+    )
+]
 
 plt.figure(figsize=(10, 6))
 for solver_name in set(df["solver"]):
