@@ -1,0 +1,11 @@
+instance,solver,users,neighbors,groups,score,runtime,buildtime
+tree,ilp_arc,10,1,4,70.0,1.4536142349243164,1.1800403594970703
+tree,ilp_arc_95,10,1,4,70.0,0.6200222969055176,0.4475452899932861
+tree,ilp_arc_heuristic_placement,10,1,4,70.0,0.6482129096984863,0.0
+tree,ilp_arc_heuristic_warm_start,10,1,4,70.0,0.125943899154663,0.0
+parallel,ilp_arc,40,1,4,280.0,16.7657732963562,10.44976043701172
+parallel,ilp_arc_95,40,1,4,280.0,16.35767936706543,10.07009220123291
+tree,ilp_arc_rl_warm_start,10,1,4,70.0,44.06656694412232,0.0
+parallel,ilp_arc_heuristic_placement,40,1,4,280.0,16.301852226257324,0.0
+parallel,ilp_arc_heuristic_warm_start,40,1,4,280.0,5.868092060089111,0.0
+parallel,ilp_arc_rl_warm_start,40,1,4,280.0,97.09931349754333,0.0
