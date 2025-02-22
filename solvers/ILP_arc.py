@@ -311,14 +311,28 @@ class Solver(GenericSolver):
         for demand_index in range(self.total_number_of_demands):
             self.model.p[demand_index].value = q_var[demand_index]
             for arc_index in range(self.arc_number):
-                self.model.demand_arc_transit[demand_index, arc_index].value = (
-                    x_var[demand_index, arc_index]
-                )
+                self.model.demand_arc_transit[demand_index, arc_index].value = x_var[
+                    demand_index, arc_index
+                ]
         for service_index in range(self.number_of_services):
             for node_index in range(self.node_number):
                 self.model.y[service_index, node_index].value = y_var[
                     service_index, node_index
                 ]
+
+    def set_heuristic_placement(self):
+        biggest_server = np.argmax(
+            self.problem_instance.network_graph.available_resources
+        )
+        service_server_association = [
+            biggest_server for _ in range(self.nx_graph.number_of_nodes())
+        ]
+        for service_index in range(self.problem_instance.number_of_service):
+            for server_index in range(self.nx_graph.number_of_nodes()):
+                if server_index == service_server_association[service_index]:
+                    self.model.y[service_index, server_index].fix(1)
+                else:
+                    self.model.y[service_index, server_index].fix(0)
 
     def set_heuristic_solution(self):
         heuristic_solver = Heursolv(self.problem_instance)
@@ -341,6 +355,9 @@ class Solver(GenericSolver):
         self,
         initial_value: tuple = None,
         options: dict = {},
+        heuristic_placement: bool = False,
+        heuristic_solution: bool = False,
+        rl_solution: bool = False,
     ):
         start_time = time.time()
 
@@ -355,6 +372,15 @@ class Solver(GenericSolver):
         if initial_value is not None:
             self._set_initial_value(initial_value)
 
+        if heuristic_placement:
+            self.set_heuristic_placement()
+
+        if heuristic_solution:
+            self.set_heuristic_solution()
+
+        if rl_solution:
+            self.set_rl_solution()
+
         opt = pyo.SolverFactory("gurobi")
         # opt.options["threads"] = 1
         opt.options["Heuristics"] = 0
@@ -363,32 +389,28 @@ class Solver(GenericSolver):
         for key, value in options.items():
             opt.options[key] = value
 
-        try:
-            solver_result = opt.solve(self.model)
-            solver_runtime = get_result_informations(solver_result)[0]
+        solver_result = opt.solve(self.model)
+        solver_runtime = get_result_informations(solver_result)[0]
 
-            self.x_var = np.array(
+        self.x_var = np.array(
+            [
                 [
-                    [
-                        self.model.demand_arc_transit[i, j].value
-                        for j in range(self.arc_number)
-                    ]
-                    for i in range(self.total_number_of_demands)
+                    self.model.demand_arc_transit[i, j].value
+                    for j in range(self.arc_number)
                 ]
-            )
-            self.y_var = np.array(
-                [
-                    [self.model.y[i, j].value for j in range(self.node_number)]
-                    for i in range(self.number_of_services)
-                ]
-            )
-            self.q_var = np.array(
-                [self.model.p[dd].value for dd in range(self.total_number_of_demands)]
-            )
+                for i in range(self.total_number_of_demands)
+            ]
+        )
+        self.y_var = np.array(
+            [
+                [self.model.y[i, j].value for j in range(self.node_number)]
+                for i in range(self.number_of_services)
+            ]
+        )
+        self.q_var = np.array(
+            [self.model.p[dd].value for dd in range(self.total_number_of_demands)]
+        )
 
-            self.score = np.sum(self.q_var)
-            self.runtime = time.time() - start_time
-            self.build_time = self.runtime - float(solver_runtime)
-
-        except:
-            pass
+        self.score = np.sum(self.q_var)
+        self.runtime = time.time() - start_time
+        self.build_time = self.runtime - float(solver_runtime)

@@ -48,34 +48,8 @@ class Solver(GenericSolver):
     def run(
         self,
     ):
-        # Plan du solver:
-        # - Attribuer les services a des serveurs
-        # - Résoudre le problème de routage (avec arc/path methods)
-        # ça revient à présolve une partie du problème et fixer ensuite des variables dans ILP arc et ILP path
-
-        # Go presolve le probleme
-        start_time = time.time()
-
-        biggest_server = np.argmax(self.available_resources)
-        service_server_association = [
-            biggest_server for _ in range(self.nx_graph.number_of_nodes())
-        ]
-
         ilp_solver_arc = ILPSolver(self.problem_instance)
-        ilp_solver_arc._model_parameters()
-        ilp_solver_arc._build_model()
-        ilp_solver_arc._build_sets()
-        ilp_solver_arc._build_variables()
-
-        # Fixer ici la variable y
-        for service_index in range(self.number_of_services):
-            for server_index in range(self.nx_graph.number_of_nodes()):
-                if server_index == service_server_association[service_index]:
-                    ilp_solver_arc.model.y[service_index, server_index].fix(1)
-                else:
-                    ilp_solver_arc.model.y[service_index, server_index].fix(0)
-
-        ilp_solver_arc.set_heuristic_solution()
+        ilp_solver_arc.run(heuristic_solution=True)
 
         self.score = ilp_solver_arc.score
         self.runtime = ilp_solver_arc.runtime
