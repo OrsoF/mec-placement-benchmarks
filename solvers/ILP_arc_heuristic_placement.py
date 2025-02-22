@@ -47,10 +47,6 @@ class Solver(GenericSolver):
 
     def run(
         self,
-        options: dict = None,
-        solving_time_limit: float = 600,
-        thread_limit: int = 1,
-        solver: str = "gurobi",
     ):
         # Plan du solver:
         # - Attribuer les services a des serveurs
@@ -83,3 +79,4 @@ class Solver(GenericSolver):
 
         self.score = np.sum(ilp_solver_arc.q_variable)
         self.runtime = time.time() - start_time
+        self.build_time = ilp_solver_arc.build_time

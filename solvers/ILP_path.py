@@ -391,9 +391,9 @@ class Solver(GenericSolver):
                 _,
                 self.solving_status,
             ) = get_result_informations(solver_result)
-
-        except ValueError:
-            solver_runtime, lower_bound, _ = 600, 0, 0
+            self.score = float(lower_bound)
+        except:
+            self.score = 0
 
         # self.lambda_variable = np.array(
         #     [
@@ -415,5 +415,4 @@ class Solver(GenericSolver):
         # )
 
         self.runtime = time.time() - start_time
-        self.score = float(lower_bound)
         self.build_time = self.runtime - float(solver_runtime)
