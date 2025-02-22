@@ -77,6 +77,6 @@ class Solver(GenericSolver):
 
         ilp_solver_arc.run()
 
-        self.score = np.sum(ilp_solver_arc.q_variable)
-        self.runtime = time.time() - start_time
+        self.score = ilp_solver_arc.score
+        self.runtime = ilp_solver_arc.runtime
         self.build_time = ilp_solver_arc.build_time
