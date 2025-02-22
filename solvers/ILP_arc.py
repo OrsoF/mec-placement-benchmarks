@@ -1,9 +1,6 @@
 from utils.generic_solver import GenericSolver
-from problem_classes.servicepackage import ServicePackage
-from problem_classes.networkgraph import NetworkGraph
 from problem_classes.service import Service
 from problem_classes.probleminstance import ProblemInstance
-from utils.data_management import get_info_from_results
 from utils.graph_utils import get_encoded_incoming_arc, get_encoded_outgoing_arc
 from utils.data_management import get_result_informations
 import pyomo.environ as pyo
@@ -12,6 +9,9 @@ from networkx.readwrite.gml import read_gml
 import networkx as nx
 import os
 import numpy as np
+
+from solvers.heuristic import Solver as Heursolv
+from solvers.rl_PPO import Solver as RlPPO
 
 
 class Solver(GenericSolver):
@@ -320,9 +320,28 @@ class Solver(GenericSolver):
                     service_index, node_index
                 ]
 
+    def set_heuristic_solution(self):
+        heuristic_solver = Heursolv(self.problem_instance)
+        heuristic_solver.run()
+        self._set_initial_value(
+            (heuristic_solver.x_var, heuristic_solver.y_var, heuristic_solver.q_var)
+        )
+
+    def set_rl_solution(self):
+        
+
+        solver = RlPPO(problem_instance=self.problem_instance)
+        solver.run()
+
+        best_state = solver.env.best_solution[0]
+
+        x_var, y_var, q_var = solver.env._state_to_variables(best_state)
+        self._set_initial_value((x_var, y_var, q_var))
+
     def run(
         self,
-        initial_value=None,
+        initial_value: tuple = None,
+        options: dict = None,
     ):
         start_time = time.time()
 
@@ -337,45 +356,40 @@ class Solver(GenericSolver):
         if initial_value is not None:
             self._set_initial_value(initial_value)
 
-        time_limit = 900
-
         opt = pyo.SolverFactory("gurobi")
         # opt.options["threads"] = 1
         opt.options["Heuristics"] = 0
         opt.options["MemLimit"] = 8
-        opt.options["TimeLimit"] = time_limit
+
+        for key, value in options.items():
+            opt.options[key] = value
 
         try:
             solver_result = opt.solve(self.model)
-        except ValueError:
-            print("TimeLimit Exceeded")
+            solver_runtime = get_result_informations(solver_result)[0]
 
-        (
-            solver_runtime,
-            lower_bound,
-            _,
-            _,
-        ) = get_result_informations(solver_result)
-
-        self.x_variable = np.array(
-            [
+            self.x_variable = np.array(
                 [
-                    self.model.demand_arc_transit[i, j].value
-                    for j in range(self.arc_number)
+                    [
+                        self.model.demand_arc_transit[i, j].value
+                        for j in range(self.arc_number)
+                    ]
+                    for i in range(self.total_number_of_demands)
                 ]
-                for i in range(self.total_number_of_demands)
-            ]
-        )
-        self.y_variable = np.array(
-            [
-                [self.model.y[i, j].value for j in range(self.node_number)]
-                for i in range(self.number_of_services)
-            ]
-        )
-        self.q_variable = np.array(
-            [self.model.p[dd].value for dd in range(self.total_number_of_demands)]
-        )
+            )
+            self.y_variable = np.array(
+                [
+                    [self.model.y[i, j].value for j in range(self.node_number)]
+                    for i in range(self.number_of_services)
+                ]
+            )
+            self.q_variable = np.array(
+                [self.model.p[dd].value for dd in range(self.total_number_of_demands)]
+            )
 
-        self.score = np.sum(self.q_variable)
-        self.runtime = time.time() - start_time
-        self.build_time = self.runtime - float(solver_runtime)
+            self.score = np.sum(self.q_variable)
+            self.runtime = time.time() - start_time
+            self.build_time = self.runtime - float(solver_runtime)
+
+        except:
+            pass
