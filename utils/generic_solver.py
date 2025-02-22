@@ -9,9 +9,9 @@ class GenericSolver:
         self.problem_instance = problem_instance
         self.solver_name = "generic_solver"
 
-        self.x_variable: np.ndarray
-        self.y_variable: np.ndarray
-        self.q_variable: np.ndarray
+        self.x_var: np.ndarray
+        self.y_var: np.ndarray
+        self.q_var: np.ndarray
 
         self.score: float
         self.runtime: float
@@ -29,8 +29,8 @@ class GenericSolver:
 
     def _end_solving(self):
         assert (
-            self.x_variable is not None
-            and self.y_variable is not None
-            and self.q_variable is not None
+            self.x_var is not None
+            and self.y_var is not None
+            and self.q_var is not None
         ), "Result variables not set."
         self.runtime = time.time() - self.start_time
