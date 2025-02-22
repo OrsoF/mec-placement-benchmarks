@@ -328,7 +328,6 @@ class Solver(GenericSolver):
         )
 
     def set_rl_solution(self):
-        
 
         solver = RlPPO(problem_instance=self.problem_instance)
         solver.run()
@@ -341,7 +340,7 @@ class Solver(GenericSolver):
     def run(
         self,
         initial_value: tuple = None,
-        options: dict = None,
+        options: dict = {},
     ):
         start_time = time.time()
 
