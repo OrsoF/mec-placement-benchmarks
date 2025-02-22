@@ -77,6 +77,6 @@ class Solver(GenericSolver):
 
         ilp_solver_arc.set_heuristic_solution()
 
-        self.score = np.sum(ilp_solver_arc.q_variable)
+        self.score = np.sum(ilp_solver_arc.q_var)
         self.runtime = time.time() - start_time
         self.build_time = ilp_solver_arc.build_time
