@@ -1,15 +1,9 @@
 import numpy as np
 import networkx as nx
-import matplotlib.pyplot as plt
-from tqdm import trange
 
-from problem_classes.networkgraph import NetworkGraph
-from problem_classes.servicepackage import ServicePackage
 from problem_classes.probleminstance import ProblemInstance
-from utils.pickle import pickle_save
 from utils.graph_utils import (
     path_node_to_path_tuple,
-    path_tuple_to_path_node,
     edges_to_path,
 )
 
@@ -21,13 +15,6 @@ class SolvingInstance:
         self.problem_instance = problem_instance
         self.graph = nx.Graph(self.problem_instance.network_graph.nx_graph)
         self.saved_shortest_path = {}
-
-        # Variables
-        self.service_placement: list
-        self.routing: list
-        self.quantities: list
-
-        self.basic_placement_and_routing()
 
     def initialize_graph_attributes(self, graph: nx.Graph) -> nx.Graph:
         """Set graph attributes the first time."""
@@ -45,6 +32,7 @@ class SolvingInstance:
     def update_graph_attributes(
         self, graph: nx.Graph, placement: list, routing: list, quantities: list
     ) -> nx.Graph:
+        """Update the graph attributes according to the variables."""
         for demand_index in range(self.problem_instance.total_number_of_demands):
             service_index = self.problem_instance.demand_to_service[demand_index]
             origin = self.problem_instance.origins[demand_index]
@@ -68,6 +56,7 @@ class SolvingInstance:
     def validate_graph_attributes(
         self, graph: nx.Graph, placement: list, routing: list, quantities: list
     ) -> bool:
+        """Check if the graph attributes checks constraints."""
         for edge in graph.edges:  # Capacité pour chaque arc
             if graph.edges[edge]["remaining_capacity"] < 0.0:  # Edge capacity
                 return False
@@ -98,25 +87,6 @@ class SolvingInstance:
 
         return True
 
-    def _are_variable_correct(
-        self, placement: list, routing: list, quantities: list
-    ) -> bool:
-        if not all(0 <= elem < self.graph.number_of_nodes() for elem in placement):
-            return False
-
-        if not all(0 <= elem for elem in routing):
-            return False
-
-        if not all(
-            self.problem_instance.min_flows[0]
-            <= elem
-            <= self.problem_instance.max_flows[0]
-            for elem in quantities
-        ):
-            return False
-
-        return True
-
     def test_solution(self, placement: list, routing: list, quantities: list) -> bool:
         # Vérifier les inputs ici
 
@@ -139,64 +109,10 @@ class SolvingInstance:
         graph = self.update_graph_attributes(graph, placement, routing, quantities)
         return self.validate_graph_attributes(graph, placement, routing, quantities)
 
-    def place_service(self, service_index: int, node: int, force: bool = False):
-        assert self.service_placement[service_index] == -1, "Already placed"
-        assert service_index < self.problem_instance.number_of_service
-        assert node < self.graph.number_of_nodes()
-
-        self.service_placement[service_index] = node
-
-        new_available_resources = (
-            self.graph.nodes[node]["remaining_resources"]
-            - self.problem_instance.needed_resources[service_index]
-        )
-
-        if not force:
-            assert new_available_resources >= 0, "Not enough resources."
-
-        self.graph.nodes[node]["remaining_resources"] = new_available_resources
-
     def place_service_variable(self, y_variable: np.ndarray):
         for service_index in range(self.problem_instance.number_of_service):
             node_placement = np.argmax(y_variable[service_index, :])
             self.place_service(service_index, node_placement)
-
-    def route_demand(
-        self, demand_index: int, quantity: float, path: list, force: bool = False
-    ):
-        """Route given demands for the first time."""
-        assert (
-            self.paths_used[demand_index] == -1 and self.quantities[demand_index] == -1
-        ), "Demand already routed."
-
-        service_index = self.problem_instance.demand_to_service[demand_index]
-
-        assert self.service_placement[service_index] != -1, "Service not placed"
-
-        origin = self.problem_instance.origins[demand_index]
-        destination = self.service_placement[service_index]
-
-        if len(path):
-            assert path[0] == origin and path[-1] == destination, "Path is not well set"
-
-        self.paths_used[demand_index] = path
-        self.quantities[demand_index] = quantity
-
-        for edge in path_node_to_path_tuple(path):
-            self.graph.edges[edge]["remaining_capacity"] -= quantity
-            self.graph.edges[edge]["latency"] += (
-                self.graph.edges[edge]["alpha"] * quantity
-            )
-
-            if not force:
-                assert self.graph.edges[edge]["remaining_capacity"] >= 0
-
-        if not force:
-            latency_demand = sum(
-                self.graph.edges[edge]["latency"]
-                for edge in path_node_to_path_tuple(path)
-            )
-            assert latency_demand <= self.problem_instance.latencies[demand_index]
 
     def route_demand_variable(self, x_variable: np.ndarray, q_variable: np.ndarray):
         for demand_index in range(self.problem_instance.total_number_of_demands):
@@ -226,110 +142,9 @@ class SolvingInstance:
 
         return (placement, routing, quantities)
 
-    def change_demand_quantity(
-        self,
-        demand_index: int,
-        new_quantity: float,
-        clip: bool = True,
-        force: bool = False,
-    ):
-        if clip:
-            new_quantity = max(
-                self.problem_instance.min_flows[demand_index], new_quantity
-            )
-            new_quantity = min(
-                self.problem_instance.max_flows[demand_index], new_quantity
-            )
-
-        difference = self.quantities[demand_index] - new_quantity
-
-        self.quantities[demand_index] = new_quantity
-
-        for edge in path_node_to_path_tuple(self.paths_used[demand_index]):
-            self.graph.edges[edge]["remaining_capacity"] += difference
-            self.graph.edges[edge]["latency"] -= (
-                self.graph.edges[edge]["alpha"] * difference
-            )
-
-            if not force:
-                assert (
-                    self.graph.edges[edge]["remaining_capacity"] >= 0
-                ), "Capacity exceeded."
-
-        if not force:
-            problem_latency = self.compute_demand_latency(demand_index)
-            max_latency = self.problem_instance.latencies[demand_index]
-            message = "Latency exceeded {} > {}".format(
-                problem_latency,
-                max_latency,
-            )
-            assert problem_latency <= max_latency, message
-
-    def compute_demand_latency(self, demand_index: int) -> float:
-        """
-        For a given demand, return the associated graph latency.
-        """
-        path = path_node_to_path_tuple(self.paths_used[demand_index])
-        return float(sum(self.graph.edges[edge]["latency"] for edge in path))
-
-    def unroute_demand(self, demand_index: int):
-        """
-        Remove the associated latencies and capacities.
-        """
-        assert (
-            self.quantities[demand_index] != -1 and self.paths_used[demand_index] != -1
-        ), "demand not routed"
-        old_quantity = self.quantities[demand_index]
-        self.quantities[demand_index] = -1
-
-        old_path = self.paths_used[demand_index]
-        self.paths_used[demand_index] = -1
-
-        for edge in path_node_to_path_tuple(old_path):
-            self.graph.edges[edge]["remaining_capacity"] += old_quantity
-            self.graph.edges[edge]["latency"] -= (
-                self.graph.edges[edge]["alpha"] * old_quantity
-            )
-
-    def reroute_demand(self, demand_index: int, new_path: list, force: bool = False):
-        """
-        We assume that we reroute quantity.
-        """
-        self.unroute_demand(demand_index)
-        self.route_demand(demand_index, 1.0, new_path, force)
-
-    def unplace_service(self, service_index: int):
-        self.display_variables()
-
-        demands_in_service = (
-            self.problem_instance.demand_per_service[service_index] * service_index,
-            self.problem_instance.demand_per_service[service_index]
-            * (service_index + 1),
-        )
-        for demand_index in range(*demands_in_service):
-            self.unroute_demand(demand_index)
-
-        old_placement = self.service_placement[service_index]
-        self.service_placement[service_index] = -1
-        self.graph.nodes[old_placement][
-            "remaining_resources"
-        ] += self.problem_instance.needed_resources[service_index]
-
-    def replace_service(
-        self,
-        service_index: int,
-        new_node: int,
-        force: bool = False,
-    ):
-        """For a given service, replace it from its old node to new_node."""
-        self.unplace_service(service_index)
-        self.place_service(service_index, new_node, force)
-
-    def render_solution(self):
+    def render_solution(self, placement: list, routing: list, quantities: list):
         for service_index in range(self.problem_instance.number_of_service):
-            print(
-                f"Service {service_index} placed on node {self.service_placement[service_index]}."
-            )
+            print(f"Service {service_index} placed on node {placement[service_index]}.")
         print()
 
         for node_index in self.graph.nodes:
@@ -351,11 +166,7 @@ class SolvingInstance:
         print()
 
         for demand_index in range(self.problem_instance.total_number_of_demands):
-            print(
-                "Path for demand {} : {}".format(
-                    demand_index, self.paths_used[demand_index]
-                )
-            )
+            print("Path for demand {} : {}".format(demand_index, routing[demand_index]))
         print()
 
         for demand_index in range(self.problem_instance.total_number_of_demands):
@@ -377,90 +188,6 @@ class SolvingInstance:
             )
         print()
         print("Solution reached : {}".format(sum(self.quantities)))
-
-    def get_arc_variables(self):
-        y_variable = np.zeros(
-            (self.problem_instance.number_of_service, self.graph.number_of_nodes()),
-            dtype=int,
-        )
-        for i, col_index in enumerate(self.service_placement):
-            y_variable[i, col_index] = 1
-
-        x_variable = np.zeros(
-            (
-                self.problem_instance.total_number_of_demands,
-                self.graph.number_of_edges(),
-            ),
-            dtype=int,
-        )
-        for demand_index, path in enumerate(self.paths_used):
-            for edge in path_node_to_path_tuple(path):
-                edge_index = self.problem_instance.network_graph.arc_index_dictionary[
-                    edge
-                ]
-                x_variable[demand_index, edge_index] = 1
-
-        q_variable = np.array(self.quantities)
-
-        return x_variable, y_variable, q_variable
-
-    def set_variable_solution(
-        self, x_var: np.ndarray, y_var: np.ndarray, q_var: np.ndarray
-    ):
-        self.place_service_variable(y_var)
-        self.route_demand_variable(x_var, q_var)
-
-    def get_score(self) -> float:
-        return sum(self.quantities)
-
-    def get_real_latency(self, demand_index):
-        path = self.paths_used[demand_index]
-        return sum(
-            self.graph.edges[edge]["latency"] for edge in path_node_to_path_tuple(path)
-        )
-
-    def reset_routing(self):
-        self.paths_used: list = [
-            -1 for _ in range(self.problem_instance.total_number_of_demands)
-        ]
-        self.quantities = [
-            -1 for _ in range(self.problem_instance.total_number_of_demands)
-        ]
-
-        for edge in self.graph.edges:
-            self.graph.edges[edge]["remaining_capacity"] = self.graph.edges[edge][
-                "capacity"
-            ]
-            self.graph.edges[edge]["latency"] = self.graph.edges[edge]["alpha"]
-
-    def reset_placement(self):
-        self.service_placement: list = [
-            -1 for _ in range(self.problem_instance.number_of_service)
-        ]
-        for node in self.graph.nodes:
-            self.graph.nodes[node]["remaining_resources"] = self.graph.nodes[node][
-                "available_resources"
-            ]
-
-    def get_demands_using_arc(self, arc: tuple) -> list:
-        """Return the indices of the demands that uses the given arc."""
-        return [
-            demand_index
-            for demand_index in range(self.problem_instance.total_number_of_demands)
-            if arc in path_node_to_path_tuple(self.paths_used[demand_index])
-        ]
-
-    def get_crossing_demands(self, path: list) -> list:
-        """Return the indices of the demands that use any arc of the given path."""
-        if not len(path):
-            return []
-        if isinstance(path[0], int):
-            path = path_node_to_path_tuple(path)
-        demands = []
-        for arc in path:
-            demands += self.get_demands_using_arc(arc)
-        demands = list(set(demands))
-        return demands
 
     def maximize_quantities(self, placement, routing, quantities, addten=True):
         assert self.test_solution(placement, routing, quantities)
@@ -491,7 +218,6 @@ class SolvingInstance:
             placement, routing, quantities
         ), "The current placement and routing are not correct."
 
-        graph = self.graph
         graph = self.initialize_graph_attributes(graph)
         graph = self.update_graph_attributes(graph, placement, routing, quantities)
 
@@ -500,8 +226,10 @@ class SolvingInstance:
         target = placement[service_index]
         path = self.compute_nth_shortest_path(origin, target, routing[demand_index])
         if len(path) == 1:
-            return self.problem_instance.max_flows[demand_index] - quantities[demand_index]
-        
+            return (
+                self.problem_instance.max_flows[demand_index] - quantities[demand_index]
+            )
+
         demand_path = path_node_to_path_tuple(path)
 
         # On peut ajouter des trucs sur la latence
@@ -531,28 +259,6 @@ class SolvingInstance:
 
         return np.round(remaining_quantity_to_add)
 
-    def get_actual_state(self) -> np.ndarray:
-        state = self.service_placement + self.quantities
-        return np.array(state)
-
-    def get_state_dimension(self):
-        return self.get_actual_state().shape[0]
-
-    def increase_quantity(self, demand_index: int):
-        new_quantity = self.quantities[demand_index] + 1
-        self.change_demand_quantity(demand_index, new_quantity)
-
-    def decrease_quantity(self, demand_index: int):
-        new_quantity = self.quantities[demand_index] - 1
-        self.change_demand_quantity(demand_index, new_quantity)
-
-    def _all_demands_are_routed(self):
-        try:
-            assert -1 not in self.paths_used
-        except AssertionError:
-            self.display_variables()
-            assert False
-
     def compute_nth_shortest_path(
         self, source: int, destination: int, index: int
     ) -> list:
@@ -577,3 +283,8 @@ class SolvingInstance:
 
         self.saved_shortest_path[(source, destination, index)] = last_visited_path
         return last_visited_path
+
+    def test_basic_placement(self):
+        placement, routing, quantities = self.basic_placement_and_routing()
+        it_works = self.test_solution(placement, routing, quantities)
+        assert it_works, "Basic placement and routing does not work."

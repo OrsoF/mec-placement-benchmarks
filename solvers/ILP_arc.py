@@ -321,18 +321,15 @@ class Solver(GenericSolver):
                 ]
 
     def set_heuristic_placement(self):
-        biggest_server = np.argmax(
+        cloud_server = np.argmax(
             self.problem_instance.network_graph.available_resources
         )
-        service_server_association = [
-            biggest_server for _ in range(self.nx_graph.number_of_nodes())
-        ]
         for service_index in range(self.problem_instance.number_of_service):
             for server_index in range(self.nx_graph.number_of_nodes()):
-                if server_index == service_server_association[service_index]:
+                if server_index == cloud_server:
                     self.model.y[service_index, server_index].fix(1)
-                else:
-                    self.model.y[service_index, server_index].fix(0)
+                # else:
+                #     self.model.y[service_index, server_index].fix(0)
 
     def set_heuristic_solution(self):
         heuristic_solver = Heursolv(self.problem_instance)
@@ -411,6 +408,9 @@ class Solver(GenericSolver):
             [self.model.p[dd].value for dd in range(self.total_number_of_demands)]
         )
 
-        self.score = np.sum(self.q_var)
+        try:
+            self.score = np.sum(self.q_var)
+        except:
+            self.score = 0
         self.runtime = time.time() - start_time
         self.build_time = self.runtime - float(solver_runtime)

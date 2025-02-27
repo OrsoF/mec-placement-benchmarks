@@ -1,15 +1,13 @@
-from networkx.readwrite.gml import read_gml
-import networkx as nx
 from problem_classes.networkgraph import NetworkGraph
-from problem_classes.demand import Demand
-from problem_classes.service import Service
 from problem_classes.servicepackage import ServicePackage
 from problem_classes.probleminstance import ProblemInstance
+from problem_classes.solvinginstance import SolvingInstance
+from problem_classes.service import Service
+from problem_classes.demand import Demand
+
+import networkx as nx
 import numpy as np
 import os
-from utils.pickle import pickle_save
-from utils.graph_utils import make_graph_from_gml
-import matplotlib.pyplot as plt
 
 rng_gen = np.random.default_rng(seed=0)
 
@@ -105,5 +103,8 @@ def make_tree_instance(
     problem_instance = ProblemInstance(network_graph, service_package, PROBLEM_NAME)
 
     # pickle_save(problem_instance, INSTANCE_PATH)
+
+    solving_instance = SolvingInstance(problem_instance, PROBLEM_NAME)
+    solving_instance.test_basic_placement()
 
     return problem_instance
