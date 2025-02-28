@@ -51,8 +51,10 @@ plt.title(f"{instance_type} score vs graph size for each solver", fontsize=16)
 plt.legend(title="Method", fontsize=10)
 plt.grid(True)
 plt.tight_layout()
+
+RESULT_PATH = f"results/{instance_type}_score.png"
 if save:
-    plt.savefig(f"{instance_type}_score.png")
+    plt.savefig(RESULT_PATH)
 plt.show()
 
 plt.figure(figsize=(10, 6))
@@ -73,8 +75,9 @@ plt.title(f"{instance_type} runtime vs graph size for each solver", fontsize=16)
 plt.legend(title="Method", fontsize=10)
 plt.grid(True)
 plt.tight_layout()
+RESULT_PATH = f"results/{instance_type}_runtime.png"
 if save:
-    plt.savefig(f"{instance_type}_runtime.png")
+    plt.savefig(RESULT_PATH)
 plt.show()
 
 
@@ -92,6 +95,8 @@ plt.legend(title="Method", fontsize=10)
 plt.grid(True)
 plt.tight_layout()
 
+RESULT_PATH = f"results/{instance_type}_performance.png"
+
 if save:
-    plt.savefig(f"{instance_type}_performance.png")
+    plt.savefig(RESULT_PATH)
 plt.show()
