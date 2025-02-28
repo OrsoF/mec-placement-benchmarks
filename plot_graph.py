@@ -41,4 +41,6 @@ nx.draw(
 
 # Show the plot
 plt.title(f"{instance_type} shaped graph")
+RESULT_PATH = f"results/{instance_type}_layout.png"
+plt.savefig(RESULT_PATH)
 plt.show()
