@@ -30,7 +30,7 @@ instance = args.instance
 assert instance in {"tree", "parallel"}
 
 current_date = datetime.now().strftime("%d_%m_%y")
-CSV_PATH = f"results_{current_date}.csv"
+CSV_PATH = f"results/results_{current_date}.csv"
 # CSV_PATH = "results_12_02_25.csv"
 if not os.path.exists(CSV_PATH):
     df = pd.DataFrame(
@@ -49,14 +49,15 @@ if not os.path.exists(CSV_PATH):
 
 solvers = {
     "ilp_arc": Solver_ILP_arc,
-    "ilp_arc_95": Solver_ILP_arc_95,
-    "ilp_arc_heuristic_placement": Solver_ILP_arc_heuristic_placement,
-    "ilp_arc_heuristic_warm_start": Solver_ILP_arc_hws,
+    # "ilp_arc_95": Solver_ILP_arc_95,
+    # "ilp_arc_heuristic_placement": Solver_ILP_arc_heuristic_placement,
+    # "ilp_arc_heuristic_warm_start": Solver_ILP_arc_hws,
     "heuristic": Heuristic,
-    "ilp_arc_rl_warm_start": Solver_ILP_arc_rl_warm_start,
-    "PPO": Ppo,
+    # "ilp_arc_rl_warm_start": Solver_ILP_arc_rl_warm_start,
+    # "PPO": Ppo,
     # "ilp_path": Solver_ILP_path,
     # "PPO_options": Ppo_options,
+    "CMA": Cma,
 }
 
 

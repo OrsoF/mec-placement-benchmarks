@@ -137,7 +137,7 @@ class SolvingInstance:
         )
 
         placement = [cloud_node for _ in range(self.problem_instance.number_of_service)]
-        routing = [1 for _ in range(self.problem_instance.total_number_of_demands)]
+        routing = [0 for _ in range(self.problem_instance.total_number_of_demands)]
         quantities = [1 for _ in range(self.problem_instance.total_number_of_demands)]
 
         return (placement, routing, quantities)

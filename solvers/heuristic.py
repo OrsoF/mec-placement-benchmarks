@@ -113,6 +113,8 @@ class Solver(GenericSolver):
         for service_index in range(self.problem_instance.number_of_service):
             self.y_var[service_index, placement[service_index]] = 1
 
+        self.placement, self.routing, self.quantities = placement, routing, quantities
+
     def continue_search(self) -> bool:
         """
         If not enough experiences or no progression, end search.

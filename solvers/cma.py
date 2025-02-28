@@ -62,24 +62,26 @@ class Solver(GenericSolver):
         S = self.problem_instance.number_of_service
         D = self.problem_instance.total_number_of_demands
 
-        placement = [
-            max(0, min(int(elem), self.nx_graph.number_of_nodes() - 1))
-            for elem in value[:S]
-        ]
-        routing = [max(0, min(int(elem), self.max_pcc)) for elem in value[S : S + D]]
-        quantities = [
-            max(1, min(int(elem), self.problem_instance.max_flows[0]))
-            for elem in value[-D:]
-        ]
+        placement = [int(elem) for elem in value[:S]]
+        routing = [int(elem) for elem in value[S : S + D]]
+        quantities = [int(elem) for elem in value[-D:]]
         it_works = self.sol_ins.test_solution(placement, routing, quantities)
 
         if it_works:
-            if sum(quantities) > self.max_value:
-                self.max_value = sum(quantities)
-            return -sum(quantities)
+            score = sum(quantities)
+            self.max_value = max(self.max_value, score)
+            return -score
         else:
             return 0.0
 
-    def initial_value(self) -> np.ndarray:
-        placement, routing, quantities = self.sol_ins.basic_placement_and_routing()
+    def initial_value(self, method: str = "heuristic") -> np.ndarray:
+        if method == "basic":
+            placement, routing, quantities = self.sol_ins.basic_placement_and_routing()
+        elif method == "heuristic":
+            from solvers.heuristic import Solver
+
+            sol = Solver(self.problem_instance)
+            sol.run()
+            placement, routing, quantities = sol.placement, sol.routing, sol.quantities
+
         return np.array(placement + routing + quantities)
