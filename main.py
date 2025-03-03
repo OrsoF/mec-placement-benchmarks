@@ -127,7 +127,7 @@ def experience(users: int):
         )
 
 
-users = range(140, 410, 10) if instance == "tree" else range(125, 250, 5)
+users = range(140, 410, 10) if instance == "tree" else range(35, 125, 5)
 
 for user_count in users:
     experience(user_count)
