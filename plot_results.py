@@ -17,7 +17,7 @@ save = args.save
 
 current_date = datetime.now().strftime("%d_%m_%y")
 CSV_PATH = f"results_{current_date}.csv"
-# CSV_PATH = "results_12_02_25.csv"
+CSV_PATH = "results_02_03_25.csv"
 
 df = pd.read_csv(CSV_PATH)
 
@@ -40,6 +40,8 @@ df = df[
     )
 ]
 
+print(df.head())
+
 plt.figure(figsize=(10, 6))
 for solver_name in set(df["solver"]):
     df_temp = df[df["solver"] == solver_name]
@@ -61,6 +63,7 @@ plt.figure(figsize=(10, 6))
 for solver_name in set(df["solver"]):
     df_temp = df[df["solver"] == solver_name]
     plt.plot(df_temp["users"], df_temp["runtime"], marker="o", label=solver_name)
+
     if df_temp["buildtime"].iloc[0] > 0.0 and args.buildtime:
         plt.plot(
             df_temp["users"],
