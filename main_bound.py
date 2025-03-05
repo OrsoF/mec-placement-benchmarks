@@ -24,7 +24,8 @@ results = []
 solvers = {
     "ILP": ilp_arc_Solver,
     "Relaxation": lp_arc_Solver,
-    "ILP-Path": ilp_path_Solver,
+    # "ILP-Path": ilp_path_Solver,
+    "ILP-Path": ilp_arc_Solver,
     "Relaxation Enforced Latency": lp_path_strong_latency_Solver,
 }
 

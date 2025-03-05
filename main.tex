@@ -1,0 +1,16 @@
+\begin{table}[h]
+    \centering
+    \label{tab:runtime_objective}
+    \begin{tabular}{lcc|cc}
+        \toprule
+                          & \multicolumn{2}{c|}{\textbf{Runtime (s)}} & \multicolumn{2}{c}{\textbf{Objective}}                              \\
+        \textbf{Instance} & \textbf{ILP}                              & \textbf{RL}                            & \textbf{ILP} & \textbf{RL} \\
+        \midrule
+        Tree-50           & 80.2                                      & 1.7                                    & 370          & 278         \\
+        Tree-100          & 266.0                                     & 4.6                                    & 700          & 582         \\
+        Star-50           & 63.7                                      & 1.2                                    & 480          & 265         \\
+        Star-100          & 252.3                                     & 1.9                                    & 700          & 500         \\
+        \bottomrule
+    \end{tabular}
+    \caption{Average ILP vs RL objectives and runtimes on the dynamic Service Placement Problem.}
+\end{table}
