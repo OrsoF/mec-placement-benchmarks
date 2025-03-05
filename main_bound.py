@@ -14,7 +14,7 @@ os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 
 # Create instances with 50, 100, and 150 users
-le_range = range(5, 20, 5)
+le_range = range(20, 80, 20)
 
 instances = {nb: make_tree_instance(nb, 1) for nb in le_range}
 
