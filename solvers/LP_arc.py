@@ -4,7 +4,7 @@ from problem_classes.networkgraph import NetworkGraph
 from problem_classes.service import Service
 from problem_classes.probleminstance import ProblemInstance
 from utils.data_management import get_result_informations
-from utils.graph_neighbors import get_encoded_incoming_arc, get_encoded_outgoing_arc
+from utils.graph_utils import get_encoded_incoming_arc, get_encoded_outgoing_arc
 
 import pyomo.environ as pyo
 import time
@@ -266,11 +266,9 @@ class Solver(GenericSolver):
 
     def run(
         self,
-        options: dict = None,
-        solving_time_limit: float = 600,
-        thread_limit: int = 1,
-        solver: str = "gurobi",
     ):
+        start_time = time.time()
+
         self._model_parameters()
         self._build_model()
         self._build_sets()
@@ -279,21 +277,8 @@ class Solver(GenericSolver):
         self._build_constraints()
         self._build_objective()
 
-        opt = pyo.SolverFactory(solver)
-        if solver == "gurobi":
-            opt.options["TimeLimit"] = solving_time_limit
-            opt.options["threads"] = thread_limit
-        else:
-            assert False, "Not implemented yet."
+        opt = pyo.SolverFactory("gurobi")
+        opt.solve(self.model)
 
-        try:
-            solver_result = opt.solve(self.model)
-            (
-                self.runtime,
-                self.lower_bound,
-                self.upper_bound,
-                self.solving_status,
-            ) = get_result_informations(solver_result)
-
-        except ValueError:
-            self.runtime, self.lower_bound, self.upper_bound = solving_time_limit, 0, 0
+        self.runtime = time.time() - start_time
+        self.score = pyo.value(self.model.obj)

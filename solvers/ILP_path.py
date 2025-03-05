@@ -23,7 +23,7 @@ class Solver(GenericSolver):
         self.G: nx.DiGraph = self.problem_instance.network_graph.nx_graph
         self.maximum_path_number = maximum_path_number
         self.solver_name = "ILP_path"
-        print(f"Number of SP: {maximum_path_number}")
+        # print(f"Number of SP: {maximum_path_number}")
 
         # Graphs
         self.network_graph = self.problem_instance.network_graph
@@ -383,7 +383,6 @@ class Solver(GenericSolver):
         opt.options["TimeLimit"] = 600
 
         try:
-            print("Start solving process...")
             solver_result = opt.solve(self.model)
             (
                 solver_runtime,
@@ -414,5 +413,6 @@ class Solver(GenericSolver):
         #     [self.model.p[dd].value for dd in range(self.total_number_of_demands)]
         # )
 
+        self.score = pyo.value(self.model.obj)
         self.runtime = time.time() - start_time
         self.build_time = self.runtime - float(solver_runtime)
