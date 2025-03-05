@@ -377,10 +377,8 @@ class Solver(GenericSolver):
         self._build_objective()
 
         opt = pyo.SolverFactory("gurobi")
-        # opt.options["threads"] = 1
         opt.options["Heuristics"] = 0
         opt.options["MemLimit"] = 8
-        opt.options["TimeLimit"] = 600
 
         try:
             solver_result = opt.solve(self.model)

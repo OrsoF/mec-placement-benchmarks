@@ -14,11 +14,9 @@ os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 
 # Create instances with 50, 100, and 150 users
-instances = {
-    50: make_tree_instance(2, 1),
-    100: make_tree_instance(3, 1),
-    150: make_tree_instance(4, 1),
-}
+le_range = range(5, 20, 5)
+
+instances = {nb: make_tree_instance(nb, 1) for nb in le_range}
 
 results = []
 
@@ -33,6 +31,7 @@ solvers = {
 for num_users, instance in instances.items():
     print(num_users)
     for sol_name, Solver in solvers.items():
+        print(sol_name)
         sol = Solver(instance)
         sol.run()
         results.append(
@@ -46,6 +45,28 @@ for num_users, instance in instances.items():
 
 # Convert results to a DataFrame
 results_df = pd.DataFrame(results)
+
+import matplotlib
+
+matplotlib.use("pgf")
+matplotlib.rcParams.update(
+    {
+        "pgf.texsystem": "pdflatex",
+        "pgf.preamble": "\n".join(
+            [
+                r"\usepackage[utf8x]{inputenc}",
+                r"\usepackage{bm}",
+                r"\DeclareUnicodeCharacter{2212}{\ensuremath{-}}",
+            ]
+        ),
+        "font.family": "serif",
+        "font.size": 10,
+        "text.usetex": True,
+        "pgf.rcfonts": False,
+    }
+)
+
+fig, axes = plt.subplots(2, 1, figsize=(10, 8))
 
 common_params = {
     # 'linewidth': 2.5,  # Thicker lines
