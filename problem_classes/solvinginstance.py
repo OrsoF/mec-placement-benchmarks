@@ -109,27 +109,6 @@ class SolvingInstance:
         graph = self.update_graph_attributes(graph, placement, routing, quantities)
         return self.validate_graph_attributes(graph, placement, routing, quantities)
 
-    def place_service_variable(self, y_variable: np.ndarray):
-        for service_index in range(self.problem_instance.number_of_service):
-            node_placement = np.argmax(y_variable[service_index, :])
-            self.place_service(service_index, node_placement)
-
-    def route_demand_variable(self, x_variable: np.ndarray, q_variable: np.ndarray):
-        for demand_index in range(self.problem_instance.total_number_of_demands):
-            edges_used_indices = np.nonzero(x_variable[demand_index])[0]
-            edges_used = [
-                self.problem_instance.network_graph.arc_list[index]
-                for index in edges_used_indices
-            ]
-            start, end = (
-                self.problem_instance.origins[demand_index],
-                self.service_placement[
-                    self.problem_instance.demand_to_service[demand_index]
-                ],
-            )
-            path = edges_to_path(edges_used, start, end)
-            self.route_demand(demand_index, q_variable[demand_index], path)
-
     def basic_placement_and_routing(self) -> tuple:
         """All services in the cloud, shortest paths and smallest quantities."""
         cloud_node = np.argmax(
@@ -137,12 +116,13 @@ class SolvingInstance:
         )
 
         placement = [cloud_node for _ in range(self.problem_instance.number_of_service)]
-        routing = [1 for _ in range(self.problem_instance.total_number_of_demands)]
+        routing = [0 for _ in range(self.problem_instance.total_number_of_demands)]
         quantities = [1 for _ in range(self.problem_instance.total_number_of_demands)]
 
         return (placement, routing, quantities)
 
     def render_solution(self, placement: list, routing: list, quantities: list):
+
         for service_index in range(self.problem_instance.number_of_service):
             print(f"Service {service_index} placed on node {placement[service_index]}.")
         print()
@@ -173,21 +153,37 @@ class SolvingInstance:
             print(
                 "Quantity for demand {} : {} / {}".format(
                     demand_index,
-                    self.quantities[demand_index],
+                    quantities[demand_index],
                     self.problem_instance.max_flows[demand_index],
                 )
             )
         print()
 
         for demand_index in range(self.problem_instance.total_number_of_demands):
-            latency = self.get_real_latency(demand_index)
+            path_index = routing[demand_index]
+            service_index = self.problem_instance.demand_to_service[demand_index]
+            origin = self.problem_instance.origins[demand_index]
+            target = placement[service_index]
+            path_node = self.compute_nth_shortest_path(origin, target, path_index)
+            path_edge = path_node_to_path_tuple(path_node)
+
+            latency = self.get_latency_from_graph(path_edge)
             print(
                 "Latency for demand {} : {} / {}".format(
                     demand_index, latency, self.problem_instance.latencies[demand_index]
                 )
             )
         print()
-        print("Solution reached : {}".format(sum(self.quantities)))
+        print("Solution reached : {}".format(sum(quantities)))
+
+        for edge in self.graph.edges:
+            print("Alpha : ", self.graph.edges[edge]["alpha"])
+            print("Beta : ", self.graph.edges[edge]["beta"])
+            print("Latency : ", self.graph.edges[edge]["latency"])
+        print()
+
+    def get_latency_from_graph(self, path_edge: list) -> float:
+        return sum(self.graph.edges[edge]["latency"] for edge in path_edge)
 
     def maximize_quantities(self, placement, routing, quantities, addten=True):
         assert self.test_solution(placement, routing, quantities)
@@ -284,7 +280,13 @@ class SolvingInstance:
         self.saved_shortest_path[(source, destination, index)] = last_visited_path
         return last_visited_path
 
-    def test_basic_placement(self):
+    def test_basic_placement(self, print_solution=False):
         placement, routing, quantities = self.basic_placement_and_routing()
         it_works = self.test_solution(placement, routing, quantities)
+        if it_works:
+            print("Basic placement and routing works.")
+
+        if print_solution:
+            self.render_solution(placement, routing, quantities)
+
         assert it_works, "Basic placement and routing does not work."

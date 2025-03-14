@@ -324,12 +324,11 @@ class Solver(GenericSolver):
         cloud_server = np.argmax(
             self.problem_instance.network_graph.available_resources
         )
-        for service_index in range(self.problem_instance.number_of_service):
-            for server_index in range(self.nx_graph.number_of_nodes()):
-                if server_index == cloud_server:
-                    self.model.y[service_index, server_index].fix(1)
-                # else:
-                #     self.model.y[service_index, server_index].fix(0)
+
+        print(cloud_server)
+
+        for service in range(self.problem_instance.number_of_service):
+            self.model.y[service, cloud_server].fix(1)
 
     def set_heuristic_solution(self):
         heuristic_solver = Heursolv(self.problem_instance)
