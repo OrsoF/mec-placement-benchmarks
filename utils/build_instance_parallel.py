@@ -130,6 +130,6 @@ def make_parallel_instance(
     service_package = ServicePackage(services, PROBLEM_NAME)
     problem_instance = ProblemInstance(network_graph, service_package, PROBLEM_NAME)
 
-    pickle_save(problem_instance, INSTANCE_PATH)
+    # pickle_save(problem_instance, INSTANCE_PATH)
 
     return problem_instance

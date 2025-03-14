@@ -47,11 +47,11 @@ if not os.path.exists(CSV_PATH):
     df.to_csv(CSV_PATH, index=False)
 
 solvers = {
-    "ilp_arc": Solver_ILP_arc,
-    "ilp_arc_95": Solver_ILP_arc_95,
-    "ilp_arc_heuristic_placement": Solver_ILP_arc_heuristic_placement,
-    "ilp_arc_heuristic_warm_start": Solver_ILP_arc_hws,
-    "ilp_arc_rl_warm_start": Solver_ILP_arc_rl_warm_start,
+    # "ilp_arc": Solver_ILP_arc,
+    # "ilp_arc_95": Solver_ILP_arc_95,
+    # "ilp_arc_heuristic_placement": Solver_ILP_arc_heuristic_placement,
+    # "ilp_arc_heuristic_warm_start": Solver_ILP_arc_hws,
+    # "ilp_arc_rl_warm_start": Solver_ILP_arc_rl_warm_start,
     # "ilp_path": Solver_ILP_path,
     "heuristic": Heuristic,
     "PPO": Ppo,
@@ -127,7 +127,7 @@ def experience(users: int):
         )
 
 
-users = range(10, 410, 10) if instance == "tree" else range(10, 130, 5)
+users = range(140, 410, 10) if instance == "tree" else range(35, 125, 5)
 
 for user_count in users:
     experience(user_count)
