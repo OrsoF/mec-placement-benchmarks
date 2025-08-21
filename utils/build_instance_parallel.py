@@ -15,9 +15,9 @@ rng_gen = np.random.default_rng(seed=0)
 
 
 def build_star_instance(
+    number_of_groups: int,
     users_per_group: int,
     neighbors_connection: int,
-    number_of_groups: int,
 ) -> ProblemInstance:
     assert users_per_group >= 1
     assert neighbors_connection >= 0

@@ -88,7 +88,7 @@ class SolvingInstance:
         return True
 
     def test_solution(self, placement: list, routing: list, quantities: list) -> bool:
-        # Vérifier les inputs ici
+        """Test if the solution is feasible."""
 
         if not all(0 <= elem < self.graph.number_of_nodes() for elem in placement):
             return False
