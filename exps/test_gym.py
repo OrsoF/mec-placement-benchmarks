@@ -1,6 +1,6 @@
-from utils.build_instance_parallel import make_parallel_instance
+from utils.build_instance_parallel import build_star_instance
 
-instance = make_parallel_instance(5, 2, 3)
+instance = build_star_instance(5, 2, 3)
 
 from utils.gym_instance import SPPEnv
 

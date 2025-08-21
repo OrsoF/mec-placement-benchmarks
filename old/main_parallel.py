@@ -3,7 +3,7 @@ import pandas as pd
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
-from utils.build_instance_parallel import make_parallel_instance
+from utils.build_instance_parallel import build_star_instance
 from utils.data_management import solve
 from utils.pickle import pickle_load, pickle_save
 from utils.generic_solver import GenericSolver
@@ -61,8 +61,8 @@ def update_csv(
 def experience(users: int):
     neighbors, groups, instance = 1, 4, "parallel"
 
-    problem_instance = make_parallel_instance(
-        number_of_users_per_group=user_count,
+    problem_instance = build_star_instance(
+        users_per_group=user_count,
         neighbors_connection=neighbors,
         number_of_groups=groups,
     )
