@@ -47,7 +47,7 @@ if not os.path.exists(CSV_PATH):
     df.to_csv(CSV_PATH, index=False)
 
 solvers = {
-    # "ilp_arc": Solver_ILP_arc,
+    "ilp_arc": Solver_ILP_arc,
     # "ilp_arc_95": Solver_ILP_arc_95,
     # "ilp_arc_heuristic_placement": Solver_ILP_arc_heuristic_placement,
     # "ilp_arc_heuristic_warm_start": Solver_ILP_arc_hws,
