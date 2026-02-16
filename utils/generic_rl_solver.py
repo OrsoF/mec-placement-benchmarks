@@ -5,8 +5,6 @@ from problem_classes.probleminstance import ProblemInstance
 import time
 from stable_baselines3 import A2C, PPO
 from utils.gym_instance import SPPEnv
-from tqdm import trange, tqdm
-from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 
 
 class Solver(GenericSolver):
@@ -18,7 +16,7 @@ class Solver(GenericSolver):
         train_step: int,
         evaluation_step: int,
         method: str,
-        options: bool=False,
+        options: bool = False,
     ):
         self.problem_instance = problem_instance
         self.train_step = train_step

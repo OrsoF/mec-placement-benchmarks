@@ -11,6 +11,9 @@ rnd_gen = np.random.default_rng(0)
 
 
 class SolvingInstance:
+    """
+    Instance of graph that can be updated through methods to solve the original problem. Can test solutions.
+    """
     def __init__(self, problem_instance: ProblemInstance, verbose: bool = True):
         self.problem_instance = problem_instance
         self.graph = nx.Graph(self.problem_instance.network_graph.nx_graph)

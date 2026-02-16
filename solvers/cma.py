@@ -4,7 +4,6 @@ from problem_classes.solvinginstance import SolvingInstance
 
 import cma
 import time
-import networkx as nx
 import numpy as np
 
 
@@ -14,7 +13,7 @@ class Solver(GenericSolver):
         self.nx_graph = self.problem_instance.network_graph.nx_graph
         self.max_pcc = max_pcc
 
-        self.solver_name = "rl_base"
+        self.solver_name = "CMA-ES"
 
     def run(
         self,
@@ -24,7 +23,6 @@ class Solver(GenericSolver):
 
         self.sol_ins = SolvingInstance(self.problem_instance)
         x0 = self.initial_value()
-    
 
         es = cma.CMAEvolutionStrategy(x0, 2)
         while not es.stop():
