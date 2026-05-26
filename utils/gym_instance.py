@@ -2,13 +2,11 @@ import gymnasium as gym
 import numpy as np
 import networkx as nx
 from torch_geometric.utils.convert import from_networkx
-from torch_geometric.data import Data
 
-from gymnasium.spaces import Tuple, Box, MultiDiscrete
+from gymnasium.spaces import Box, MultiDiscrete, Tuple as SpaceTuple
 from problem_classes.solvinginstance import SolvingInstance
 from problem_classes.probleminstance import ProblemInstance
 from utils.graph_utils import path_node_to_path_tuple
-import matplotlib.pyplot as plt
 from solvers.heuristicprecise import Solver
 
 rnd_gen = np.random.default_rng(0)
@@ -149,7 +147,7 @@ class SPPEnv(gym.Env):
 
     def _update_placement(
         self, state: list, selected_service: int, choosen_node: int
-    ) -> Tuple:
+    ) -> tuple:
         """
         Change the placement of service.
         If the same SP indices do not work,
@@ -163,7 +161,7 @@ class SPPEnv(gym.Env):
         else:
             return state, done
 
-    def _reroute(self, state: list, selected_demand: int, choosen_sp: int) -> Tuple:
+    def _reroute(self, state: list, selected_demand: int, choosen_sp: int) -> tuple:
         """
         choosen_sp is the index of the shortest path choosent through this action.
         """
@@ -421,11 +419,15 @@ class SPPEnv(gym.Env):
             )
             low_array = np.zeros(observation_shape)
             high_array = high * np.ones(observation_shape)
-            self.observation_space = Box(low=low_array, high=high_array)
+            self.observation_space = Box(
+                low=low_array.astype(np.float32),
+                high=high_array.astype(np.float32),
+                dtype=np.float32,
+            )
         elif self.observation_type == "gcn":
             node_mat_shape = ()
             edge_mat_shape = ()
-            self.observation_space = Tuple(
+            self.observation_space = SpaceTuple(
                 Box(0, 1, shape=node_mat_shape), Box(0, 1, shape=edge_mat_shape)
             )
 
@@ -553,7 +555,8 @@ class SPPEnv(gym.Env):
             + self.problem_instance.network_graph.capacities
             + self.problem_instance.network_graph.available_resources
             + self.problem_instance.needed_resources
-            + longueur_chemins
+            + longueur_chemins,
+            dtype=np.float32,
         )
 
     def _observe_gcn(self, state: list):
@@ -562,7 +565,7 @@ class SPPEnv(gym.Env):
         self._reset_node_attributes()
         self._update_edge_attributes(state)
         self._update_node_attributes(state)
-        data: Data = from_networkx(self.graph)
+        data = from_networkx(self.graph)
 
         assert False
 

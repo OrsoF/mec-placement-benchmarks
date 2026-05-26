@@ -76,3 +76,35 @@ def test_problem_and_solving_instance_basic_solution_is_feasible():
     assert quantities == [1]
     assert solving_instance.test_solution(placement, routing, quantities)
     instance.check_current_solution()
+
+
+def test_check_current_solution_rejects_invalid_placement_assignment():
+    instance = make_two_node_problem()
+    instance.y_variable[0, :] = [1, 1]
+
+    with pytest.raises(AssertionError):
+        instance.check_current_solution()
+
+
+def test_check_current_solution_rejects_invalid_capacity():
+    instance = make_two_node_problem()
+    instance.q_variable[0] = 11
+
+    with pytest.raises(AssertionError):
+        instance.check_current_solution()
+
+
+def test_check_current_solution_rejects_invalid_latency():
+    instance = make_two_node_problem()
+    instance.network_graph.alphas = [10, 10]
+
+    with pytest.raises(AssertionError):
+        instance.check_current_solution()
+
+
+def test_check_current_solution_rejects_invalid_routing():
+    instance = make_two_node_problem()
+    instance.x_variable[0, :] = [0, 1]
+
+    with pytest.raises(AssertionError):
+        instance.check_current_solution()

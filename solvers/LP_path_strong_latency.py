@@ -2,6 +2,7 @@ from problem_classes.service import Service
 from problem_classes.probleminstance import ProblemInstance
 from itertools import islice
 from utils.data_management import get_result_informations
+from utils.generic_solver import GenericSolver
 
 import time
 import pyomo.environ as pyo
@@ -9,7 +10,7 @@ from networkx.readwrite.gml import read_gml
 import networkx as nx
 
 
-class Solver:
+class Solver(GenericSolver):
     def __init__(
         self,
         problem_instance: ProblemInstance,

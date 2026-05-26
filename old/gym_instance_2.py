@@ -1,3 +1,10 @@
+"""Archived experimental Gym environment.
+
+The supported environment is ``utils.gym_instance.SPPEnv``. This file is kept
+only for historical reference because it duplicates most of the active
+environment and contains unfinished graph-observation code.
+"""
+
 import gymnasium as gym
 import numpy as np
 import networkx as nx
