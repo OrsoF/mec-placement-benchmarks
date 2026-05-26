@@ -1,0 +1,78 @@
+import pytest
+import networkx as nx
+
+from problem_classes.demand import Demand
+from problem_classes.networkgraph import NetworkGraph, is_graph_symmetric
+from problem_classes.probleminstance import ProblemInstance
+from problem_classes.service import Service
+from problem_classes.servicepackage import ServicePackage
+from problem_classes.solvinginstance import SolvingInstance
+
+
+def make_two_node_problem():
+    graph = nx.Graph()
+    graph.add_edge("user", "cloud")
+    network = NetworkGraph(
+        base_graph=graph,
+        node_resources=[1, 10],
+        edge_capacity=[10],
+        latency_alpha_factor=[1],
+        latency_beta_factor=[1],
+    )
+    demand = Demand(origin_node_index=0, flow_min=1, flow_max=3, max_latency=10)
+    service = Service(task_list=[demand], network_graph=network, resources_needed=1)
+    package = ServicePackage([service], "two_node")
+    return ProblemInstance(network, package, "two_node")
+
+
+def test_network_graph_relabels_and_makes_graph_symmetric():
+    instance = make_two_node_problem()
+    graph = instance.network_graph.nx_graph
+
+    assert set(graph.nodes) == {0, 1}
+    assert is_graph_symmetric(graph)
+    assert graph.has_edge(0, 1)
+    assert graph.has_edge(1, 0)
+    assert instance.network_graph.available_resources == [1, 10]
+    assert instance.network_graph.capacities == [10, 10]
+
+
+def test_demand_and_service_collect_task_vectors():
+    instance = make_two_node_problem()
+    service = instance.service_package.services[0]
+
+    assert service.task_number == 1
+    assert service.origin_nodes == [0]
+    assert service.min_flows == [1]
+    assert service.max_flows == [3]
+    assert service.max_latencies == [10]
+
+
+def test_service_rejects_demand_from_unknown_node():
+    instance = make_two_node_problem()
+    bad_demand = Demand(origin_node_index=99, flow_min=1, flow_max=2, max_latency=10)
+
+    with pytest.raises(AssertionError):
+        Service(
+            task_list=[bad_demand],
+            network_graph=instance.network_graph,
+            resources_needed=1,
+        )
+
+
+def test_service_package_rejects_empty_services():
+    with pytest.raises(AssertionError):
+        ServicePackage([], "empty")
+
+
+def test_problem_and_solving_instance_basic_solution_is_feasible():
+    instance = make_two_node_problem()
+    solving_instance = SolvingInstance(instance)
+
+    placement, routing, quantities = solving_instance.basic_placement_and_routing()
+
+    assert placement == [1]
+    assert routing == [0]
+    assert quantities == [1]
+    assert solving_instance.test_solution(placement, routing, quantities)
+    instance.check_current_solution()

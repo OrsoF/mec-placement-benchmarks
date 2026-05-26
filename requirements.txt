@@ -1,7 +1,13 @@
 numpy
 networkx
+pandas
+matplotlib
 pyomo
 gurobipy
 stable_baselines3
+gymnasium
+torch
 cma
 torch-geometric
+tqdm
+pytest
