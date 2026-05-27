@@ -1,5 +1,5 @@
-from problem_classes.probleminstance import ProblemInstance
-from problem_classes.solvinginstance import SolvingInstance
+from core.problem_classes.probleminstance import ProblemInstance
+from core.problem_classes.solvinginstance import SolvingInstance
 import numpy as np
 import time
 from functools import wraps

@@ -1,7 +1,7 @@
 import numpy as np
 import networkx as nx
 
-from problem_classes.probleminstance import ProblemInstance
+from core.problem_classes.probleminstance import ProblemInstance
 from utils.graph_utils import (
     path_node_to_path_tuple,
     edges_to_path,

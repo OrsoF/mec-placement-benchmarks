@@ -1,6 +1,6 @@
-from utils.generic_solver import GenericSolver
-from problem_classes.service import Service
-from problem_classes.probleminstance import ProblemInstance
+from core.generic_solver import GenericSolver
+from core.problem_classes.service import Service
+from core.problem_classes.probleminstance import ProblemInstance
 from solvers.ILP_arc import Solver as ILPSolver
 
 import time

@@ -1,6 +1,6 @@
 import numpy as np
 
-from problem_classes.solvinginstance import SolvingInstance
+from core.problem_classes.solvinginstance import SolvingInstance
 from solvers.heuristic import Solver as HeuristicSolver
 from utils.build_instance_tree import make_tree_instance
 

@@ -1,5 +1,5 @@
-from problem_classes.networkgraph import NetworkGraph
-from problem_classes.demand import Demand
+from core.problem_classes.networkgraph import NetworkGraph
+from core.problem_classes.demand import Demand
 
 
 class Service:

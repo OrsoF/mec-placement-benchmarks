@@ -1,8 +1,8 @@
-from utils.generic_solver import GenericSolver
-from problem_classes.servicepackage import ServicePackage
-from problem_classes.networkgraph import NetworkGraph
-from problem_classes.service import Service
-from problem_classes.probleminstance import ProblemInstance
+from core.generic_solver import GenericSolver
+from core.problem_classes.servicepackage import ServicePackage
+from core.problem_classes.networkgraph import NetworkGraph
+from core.problem_classes.service import Service
+from core.problem_classes.probleminstance import ProblemInstance
 from utils.data_management import get_info_from_results
 from utils.graph_neighbors import get_encoded_incoming_arc, get_encoded_outgoing_arc
 from solvers.base_heuristic import greedy_server_allocation

@@ -1,10 +1,10 @@
 from networkx.readwrite.gml import read_gml
 import networkx as nx
-from problem_classes.networkgraph import NetworkGraph
-from problem_classes.demand import Demand
-from problem_classes.service import Service
-from problem_classes.servicepackage import ServicePackage
-from problem_classes.probleminstance import ProblemInstance
+from core.problem_classes.networkgraph import NetworkGraph
+from core.problem_classes.demand import Demand
+from core.problem_classes.service import Service
+from core.problem_classes.servicepackage import ServicePackage
+from core.problem_classes.probleminstance import ProblemInstance
 import numpy as np
 import os
 from utils.pickle import pickle_save

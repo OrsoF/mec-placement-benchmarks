@@ -1,7 +1,7 @@
 import ast
 from pathlib import Path
 
-from utils.generic_solver import GenericSolver
+from core.generic_solver import GenericSolver
 
 
 REQUIRED_SOLVER_ATTRIBUTES = {

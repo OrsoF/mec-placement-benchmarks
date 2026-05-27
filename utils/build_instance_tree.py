@@ -1,9 +1,9 @@
-from problem_classes.networkgraph import NetworkGraph
-from problem_classes.servicepackage import ServicePackage
-from problem_classes.probleminstance import ProblemInstance
-from problem_classes.solvinginstance import SolvingInstance
-from problem_classes.service import Service
-from problem_classes.demand import Demand
+from core.problem_classes.networkgraph import NetworkGraph
+from core.problem_classes.servicepackage import ServicePackage
+from core.problem_classes.probleminstance import ProblemInstance
+from core.problem_classes.solvinginstance import SolvingInstance
+from core.problem_classes.service import Service
+from core.problem_classes.demand import Demand
 
 import networkx as nx
 import numpy as np

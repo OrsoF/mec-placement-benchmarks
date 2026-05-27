@@ -3,9 +3,9 @@ import networkx as nx
 import matplotlib.pyplot as plt
 from tqdm import trange
 
-from problem_classes.networkgraph import NetworkGraph
-from problem_classes.servicepackage import ServicePackage
-from problem_classes.probleminstance import ProblemInstance
+from core.problem_classes.networkgraph import NetworkGraph
+from core.problem_classes.servicepackage import ServicePackage
+from core.problem_classes.probleminstance import ProblemInstance
 from utils.pickle import pickle_save
 from utils.graph_utils import (
     path_node_to_path_tuple,

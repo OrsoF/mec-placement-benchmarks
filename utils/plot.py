@@ -2,7 +2,7 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 import networkx as nx
-from problem_classes.probleminstance import ProblemInstance
+from core.problem_classes.probleminstance import ProblemInstance
 
 red_color = "tab:red"
 gray_color = "tab:gray"

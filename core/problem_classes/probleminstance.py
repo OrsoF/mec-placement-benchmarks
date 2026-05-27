@@ -1,5 +1,5 @@
-from problem_classes.networkgraph import NetworkGraph
-from problem_classes.servicepackage import ServicePackage
+from core.problem_classes.networkgraph import NetworkGraph
+from core.problem_classes.servicepackage import ServicePackage
 import numpy as np
 import networkx as nx
 from utils.pickle import pickle_save

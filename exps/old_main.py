@@ -9,8 +9,8 @@ from utils.data_management import (
 from utils.build_instance_gml import make_instance_from_gml
 from utils.build_instance_large import make_big_instances
 import numpy as np
-from problem_classes.probleminstance import ProblemInstance
-from utils.generic_solver import GenericSolver
+from core.problem_classes.probleminstance import ProblemInstance
+from core.generic_solver import GenericSolver
 from utils.check_network_graph import check_network_graph
 import multiprocessing
 

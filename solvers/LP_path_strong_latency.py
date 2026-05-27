@@ -1,8 +1,8 @@
-from problem_classes.service import Service
-from problem_classes.probleminstance import ProblemInstance
+from core.problem_classes.service import Service
+from core.problem_classes.probleminstance import ProblemInstance
 from itertools import islice
 from utils.data_management import get_result_informations
-from utils.generic_solver import GenericSolver
+from core.generic_solver import GenericSolver
 
 import time
 import pyomo.environ as pyo

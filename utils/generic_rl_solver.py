@@ -1,7 +1,7 @@
 "Le solveur RL qu'on utilise."
 
-from utils.generic_solver import GenericSolver
-from problem_classes.probleminstance import ProblemInstance
+from core.generic_solver import GenericSolver
+from core.problem_classes.probleminstance import ProblemInstance
 import time
 from stable_baselines3 import A2C, PPO
 from utils.gym_instance import SPPEnv

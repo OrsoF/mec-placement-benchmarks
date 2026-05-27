@@ -11,8 +11,8 @@ import networkx as nx
 from torch_geometric.utils.convert import from_networkx
 
 from gymnasium.spaces import Tuple, Box, MultiDiscrete
-from problem_classes.solvinginstance import SolvingInstance
-from problem_classes.probleminstance import ProblemInstance
+from core.problem_classes.solvinginstance import SolvingInstance
+from core.problem_classes.probleminstance import ProblemInstance
 from utils.graph_utils import path_node_to_path_tuple
 import matplotlib.pyplot as plt
 from solvers.heuristic import Solver

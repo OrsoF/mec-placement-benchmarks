@@ -1,4 +1,4 @@
-from problem_classes.service import Service
+from core.problem_classes.service import Service
 import networkx as nx
 
 

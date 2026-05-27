@@ -6,7 +6,7 @@ from utils.build_instance_tree import make_tree_instance
 from utils.build_instance_parallel import build_star_instance
 from utils.data_management import solve
 from utils.pickle import pickle_load, pickle_save
-from utils.generic_solver import GenericSolver
+from core.generic_solver import GenericSolver
 from solvers.ILP_arc import Solver as Solver_ILP_arc
 from solvers.ILP_arc_95 import Solver as Solver_ILP_arc_95
 from solvers.ILP_path import Solver as Solver_ILP_path

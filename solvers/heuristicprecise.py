@@ -10,12 +10,12 @@ from networkx.readwrite.gml import read_gml
 import pickle
 import time
 import os
-from problem_classes.service import Service
+from core.problem_classes.service import Service
 from itertools import islice
-from problem_classes.probleminstance import ProblemInstance
-from utils.generic_solver import GenericSolver
+from core.problem_classes.probleminstance import ProblemInstance
+from core.generic_solver import GenericSolver
 from utils.graph_utils import path_node_to_path_tuple, path_tuple_to_path_node
-from problem_classes.solvinginstance import SolvingInstance
+from core.problem_classes.solvinginstance import SolvingInstance
 
 rnd_gen = np.random.default_rng(0)
 

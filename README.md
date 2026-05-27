@@ -20,12 +20,13 @@ The central optimization problem is:
 |-- main.py                 # Batch runner for tree and parallel/star experiments
 |-- requirements.txt        # Python dependencies
 |-- main.tex                # LaTeX table snippet for reported results
-|-- problem_classes/        # Core domain model: graph, services, demands, instances
+|-- core/                   # Core domain model: graph, services, demands, instances
 |-- solvers/                # MILP/LP, heuristic, CMA-ES, and RL solver implementations
 |-- utils/                  # Instance builders, Gym environments, plotting, I/O helpers
 |-- gml_graphs/             # Input network topologies in GML format
-|-- exps/                   # Debug and exploratory experiment scripts
-|-- results/                # Generated CSVs, plots, PDFs, and trained RL artifacts
+|-- exps/                   # Exploratory experiment scripts
+|-- artifact/               # Organized generated CSVs, plots, PDFs, and trained RL artifacts
+|-- results/                # Empty staging area for newly generated outputs
 `-- old/                    # Legacy scripts and notebooks kept for reference
 ```
 
@@ -33,7 +34,7 @@ The central optimization problem is:
 
 ### Problem Instances
 
-`problem_classes/` defines the objects shared by all solvers:
+`core/problem_classes/` defines the objects shared by all solvers:
 
 - `NetworkGraph`: wraps a NetworkX graph with node resources, edge capacities,
   and latency parameters.
@@ -66,7 +67,7 @@ The central optimization problem is:
 - CMA-ES experiments;
 - PPO/A2C reinforcement-learning solvers using Stable-Baselines3 and Gymnasium.
 
-The common interface is `utils/generic_solver.py`: solvers receive a
+The common interface is `core/generic_solver.py`: solvers receive a
 `ProblemInstance`, run, and expose `score`, `runtime`, and solution variables.
 
 ## Setup
@@ -99,21 +100,20 @@ python main.py --instance parallel
 
 The script writes a date-stamped CSV file such as `results_26_05_26.csv` in the
 current working directory. Existing plotted outputs and trained agents are kept
-under `results/`.
+under `artifact/`.
 
 ## Development Notes
 
 - The repository is currently organized as a research workbench. Some scripts in
   `exps/` and `old/` are exploratory and may require manual adjustment before
   reuse.
-- There is no formal test suite yet. The closest executable checks are the
-  feasibility assertions in `ProblemInstance`, `SolvingInstance`, and the debug
-  scripts in `exps/`.
+- The test suite in `tests/` covers core domain models, instance builders, Gym
+  environment behavior, heuristic behavior, and solver contracts.
 - Several modules use fixed random seeds, which is useful for repeatability but
   should be reviewed before large experimental campaigns.
-- Generated artifacts are mixed with source code. If results become large or are
-  regenerated often, consider moving them to an artifact store or a separate
-  results repository.
+- Generated artifacts are organized under `artifact/`. If results become large
+  or are regenerated often, consider moving them to an artifact store or a
+  separate results repository.
 
 ## Suggested Next Improvements
 
@@ -121,8 +121,8 @@ under `results/`.
 2. Move experiment configuration out of `main.py` into YAML/JSON or CLI flags.
 3. Standardize solver output names (`x_var`/`x_variable`, `y_var`/`y_variable`,
    `q_var`/`q_variable`) to reduce adapter code.
-4. Rename `problem_classes/` to `core/` once imports can be updated safely. This
-   would make the domain model easier to identify at a glance.
+4. Move solver contracts and graph path helpers into `core/` if the project
+   keeps tightening the domain boundary.
 5. Split the broad `utils/` directory into more explicit top-level folders:
    `instances/`, `rl/`, `plotting/`, and `io/`.
 6. Separate active experiments from archived scripts, for example by replacing

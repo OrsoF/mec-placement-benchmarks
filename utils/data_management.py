@@ -4,9 +4,9 @@ import pandas as pd
 import pickle as pkl
 import tqdm
 import pyomo as pyo
-from problem_classes.probleminstance import ProblemInstance, ToyInstance
+from core.problem_classes.probleminstance import ProblemInstance, ToyInstance
 from importlib.util import spec_from_file_location, module_from_spec
-from utils.generic_solver import GenericSolver
+from core.generic_solver import GenericSolver
 
 INSTANCES_PATH = os.path.join(os.getcwd(), "instances")
 SOLVER_PATH = os.path.join(os.getcwd(), "solvers")

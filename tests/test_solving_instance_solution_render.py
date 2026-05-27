@@ -13,7 +13,7 @@ problem_instance = make_tree_instance(
     number_of_users=users, neighbors_connection=neighbors
 )
 
-from problem_classes.solvinginstance import SolvingInstance
+from core.problem_classes.solvinginstance import SolvingInstance
 
 sol = SolvingInstance(problem_instance=problem_instance)
 sol.basic_placement_and_routing()

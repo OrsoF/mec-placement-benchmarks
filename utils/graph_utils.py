@@ -1,4 +1,4 @@
-from problem_classes.networkgraph import NetworkGraph
+from core.problem_classes.networkgraph import NetworkGraph
 from networkx.readwrite.gml import read_gml
 from collections import defaultdict
 import networkx as nx
