@@ -4,7 +4,6 @@ import numpy as np
 import pytest
 
 gymnasium = pytest.importorskip("gymnasium")
-pytest.importorskip("torch_geometric")
 
 from instances.build_parallel import build_star_instance
 from instances.build_tree import make_tree_instance
@@ -86,6 +85,16 @@ def test_gym_state_to_vectors_splits_state_by_problem_dimensions():
     assert list(quantities) == env.problem_instance.min_flows
 
 
+def test_gym_score_uses_quantities_only():
+    env = make_env()
+    state = env._basic_placement_state()
+
+    placement, routing, quantities = env._state_to_vectors(state)
+
+    assert env._get_score(state) == sum(quantities)
+    assert env._get_score(state) != sum(placement) + sum(routing)
+
+
 def test_gym_state_to_variables_returns_feasible_solution_arrays():
     env = make_tree_env()
     state = env._basic_placement_state()
@@ -102,6 +111,42 @@ def test_gym_state_to_variables_returns_feasible_solution_arrays():
     )
     assert q_var.shape == (env.problem_instance.total_number_of_demands,)
     assert env._test_solution(state)
+
+
+def test_gym_rejects_unimplemented_gcn_observation_mode():
+    instance = make_tree_instance(number_of_users=2, neighbors_connection=0)
+
+    with pytest.raises(AssertionError, match="Only vector observations"):
+        SPPEnv(instance, max_step=2, observation_type="gcn")
+
+
+def test_gym_reset_preserves_or_accepts_reset_configuration():
+    first_instance = make_tree_instance(number_of_users=2, neighbors_connection=0)
+    second_instance = make_tree_instance(number_of_users=3, neighbors_connection=0)
+    env = SPPEnv(
+        first_instance,
+        max_step=2,
+        training_set=[second_instance],
+        warm_start_heuristic=False,
+        observation_type="vector",
+        options=True,
+    )
+
+    env.reset(warm_start_heuristic=False, observation_type="vector", options=True)
+
+    assert env.warm_start_heuristic is False
+    assert env.observation_type == "vector"
+    assert env.options is True
+
+
+def test_gym_invalid_path_index_is_infeasible():
+    env = make_tree_env()
+    state = env._basic_placement_state()
+    placement, routing, quantities = env._state_to_vectors(state)
+    routing[0] = 999
+    invalid_state = list(placement) + list(routing) + list(quantities)
+
+    assert not env._test_solution(invalid_state)
 
 
 def test_gym_reset_restores_step_count_and_initial_observation_shape():
