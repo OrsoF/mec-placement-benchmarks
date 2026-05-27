@@ -1,6 +1,8 @@
 import numpy as np
 from gymnasium.spaces import Box, MultiDiscrete
 
+from rl.state_codec import state_to_list
+
 
 def make_action_space(problem_instance, graph, max_pcc: int) -> MultiDiscrete:
     return MultiDiscrete(
@@ -16,27 +18,51 @@ def make_action_space(problem_instance, graph, max_pcc: int) -> MultiDiscrete:
 
 
 def make_vector_observation_space(problem_instance, graph, max_pcc: int) -> Box:
-    high = max(
-        graph.number_of_nodes(),
-        max_pcc,
-        problem_instance.max_flows[0],
+    demand_count = problem_instance.total_number_of_demands
+    service_count = problem_instance.number_of_service
+    node_count = graph.number_of_nodes()
+    edge_count = graph.number_of_edges()
+    total_max_flow = sum(problem_instance.max_flows)
+    max_edge_latency = max(
+        (
+            graph.edges[edge]["beta"] + total_max_flow * graph.edges[edge]["alpha"]
+            for edge in graph.edges
+        ),
+        default=0.0,
     )
-    observation_shape = (
-        problem_instance.number_of_service
-        + problem_instance.total_number_of_demands
-        + problem_instance.total_number_of_demands
-        + problem_instance.total_number_of_demands
-        + graph.number_of_edges()
-        + graph.number_of_nodes()
-        + problem_instance.total_number_of_demands
-        + problem_instance.total_number_of_demands
-        + graph.number_of_edges()
-        + graph.number_of_nodes()
-        + problem_instance.number_of_service
-        + problem_instance.total_number_of_demands
+    latency_ratio_high = [
+        node_count * max_edge_latency / max(latency, 1e-9)
+        for latency in problem_instance.latencies
+    ]
+
+    low_array = np.zeros(
+        service_count
+        + demand_count
+        + demand_count
+        + demand_count
+        + edge_count
+        + node_count
+        + demand_count
+        + demand_count
+        + edge_count
+        + node_count
+        + service_count
+        + demand_count
     )
-    low_array = np.zeros(observation_shape)
-    high_array = high * np.ones(observation_shape)
+    high_array = np.array(
+        [max(node_count - 1, 0)] * service_count
+        + [max(max_pcc - 1, 0)] * demand_count
+        + list(problem_instance.max_flows)
+        + latency_ratio_high
+        + [1.0] * edge_count
+        + [1.0] * node_count
+        + list(problem_instance.max_flows)
+        + list(problem_instance.latencies)
+        + list(problem_instance.network_graph.capacities)
+        + list(problem_instance.network_graph.available_resources)
+        + list(problem_instance.needed_resources)
+        + [node_count] * demand_count
+    )
     return Box(
         low=low_array.astype(np.float32),
         high=high_array.astype(np.float32),
@@ -74,7 +100,7 @@ def observe_vector(env, state: list) -> np.ndarray:
     ]
 
     return np.array(
-        state
+        state_to_list(state)
         + latency_proportion
         + arc_saturation_proportion
         + server_saturation
@@ -86,4 +112,3 @@ def observe_vector(env, state: list) -> np.ndarray:
         + path_lengths,
         dtype=np.float32,
     )
-

@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 import numpy as np
 
 from core.graph_utils import path_node_to_path_tuple
@@ -5,13 +7,52 @@ from core.problem_classes.probleminstance import ProblemInstance
 from rl.path_cache import ShortestPathCache
 
 
-def state_to_vectors(problem_instance: ProblemInstance, state: list) -> tuple:
+@dataclass(frozen=True)
+class SPPState:
+    """Named environment state for placement, routing, and demand quantities."""
+
+    placements: list
+    path_indices: list
+    quantities: list
+
+    def to_list(self) -> list:
+        return list(self.placements) + list(self.path_indices) + list(self.quantities)
+
+    def copy(self) -> list:
+        return self.to_list()
+
+    def __iter__(self):
+        return iter(self.to_list())
+
+    def __len__(self):
+        return len(self.placements) + len(self.path_indices) + len(self.quantities)
+
+    def __getitem__(self, item):
+        return self.to_list()[item]
+
+    @classmethod
+    def from_flat(cls, problem_instance: ProblemInstance, state: list) -> "SPPState":
+        placements, path_indices, quantities = state_to_vectors(problem_instance, state)
+        return cls(list(placements), list(path_indices), list(quantities))
+
+
+def state_to_list(state) -> list:
+    if isinstance(state, SPPState):
+        return state.to_list()
+    return list(state)
+
+
+def state_to_vectors(problem_instance: ProblemInstance, state) -> tuple:
     """Split [placements | path indices | quantities] into its three parts."""
+    if isinstance(state, SPPState):
+        return state.placements, state.path_indices, state.quantities
+
+    flat_state = state_to_list(state)
     service_count = problem_instance.number_of_service
     demand_count = problem_instance.total_number_of_demands
-    service_placement = state[:service_count]
-    path_indices = state[service_count : service_count + demand_count]
-    quantities = state[service_count + demand_count :]
+    service_placement = flat_state[:service_count]
+    path_indices = flat_state[service_count : service_count + demand_count]
+    quantities = flat_state[service_count + demand_count :]
     return service_placement, path_indices, quantities
 
 
@@ -50,4 +91,3 @@ def state_to_variables(
 
     q_var = np.array(quantities)
     return x_var, y_var, q_var
-

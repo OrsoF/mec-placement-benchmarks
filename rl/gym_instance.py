@@ -8,7 +8,7 @@ from core.problem_classes.solvinginstance import SolvingInstance
 from rl.observation import make_action_space, make_vector_observation_space, observe_vector
 from rl.path_cache import ShortestPathCache
 from rl.reward import score_state
-from rl.state_codec import state_to_variables, state_to_vectors
+from rl.state_codec import SPPState, state_to_variables, state_to_vectors
 from solvers.heuristic.heuristicprecise import Solver
 
 rnd_gen = np.random.default_rng(0)
@@ -25,13 +25,8 @@ class SPPEnv(gym.Env):
         observation_type: str = "vector",
         options: bool = False,
     ):
-        self.problem_instance = main_problem_instance
         self.max_pcc = max_pcc
         self.max_step = max_step
-        self.network_graph = self.problem_instance.network_graph
-        self.graph = self.network_graph.nx_graph
-        self.path_cache = ShortestPathCache(self.graph)
-        self.saved_shortest_path = self.path_cache._paths
         self.list_of_instances = training_set
         self.warm_start_heuristic = warm_start_heuristic
         self.observation_type = observation_type
@@ -39,26 +34,30 @@ class SPPEnv(gym.Env):
             "vector",
         ], "Only vector observations are implemented."
         self.options = options
+        self.initial_instance = main_problem_instance
+        self.scores = [0]
+        self.steps_done = 0
+        self.episode_start_score_index = 0
+        self._load_instance(main_problem_instance)
+        self.best_solution = (self.state, self._get_score(self.state))
 
+    def _load_instance(self, problem_instance: ProblemInstance):
+        """Load problem-specific objects without rebuilding environment config."""
+        self.problem_instance = problem_instance
+        self.network_graph = self.problem_instance.network_graph
+        self.graph = self.network_graph.nx_graph
+        self.path_cache = ShortestPathCache(self.graph)
+        self.saved_shortest_path = self.path_cache._paths
         self.sol_ins = SolvingInstance(self.problem_instance)
-
-        if not hasattr(self, "first_time"):
-            self.initial_instance = main_problem_instance
-        self.first_time = False
-
+        self.initial_solution = None
         self._make_action_observation_spaces()
         self.state = self._initial_state()
         self.best_solution = (self.state, self._get_score(self.state))
 
-        self.steps_done = 0
-        if not hasattr(self, "scores"):
-            self.scores = [0]
-
-    def _initial_state(self) -> list:
+    def _initial_state(self) -> SPPState:
         """Build the initial placement, routing, and quantity state."""
-        # State layout: [service placements | path indices | demand quantities].
-        if hasattr(self, "lapremieresolution"):
-            return self.lapremieresolution
+        if self.warm_start_heuristic and self.initial_solution is not None:
+            return self.initial_solution
 
         node_with_max_resources = np.argmax(
             [self.graph.nodes[node]["available_resources"] for node in self.graph.nodes]
@@ -67,10 +66,7 @@ class SPPEnv(gym.Env):
             node_with_max_resources
         ] * self.problem_instance.number_of_service
         path_indices = [0] * self.problem_instance.total_number_of_demands
-        quantities = self.problem_instance.min_flows
-
-        if not hasattr(self, "scores"):
-            self.scores = [0]
+        quantities = list(self.problem_instance.min_flows)
 
         if self.warm_start_heuristic:
             heuristic_solution = Solver(self.problem_instance, 3, 3)
@@ -81,11 +77,16 @@ class SPPEnv(gym.Env):
             quantities = heuristic_solution.quantities
             self.scores.append(sum(quantities))
 
-            self.lapremieresolution = service_placement + path_indices + quantities
+            self.initial_solution = SPPState(
+                list(service_placement),
+                list(path_indices),
+                list(quantities),
+            )
+            return self.initial_solution
 
-        return service_placement + path_indices + quantities
+        return SPPState(service_placement, path_indices, quantities)
 
-    def _basic_placement_state(self) -> list:
+    def _basic_placement_state(self) -> SPPState:
         node_with_max_resources = np.argmax(
             [self.graph.nodes[node]["available_resources"] for node in self.graph.nodes]
         )
@@ -93,8 +94,8 @@ class SPPEnv(gym.Env):
             node_with_max_resources
         ] * self.problem_instance.number_of_service
         path_indices = [0] * self.problem_instance.total_number_of_demands
-        quantities = self.problem_instance.min_flows
-        return service_placement + path_indices + quantities
+        quantities = list(self.problem_instance.min_flows)
+        return SPPState(service_placement, path_indices, quantities)
 
     def reset(
         self,
@@ -116,29 +117,22 @@ class SPPEnv(gym.Env):
             self.observation_type if observation_type is None else observation_type
         )
         options = self.options if options is None else options
+        self.warm_start_heuristic = warm_start_heuristic
+        self.observation_type = observation_type
+        self.options = options
+
+        selected_instance = self.problem_instance
 
         if self.list_of_instances is not None:
-            new_instance = rnd_gen.choice(self.list_of_instances)
-            self.__init__(
-                new_instance,
-                self.max_step,
-                self.max_pcc,
-                self.list_of_instances,
-                warm_start_heuristic=warm_start_heuristic,
-                observation_type=observation_type,
-                options=options,
-            )
+            selected_instance = rnd_gen.choice(self.list_of_instances)
 
         if initial_instance:
-            self.__init__(
-                self.initial_instance,
-                self.max_step,
-                self.max_pcc,
-                self.list_of_instances,
-                warm_start_heuristic=warm_start_heuristic,
-                observation_type=observation_type,
-                options=options,
-            )
+            selected_instance = self.initial_instance
+
+        if selected_instance is not self.problem_instance:
+            self._load_instance(selected_instance)
+        else:
+            self._make_action_observation_spaces()
 
         if not self.options:
             self.state = self._initial_state()
@@ -146,40 +140,39 @@ class SPPEnv(gym.Env):
             self.state = self.best_solution[0]
 
         self.steps_done = 0
+        self.episode_start_score_index = len(self.scores)
         return self._observe(self.state), {}
 
     def _update_placement(
-        self, state: list, selected_service: int, choosen_node: int
+        self, state, selected_service: int, chosen_node: int
     ) -> tuple:
         """Try moving one service, keeping the old state when infeasible."""
-        new_state = state.copy()
-        new_state[selected_service] = choosen_node
+        placement, routing, quantities = self._state_to_vectors(state)
+        new_state = SPPState(list(placement), list(routing), list(quantities))
+        new_state.placements[selected_service] = chosen_node
         done = self._test_solution(new_state)
         if done:
             return new_state, done
         return state, done
 
-    def _reroute(self, state: list, selected_demand: int, choosen_sp: int) -> tuple:
+    def _reroute(self, state, selected_demand: int, chosen_path_index: int) -> tuple:
         """Try rerouting one demand through the selected path index."""
-        new_state = state.copy()
-        new_state[self.problem_instance.number_of_service + selected_demand] = (
-            choosen_sp
-        )
-
+        placement, routing, quantities = self._state_to_vectors(state)
+        new_state = SPPState(list(placement), list(routing), list(quantities))
+        new_state.path_indices[selected_demand] = chosen_path_index
         done = self._test_solution(new_state)
         if done:
             return new_state, done
         return state, done
 
     def _update_quantity(
-        self, state: list, selected_demand: int, action_q: int
+        self, state, selected_demand: int, action_q: int
     ) -> tuple:
         """For one demand, apply -1, 0, or +1 according to action_q."""
-        action_q = action_q - 1
-        state_index = -self.problem_instance.total_number_of_demands + selected_demand
-        new_state = state.copy()
-        new_state[state_index] += action_q
-
+        quantity_delta = action_q - 1
+        placement, routing, quantities = self._state_to_vectors(state)
+        new_state = SPPState(list(placement), list(routing), list(quantities))
+        new_state.quantities[selected_demand] += quantity_delta
         done = self._test_solution(new_state)
         if done:
             return new_state, done
@@ -189,15 +182,8 @@ class SPPEnv(gym.Env):
         print(self.state)
 
     def step(self, action: tuple):
-        self.steps_done += 1
-
-        truncated = self.steps_done >= self.max_step
         terminated = False
         info = {}
-
-        if truncated:
-            reward = 0.0
-            return self._observe(self.state), reward, terminated, truncated, info
 
         state = self.state
 
@@ -205,19 +191,19 @@ class SPPEnv(gym.Env):
         (
             operation,
             selected_service,
-            choosen_node_for_this_service,
+            chosen_node_for_this_service,
             selected_demand,
             action_q,
-            choosen_sp,
+            chosen_path_index,
         ) = action
 
         if operation == 0:
             state, done = self._update_placement(
-                state, selected_service, choosen_node_for_this_service
+                state, selected_service, chosen_node_for_this_service
             )
             reward = -1 if done else -10
         elif operation == 1:
-            state, done = self._reroute(state, selected_demand, choosen_sp)
+            state, done = self._reroute(state, selected_demand, chosen_path_index)
             reward = -1 if done else -2
         else:
             state, _ = self._update_quantity(state, selected_demand, action_q)
@@ -233,6 +219,8 @@ class SPPEnv(gym.Env):
         if self.best_solution[1] < current_score:
             self.best_solution = (state, current_score)
 
+        self.steps_done += 1
+        truncated = self.steps_done >= self.max_step
         return obs, reward / 100, terminated, truncated, info
 
     def _compute_nth_shortest_path(
@@ -342,7 +330,8 @@ class SPPEnv(gym.Env):
         return max(self.scores)
 
     def _max_score_episode(self) -> float:
-        return max(self.scores[-self.steps_done :])
+        episode_scores = self.scores[self.episode_start_score_index :]
+        return max(episode_scores) if episode_scores else 0
 
     def _max_score_previous_episodes(self) -> float:
         return (
