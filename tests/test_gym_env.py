@@ -19,7 +19,7 @@ def make_env(max_step=3):
     return SPPEnv(
         instance,
         max_step=max_step,
-        max_pcc=2,
+        max_path_candidates=2,
         warm_start_heuristic=False,
         observation_type="vector",
     )
@@ -30,7 +30,7 @@ def make_tree_env(max_step=3):
     return SPPEnv(
         instance,
         max_step=max_step,
-        max_pcc=2,
+        max_path_candidates=2,
         warm_start_heuristic=False,
         observation_type="vector",
     )
@@ -75,7 +75,7 @@ def test_gym_environment_reset_and_random_steps():
 
 def test_gym_state_to_vectors_splits_state_by_problem_dimensions():
     env = make_env()
-    state = env._basic_placement_state()
+    state = env._make_basic_state()
 
     placement, routing, quantities = env._state_to_vectors(state)
 
@@ -87,17 +87,17 @@ def test_gym_state_to_vectors_splits_state_by_problem_dimensions():
 
 def test_gym_score_uses_quantities_only():
     env = make_env()
-    state = env._basic_placement_state()
+    state = env._make_basic_state()
 
     placement, routing, quantities = env._state_to_vectors(state)
 
-    assert env._get_score(state) == sum(quantities)
-    assert env._get_score(state) != sum(placement) + sum(routing)
+    assert env._score_state(state) == sum(quantities)
+    assert env._score_state(state) != sum(placement) + sum(routing)
 
 
 def test_gym_state_to_variables_returns_feasible_solution_arrays():
     env = make_tree_env()
-    state = env._basic_placement_state()
+    state = env._make_basic_state()
 
     x_var, y_var, q_var = env._state_to_variables(state)
 
@@ -110,7 +110,7 @@ def test_gym_state_to_variables_returns_feasible_solution_arrays():
         env.graph.number_of_nodes(),
     )
     assert q_var.shape == (env.problem_instance.total_number_of_demands,)
-    assert env._test_solution(state)
+    assert env._is_feasible_state(state)
 
 
 def test_gym_rejects_unimplemented_gcn_observation_mode():
@@ -129,24 +129,28 @@ def test_gym_reset_preserves_or_accepts_reset_configuration():
         training_set=[second_instance],
         warm_start_heuristic=False,
         observation_type="vector",
-        options=True,
+        reuse_best_on_reset=True,
     )
 
-    env.reset(warm_start_heuristic=False, observation_type="vector", options=True)
+    env.reset(
+        warm_start_heuristic=False,
+        observation_type="vector",
+        reuse_best_on_reset=True,
+    )
 
     assert env.warm_start_heuristic is False
     assert env.observation_type == "vector"
-    assert env.options is True
+    assert env.reuse_best_on_reset is True
 
 
 def test_gym_invalid_path_index_is_infeasible():
     env = make_tree_env()
-    state = env._basic_placement_state()
+    state = env._make_basic_state()
     placement, routing, quantities = env._state_to_vectors(state)
     routing[0] = 999
     invalid_state = list(placement) + list(routing) + list(quantities)
 
-    assert not env._test_solution(invalid_state)
+    assert not env._is_feasible_state(invalid_state)
 
 
 def test_gym_reset_restores_step_count_and_initial_observation_shape():

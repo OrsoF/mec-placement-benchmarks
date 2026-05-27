@@ -17,7 +17,7 @@ class Solver(RLSolver):
         train_step=10000,
         evaluation_step=100,
         method="PPO",
-        options=True,
+        reuse_best_on_reset=True,
     ):
         max_step = 1000 + problem_instance.number_of_service * 10
         train_step = 10000 + problem_instance.number_of_service * 20
@@ -28,7 +28,7 @@ class Solver(RLSolver):
             train_step=train_step,
             evaluation_step=evaluation_step,
             method=method,
-            options=options,
+            reuse_best_on_reset=reuse_best_on_reset,
         )
 
     def run(self):

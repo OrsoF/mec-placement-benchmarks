@@ -56,6 +56,48 @@ def state_to_vectors(problem_instance: ProblemInstance, state) -> tuple:
     return service_placement, path_indices, quantities
 
 
+def make_basic_state(problem_instance: ProblemInstance, graph) -> SPPState:
+    """Build the simple baseline state used before optional warm starts."""
+    node_with_max_resources = np.argmax(
+        [graph.nodes[node]["available_resources"] for node in graph.nodes]
+    )
+    service_placement = [
+        node_with_max_resources
+    ] * problem_instance.number_of_service
+    path_indices = [0] * problem_instance.total_number_of_demands
+    quantities = list(problem_instance.min_flows)
+    return SPPState(service_placement, path_indices, quantities)
+
+
+def clip_state_to_bounds(
+    problem_instance: ProblemInstance,
+    graph,
+    max_path_candidates: int,
+    state,
+) -> SPPState:
+    """Clip a flat or named state to action-compatible integer bounds."""
+    placement, routing, quantities = state_to_vectors(problem_instance, state)
+    node_count = graph.number_of_nodes()
+    return SPPState(
+        [
+            int(np.clip(round(node), 0, node_count - 1))
+            for node in placement
+        ],
+        [
+            int(np.clip(round(path_index), 0, max_path_candidates - 1))
+            for path_index in routing
+        ],
+        [
+            int(np.clip(round(quantity), min_flow, max_flow))
+            for quantity, min_flow, max_flow in zip(
+                quantities,
+                problem_instance.min_flows,
+                problem_instance.max_flows,
+            )
+        ],
+    )
+
+
 def state_to_variables(
     problem_instance: ProblemInstance,
     graph,

@@ -124,7 +124,9 @@ class SolvingInstance:
 
         return (placement, routing, quantities)
 
-    def render_solution(self, placement: list, routing: list, quantities: list):
+    def render_solution(self, placement: list = None, routing: list = None, quantities: list = None):
+        if placement is None or routing is None or quantities is None:
+            placement, routing, quantities = self.current_solution
 
         for service_index in range(self.problem_instance.number_of_service):
             print(f"Service {service_index} placed on node {placement[service_index]}.")
@@ -209,6 +211,33 @@ class SolvingInstance:
                 quantities = new_quantites
 
         return placement, routing, quantities
+
+    def _maximize_quantities_greedy(self):
+        """Backward-compatible helper used by legacy smoke scripts."""
+        placement, routing, quantities = self.basic_placement_and_routing()
+        self.current_solution = self.maximize_quantities(
+            placement, routing, quantities, addten=False
+        )
+        self.graph = self.initialize_graph_attributes(self.graph)
+        self.graph = self.update_graph_attributes(self.graph, *self.current_solution)
+        return self.current_solution
+
+    def reset_instance(self):
+        """Reset mutable graph attributes for compatibility with older scripts."""
+        self.graph = self.initialize_graph_attributes(self.graph)
+        return self.graph
+
+    def set_variable_solution(self, x_variable, y_variable, q_variable):
+        """Store an arc/matrix solution in vector form for rendering."""
+        placement = [
+            int(np.argmax(y_variable[service_index]))
+            for service_index in range(self.problem_instance.number_of_service)
+        ]
+        routing = [0 for _ in range(self.problem_instance.total_number_of_demands)]
+        quantities = list(q_variable)
+        self.current_solution = (placement, routing, quantities)
+        self.graph = self.update_graph_attributes(self.graph, *self.current_solution)
+        return self.current_solution
 
     def _get_remaining_quantity_per_demand(
         self, placement: list, routing: list, quantities: list, demand_index: int

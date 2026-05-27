@@ -29,6 +29,8 @@ SOLVER_FILE_ALIASES = {
     "rl_A2C": "a2c",
     "rl_PPO": "ppo",
     "rl_PPO_options": "ppo_options",
+    "base_heuristic": "heuristic",
+    "rl_base": os.path.join("rl", "a2c"),
 }
 
 

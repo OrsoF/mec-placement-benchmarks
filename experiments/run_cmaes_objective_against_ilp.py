@@ -29,7 +29,7 @@ def objective(value: np.ndarray):
     env.state = value
     env.clip_state()
     try:
-        env._test_solution()
+        assert env._is_feasible_state(env.state)
         obj = np.sum(env.state[-D:])
         if obj > max_value:
             max_value = obj

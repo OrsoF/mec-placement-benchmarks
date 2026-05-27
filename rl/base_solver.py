@@ -16,7 +16,7 @@ class Solver(GenericSolver):
         train_step: int,
         evaluation_step: int,
         method: str,
-        options: bool = False,
+        reuse_best_on_reset: bool = False,
     ):
         self.problem_instance = problem_instance
         self.train_step = train_step
@@ -39,7 +39,7 @@ class Solver(GenericSolver):
             main_problem_instance=problem_instance,
             max_step=max_step,
             training_set=training_instances_database,
-            options=options,
+            reuse_best_on_reset=reuse_best_on_reset,
         )
         self.env.reset()
 
@@ -61,10 +61,10 @@ class Solver(GenericSolver):
     ):
         start_time = time.time()
 
-        self.model.learn(total_timesteps=self.train_step, progress_bar=True)
+        self.model.learn(total_timesteps=self.train_step, progress_bar=False)
 
         self.runtime = time.time() - start_time
-        self.score = max(self.env.scores)
+        self.score = max(self.env.served_quantity_history)
 
         # obs, _ = self.env.reset(initial_instance=True)
         # action, _ = self.model.predict(obs)

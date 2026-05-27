@@ -342,7 +342,7 @@ class Solver(GenericSolver):
         solver = RlPPO(problem_instance=self.problem_instance)
         solver.run()
 
-        best_state = solver.env.best_solution[0]
+        best_state = solver.env.best_state_record[0]
 
         x_var, y_var, q_var = solver.env._state_to_variables(best_state)
         self._set_initial_value((x_var, y_var, q_var))
