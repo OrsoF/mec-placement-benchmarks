@@ -63,7 +63,7 @@ def make_services(
     return service_package
 
 
-ALL_GML_PATH = os.path.join(os.getcwd(), "data/topologies")
+ALL_GML_PATH = os.path.join(os.getcwd(), "data", "topologies")
 INSTANCE_PATH = os.path.join(os.getcwd(), "artifacts", "instances")
 
 

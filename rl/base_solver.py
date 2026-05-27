@@ -1,73 +1,86 @@
-"Le solveur RL qu'on utilise."
+"""Shared training wrapper for reinforcement-learning solvers."""
+
+import time
+
+from stable_baselines3 import A2C, PPO
 
 from core.generic_solver import GenericSolver
 from core.problem_classes.problem_instance import ProblemInstance
-import time
-from stable_baselines3 import A2C, PPO
 from rl.spp_env import SPPEnv
+
+
+MODEL_CLASSES = {
+    "A2C": A2C,
+    "PPO": PPO,
+}
 
 
 class Solver(GenericSolver):
     def __init__(
         self,
         problem_instance: ProblemInstance,
-        training_instances_database: list,
+        training_instances_database: list[ProblemInstance] | None,
         max_step: int,
         train_step: int,
         evaluation_step: int,
         method: str,
         reuse_best_on_reset: bool = False,
     ):
-        self.problem_instance = problem_instance
+        super().__init__(problem_instance)
+
         self.train_step = train_step
-        self.solver_name = f"rl_{method}"
-        # self.evaluation_step = evaluation_step
+        self.evaluation_step = evaluation_step
+        self.method = method.upper()
+        self.solver_name = f"rl_{self.method}"
 
-        # def make_env():
-        #     env = SPPEnv(
-        #         main_problem_instance=problem_instance,
-        #         max_step=max_step,
-        #         training_set=training_instances_database,
-        #     )
-        #     env.reset()
-        #     return env
+        self.env = self._make_env(
+            problem_instance,
+            max_step,
+            training_instances_database,
+            reuse_best_on_reset,
+        )
+        self.model = self._make_model()
 
-        # n_envs = 4
-        # self.vec_env = SubprocVecEnv([make_env for _ in range(n_envs)])
-
-        self.env = SPPEnv(
+    def _make_env(
+        self,
+        problem_instance: ProblemInstance,
+        max_step: int,
+        training_instances_database: list[ProblemInstance] | None,
+        reuse_best_on_reset: bool,
+    ) -> SPPEnv:
+        env = SPPEnv(
             main_problem_instance=problem_instance,
             max_step=max_step,
             training_set=training_instances_database,
             reuse_best_on_reset=reuse_best_on_reset,
         )
-        self.env.reset()
+        env.reset()
+        return env
 
-        if method == "A2C":
-            self.model = A2C("MlpPolicy", self.env, verbose=0, seed=0)
-        elif method == "PPO":
-            self.model = PPO(
-                "MlpPolicy",
-                self.env,
-                verbose=0,
-                seed=0,
-                ent_coef=0.01,
+    def _make_model(self):
+        if self.method not in MODEL_CLASSES:
+            known_methods = ", ".join(sorted(MODEL_CLASSES))
+            raise ValueError(
+                f"Unknown RL method '{self.method}'. Expected one of: {known_methods}."
             )
-        else:
-            assert False, "Not a known method."
 
-    def run(
-        self,
-    ):
+        model_kwargs = {
+            "policy": "MlpPolicy",
+            "env": self.env,
+            "verbose": 0,
+            "seed": 0,
+        }
+        if self.method == "PPO":
+            model_kwargs["ent_coef"] = 0.01
+
+        return MODEL_CLASSES[self.method](**model_kwargs)
+
+    def run(self):
         start_time = time.time()
 
         self.model.learn(total_timesteps=self.train_step, progress_bar=False)
 
         self.runtime = time.time() - start_time
         self.score = max(self.env.served_quantity_history)
-
-        # obs, _ = self.env.reset(initial_instance=True)
-        # action, _ = self.model.predict(obs)
-        # for _ in trange(self.evaluation_step):
-        #     obs, _, _, _, _ = self.env.step(action)
-        #     action, _ = self.model.predict(obs)
+        self.build_time = 0.0
+        return self

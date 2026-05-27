@@ -1,134 +1,230 @@
-import os
-import pandas as pd
+"""Run benchmark experiments and append solver results to a dated CSV file."""
+
+from __future__ import annotations
+
 import argparse
+import os
+from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import datetime
-from instances.tree_builder import make_tree_instance
-from instances.parallel_builder import build_star_instance
-from data_io.experiment_io import solve
-from data_io.pickle_io import pickle_load, pickle_save
-from core.generic_solver import GenericSolver
-from solvers.exact.ilp_arc import Solver as Solver_ILP_arc
-from solvers.exact.ilp_arc_95_latency import Solver as Solver_ILP_arc_95
-from solvers.exact.ilp_path import Solver as Solver_ILP_path
-from solvers.heuristic.heuristic import Solver as Heuristic
-from solvers.evolutionary.cma import Solver as Cma
-from solvers.rl.a2c import Solver as A2c
-from solvers.rl.ppo import Solver as Ppo
-from solvers.exact.ilp_arc_heuristic_warmstart import Solver as Solver_ILP_arc_hws
-from solvers.exact.ilp_arc_heuristic_placement import (
-    Solver as Solver_ILP_arc_heuristic_placement,
-)
-from solvers.exact.ilp_arc_rl_warmstart import Solver as Solver_ILP_arc_rl_warm_start
-from solvers.rl.ppo_options import Solver as Ppo_options
+from pathlib import Path
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-argparser = argparse.ArgumentParser(description="Run the tree instance")
-argparser.add_argument("--instance", type=str, required=True)
-args = argparser.parse_args()
-instance = args.instance
-assert instance in {"tree", "parallel"}
 
-current_date = datetime.now().strftime("%d_%m_%y")
-CSV_PATH = os.path.join("artifacts", "data", f"results_{current_date}.csv")
-# CSV_PATH = "results_12_02_25.csv"
-os.makedirs(os.path.dirname(CSV_PATH), exist_ok=True)
-if not os.path.exists(CSV_PATH):
-    df = pd.DataFrame(
-        columns=[
-            "instance",
-            "solver",
-            "users",
-            "neighbors",
-            "groups",
-            "score",
-            "runtime",
-            "buildtime",
-        ]
-    )
-    df.to_csv(CSV_PATH, index=False)
+import pandas as pd
 
-solvers = {
-    "ilp_arc": Solver_ILP_arc,
-    # "ilp_arc_95": Solver_ILP_arc_95,
-    # "ilp_arc_heuristic_placement": Solver_ILP_arc_heuristic_placement,
-    # "ilp_arc_heuristic_warm_start": Solver_ILP_arc_hws,
-    # "ilp_arc_rl_warm_start": Solver_ILP_arc_rl_warm_start,
-    # "ilp_path": Solver_ILP_path,
-    "heuristic": Heuristic,
-    "PPO": Ppo,
-    # "PPO_options": Ppo_options,
+from core.generic_solver import GenericSolver
+from core.problem_classes.problem_instance import ProblemInstance
+from instances.parallel_builder import build_star_instance
+from instances.tree_builder import make_tree_instance
+from solvers.exact.ilp_arc import Solver as IlpArcSolver
+from solvers.heuristic.heuristic import Solver as HeuristicSolver
+from solvers.rl.ppo import Solver as PpoSolver
+
+
+RESULT_COLUMNS = [
+    "instance",
+    "solver",
+    "users",
+    "neighbors",
+    "groups",
+    "score",
+    "runtime",
+    "buildtime",
+]
+
+SOLVER_REGISTRY: dict[str, Callable[[ProblemInstance], GenericSolver]] = {
+    "ilp_arc": IlpArcSolver,
+    "heuristic": HeuristicSolver,
+    "PPO": PpoSolver,
 }
 
+DEFAULT_SOLVERS = ["ilp_arc", "heuristic", "PPO"]
 
-def update_csv(
-    instance: str,
-    solver: str,
-    users: str,
-    neighbors: str,
-    groups: str,
-    score: float,
-    runtime: float,
-    buildtime: float,
-) -> None:
-    df = pd.read_csv(CSV_PATH)
-    new_df = pd.DataFrame(
-        {
-            "instance": instance,
-            "solver": solver,
-            "users": users,
-            "neighbors": neighbors,
-            "groups": groups,
-            "score": score,
-            "runtime": runtime,
-            "buildtime": buildtime,
-        },
-        index=[len(df)],
+
+@dataclass(frozen=True)
+class ExperimentConfig:
+    instance_type: str
+    result_path: Path
+    solver_names: list[str]
+    neighbors: int
+    groups: int
+    user_counts: range
+
+
+def default_user_counts(instance_type: str) -> range:
+    if instance_type == "tree":
+        return range(140, 410, 10)
+    return range(35, 125, 5)
+
+
+def parse_args() -> ExperimentConfig:
+    parser = argparse.ArgumentParser(description="Run SPP benchmark experiments.")
+    parser.add_argument("--instance", choices=["tree", "parallel"], required=True)
+    parser.add_argument(
+        "--solvers",
+        nargs="+",
+        choices=sorted(SOLVER_REGISTRY),
+        default=DEFAULT_SOLVERS,
+        help="Solvers to run, in order.",
     )
-    df = pd.concat([df, new_df], axis=0)
-    df.to_csv(CSV_PATH, index=False)
+    parser.add_argument("--neighbors", type=int, default=1)
+    parser.add_argument("--groups", type=int, default=4)
+    parser.add_argument("--start-users", type=int)
+    parser.add_argument("--stop-users", type=int)
+    parser.add_argument("--step-users", type=int)
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=default_result_path(),
+        help="CSV file where results are appended.",
+    )
+    args = parser.parse_args()
+
+    user_counts = resolve_user_counts(
+        args.instance,
+        args.start_users,
+        args.stop_users,
+        args.step_users,
+    )
+    return ExperimentConfig(
+        instance_type=args.instance,
+        result_path=args.output,
+        solver_names=args.solvers,
+        neighbors=args.neighbors,
+        groups=args.groups,
+        user_counts=user_counts,
+    )
 
 
-def experience(users: int):
-    neighbors, groups = 1, 4
+def default_result_path() -> Path:
+    current_date = datetime.now().strftime("%d_%m_%y")
+    return Path("artifacts") / "data" / f"results_{current_date}.csv"
 
-    if instance == "tree":
-        problem_instance = make_tree_instance(users, neighbors)
-    elif instance == "parallel":
-        problem_instance = build_star_instance(
-            users, neighbors, groups
-        )
 
-    total_user_count = users if instance == "tree" else users * groups
+def resolve_user_counts(
+    instance_type: str,
+    start: int | None,
+    stop: int | None,
+    step: int | None,
+) -> range:
+    default_range = default_user_counts(instance_type)
+    return range(
+        default_range.start if start is None else start,
+        default_range.stop if stop is None else stop,
+        default_range.step if step is None else step,
+    )
 
-    for solver_name, solver in solvers.items():
 
-        solver: GenericSolver = solver(problem_instance)
+def ensure_results_file(result_path: Path) -> None:
+    result_path.parent.mkdir(parents=True, exist_ok=True)
+    if not result_path.exists():
+        pd.DataFrame(columns=RESULT_COLUMNS).to_csv(result_path, index=False)
 
-        if "ilp_arc" in solver_name and problem_instance.number_of_service > 150:
+
+def build_problem_instance(
+    instance_type: str,
+    users: int,
+    neighbors: int,
+    groups: int,
+) -> ProblemInstance:
+    if instance_type == "tree":
+        return make_tree_instance(users, neighbors)
+    return build_star_instance(users, neighbors, groups)
+
+
+def total_user_count(instance_type: str, users: int, groups: int) -> int:
+    if instance_type == "tree":
+        return users
+    return users * groups
+
+
+def should_skip_solver(solver_name: str, problem_instance: ProblemInstance) -> bool:
+    return "ilp_arc" in solver_name and problem_instance.number_of_service > 150
+
+
+def append_result(
+    result_path: Path,
+    instance_type: str,
+    solver_name: str,
+    users: int,
+    neighbors: int,
+    groups: int,
+    solver: GenericSolver,
+) -> None:
+    result_row = pd.DataFrame(
+        [
+            {
+                "instance": instance_type,
+                "solver": solver_name,
+                "users": users,
+                "neighbors": neighbors,
+                "groups": groups,
+                "score": solver.score,
+                "runtime": solver.runtime,
+                "buildtime": solver.build_time or 0.0,
+            }
+        ],
+        columns=RESULT_COLUMNS,
+    )
+    result_row.to_csv(result_path, mode="a", header=False, index=False)
+
+
+def run_solver(
+    solver_factory: Callable[[ProblemInstance], GenericSolver],
+    problem_instance: ProblemInstance,
+) -> GenericSolver:
+    solver = solver_factory(problem_instance)
+    solver.run()
+    return solver
+
+
+def run_one_size(config: ExperimentConfig, users: int) -> None:
+    problem_instance = build_problem_instance(
+        config.instance_type,
+        users,
+        config.neighbors,
+        config.groups,
+    )
+    user_count = total_user_count(config.instance_type, users, config.groups)
+
+    for solver_name in config.solver_names:
+        if should_skip_solver(solver_name, problem_instance):
+            print(f"Skipping {solver_name} for size {user_count}: instance too large.")
             continue
 
-        solver.run()
-
-        if not hasattr(solver, "build_time"):
-            solver.build_time = 0.0
-
-        print(
-            f"Solver {solver_name} with size {total_user_count} : score {solver.score} and runtime {solver.runtime}"
+        solver = run_solver(
+            SOLVER_REGISTRY[solver_name],
+            problem_instance,
         )
-
-        update_csv(
-            instance,
+        print_result(solver_name, user_count, solver)
+        append_result(
+            config.result_path,
+            config.instance_type,
             solver_name,
-            total_user_count,
-            neighbors,
-            groups,
-            solver.score,
-            solver.runtime,
-            solver.build_time,
+            user_count,
+            config.neighbors,
+            config.groups,
+            solver,
         )
 
 
-users = range(140, 410, 10) if instance == "tree" else range(35, 125, 5)
+def print_result(solver_name: str, users: int, solver: GenericSolver) -> None:
+    print(
+        f"Solver {solver_name} with size {users}: "
+        f"score {solver.score} and runtime {solver.runtime}"
+    )
 
-for user_count in users:
-    experience(user_count)
+
+def run_experiments(config: ExperimentConfig) -> None:
+    ensure_results_file(config.result_path)
+    for users in config.user_counts:
+        run_one_size(config, users)
+
+
+def main() -> None:
+    run_experiments(parse_args())
+
+
+if __name__ == "__main__":
+    main()
