@@ -3,19 +3,19 @@ import pandas as pd
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
-from instances.build_parallel import build_star_instance
-from data_io.data_management import solve
-from data_io.pickle import pickle_load, pickle_save
+from instances.parallel_builder import build_star_instance
+from data_io.experiment_io import solve
+from data_io.pickle_io import pickle_load, pickle_save
 from core.generic_solver import GenericSolver
 
-from solvers.exact.ILP_arc import Solver as Solver_ILP_arc
-from solvers.exact.ILP_path import Solver as Solver_ILP_path
+from solvers.exact.ilp_arc import Solver as Solver_ILP_arc
+from solvers.exact.ilp_path import Solver as Solver_ILP_path
 from solvers.heuristic.heuristic import Solver as Heuristic
 from solvers.evolutionary.cma import Solver as Cma
-from solvers.rl.rl_A2C import Solver as A2c
-from solvers.rl.rl_PPO import Solver as Ppo
-from solvers.exact.ILP_arc_95 import Solver as Solver_ILP_arc_95
-from solvers.exact.ILP_arc_heuristic_warmstart import Solver as Solver_ILP_arc_hws
+from solvers.rl.a2c import Solver as A2c
+from solvers.rl.ppo import Solver as Ppo
+from solvers.exact.ilp_arc_95 import Solver as Solver_ILP_arc_95
+from solvers.exact.ilp_arc_heuristic_warmstart import Solver as Solver_ILP_arc_hws
 
 CSV_PATH = "results_03_02_25.csv"
 solvers = {

@@ -1,6 +1,6 @@
 """Archived experimental Gym environment.
 
-The supported environment is ``rl.gym_instance.SPPEnv``. This file is kept
+The supported environment is ``rl.spp_env.SPPEnv``. This file is kept
 only for historical reference because it duplicates most of the active
 environment and contains unfinished graph-observation code.
 """
@@ -11,8 +11,8 @@ import networkx as nx
 from torch_geometric.utils.convert import from_networkx
 
 from gymnasium.spaces import Tuple, Box, MultiDiscrete
-from core.problem_classes.solvinginstance import SolvingInstance
-from core.problem_classes.probleminstance import ProblemInstance
+from core.problem_classes.solving_instance import SolvingInstance
+from core.problem_classes.problem_instance import ProblemInstance
 from core.graph_utils import path_node_to_path_tuple
 import matplotlib.pyplot as plt
 from solvers.heuristic.heuristic import Solver

@@ -1,6 +1,6 @@
-from rl.gym_instance import SPPEnv
-from instances.build_tree import make_tree_instance
-from data_io.data_management import solve
+from rl.spp_env import SPPEnv
+from instances.tree_builder import make_tree_instance
+from data_io.experiment_io import solve
 from stable_baselines3 import A2C
 import os
 
@@ -13,7 +13,7 @@ problem_instance = make_tree_instance(
     number_of_users=users, neighbors_connection=neighbors
 )
 
-from core.problem_classes.solvinginstance import SolvingInstance
+from core.problem_classes.solving_instance import SolvingInstance
 
 sol = SolvingInstance(problem_instance=problem_instance)
 sol.basic_placement_and_routing()

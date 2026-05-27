@@ -1,6 +1,6 @@
 from core.generic_solver import GenericSolver
-from core.problem_classes.probleminstance import ProblemInstance
-from core.problem_classes.solvinginstance import SolvingInstance
+from core.problem_classes.problem_instance import ProblemInstance
+from core.problem_classes.solving_instance import SolvingInstance
 
 import cma
 import time

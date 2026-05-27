@@ -1,10 +1,10 @@
 "Le solveur RL qu'on utilise."
 
 from core.generic_solver import GenericSolver
-from core.problem_classes.probleminstance import ProblemInstance
+from core.problem_classes.problem_instance import ProblemInstance
 import time
 from stable_baselines3 import A2C, PPO
-from rl.gym_instance import SPPEnv
+from rl.spp_env import SPPEnv
 
 
 class Solver(GenericSolver):

@@ -1,12 +1,12 @@
 from core.generic_solver import GenericSolver
-from core.problem_classes.servicepackage import ServicePackage
-from core.problem_classes.networkgraph import NetworkGraph
+from core.problem_classes.service_package import ServicePackage
+from core.problem_classes.network_graph import NetworkGraph
 from core.problem_classes.service import Service
-from core.problem_classes.probleminstance import ProblemInstance
-from data_io.data_management import get_info_from_results
+from core.problem_classes.problem_instance import ProblemInstance
+from data_io.experiment_io import get_info_from_results
 from core.graph_utils import get_encoded_incoming_arc, get_encoded_outgoing_arc
 from solvers.base_heuristic import greedy_server_allocation
-from solvers.exact.ILP_path import Solver as ilp_solver
+from solvers.exact.ilp_path import Solver as ilp_solver
 
 import pyomo.environ as pyo
 import time

@@ -5,9 +5,9 @@ import pytest
 
 gymnasium = pytest.importorskip("gymnasium")
 
-from instances.build_parallel import build_star_instance
-from instances.build_tree import make_tree_instance
-from rl.gym_instance import SPPEnv
+from instances.parallel_builder import build_star_instance
+from instances.tree_builder import make_tree_instance
+from rl.spp_env import SPPEnv
 
 
 def make_env(max_step=3):
@@ -39,7 +39,7 @@ def make_tree_env(max_step=3):
 def test_primary_gym_environment_lives_in_rl_package():
     root_dir = Path(__file__).resolve().parents[1]
 
-    assert (root_dir / "rl" / "gym_instance.py").exists()
+    assert (root_dir / "rl" / "spp_env.py").exists()
     assert not (root_dir / "utils").exists()
     assert (root_dir / "archive" / "legacy" / "gym_instance_2.py").exists()
 

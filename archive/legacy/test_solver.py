@@ -1,4 +1,4 @@
-from instances.build_parallel import build_star_instance
+from instances.parallel_builder import build_star_instance
 
 number_of_groups = 5
 users_per_group = 10

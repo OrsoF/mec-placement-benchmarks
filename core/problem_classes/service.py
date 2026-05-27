@@ -1,4 +1,4 @@
-from core.problem_classes.networkgraph import NetworkGraph
+from core.problem_classes.network_graph import NetworkGraph
 from core.problem_classes.demand import Demand
 
 

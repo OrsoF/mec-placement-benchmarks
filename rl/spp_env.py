@@ -3,8 +3,8 @@ import networkx as nx
 import numpy as np
 
 from core.graph_utils import path_node_to_path_tuple
-from core.problem_classes.probleminstance import ProblemInstance
-from core.problem_classes.solvinginstance import SolvingInstance
+from core.problem_classes.problem_instance import ProblemInstance
+from core.problem_classes.solving_instance import SolvingInstance
 from rl.observation import make_action_space, make_vector_observation_space, observe_vector
 from rl.path_cache import ShortestPathCache
 from rl.reward import score_state

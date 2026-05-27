@@ -4,7 +4,7 @@ from gymnasium.spaces import Box, MultiDiscrete
 from rl.state_codec import state_to_list
 
 
-def make_action_space(problem_instance, graph, max_pcc: int) -> MultiDiscrete:
+def make_action_space(problem_instance, graph, max_path_candidates: int) -> MultiDiscrete:
     return MultiDiscrete(
         [
             3,
@@ -12,12 +12,14 @@ def make_action_space(problem_instance, graph, max_pcc: int) -> MultiDiscrete:
             graph.number_of_nodes(),
             problem_instance.total_number_of_demands,
             3,
-            max_pcc,
+            max_path_candidates,
         ]
     )
 
 
-def make_vector_observation_space(problem_instance, graph, max_pcc: int) -> Box:
+def make_vector_observation_space(
+    problem_instance, graph, max_path_candidates: int
+) -> Box:
     demand_count = problem_instance.total_number_of_demands
     service_count = problem_instance.number_of_service
     node_count = graph.number_of_nodes()
@@ -51,7 +53,7 @@ def make_vector_observation_space(problem_instance, graph, max_pcc: int) -> Box:
     )
     high_array = np.array(
         [max(node_count - 1, 0)] * service_count
-        + [max(max_pcc - 1, 0)] * demand_count
+        + [max(max_path_candidates - 1, 0)] * demand_count
         + list(problem_instance.max_flows)
         + latency_ratio_high
         + [1.0] * edge_count
@@ -70,7 +72,7 @@ def make_vector_observation_space(problem_instance, graph, max_pcc: int) -> Box:
     )
 
 
-def observe_vector(env, state: list) -> np.ndarray:
+def make_vector_observation(env, state: list) -> np.ndarray:
     """Build the flat observation vector used by current RL agents."""
     env._reset_edge_attributes()
     env._reset_node_attributes()
@@ -78,7 +80,7 @@ def observe_vector(env, state: list) -> np.ndarray:
     env._update_node_attributes(state)
 
     latency_proportion = [
-        env._get_latency_demand(demand_index, state)
+        env._get_demand_latency(demand_index, state)
         / env.problem_instance.latencies[demand_index]
         for demand_index in range(env.problem_instance.total_number_of_demands)
     ]
@@ -95,7 +97,7 @@ def observe_vector(env, state: list) -> np.ndarray:
     ]
 
     path_lengths = [
-        len(env._get_path_demand(demand_index, state))
+        len(env._get_demand_path(demand_index, state))
         for demand_index in range(env.problem_instance.total_number_of_demands)
     ]
 
@@ -112,3 +114,8 @@ def observe_vector(env, state: list) -> np.ndarray:
         + path_lengths,
         dtype=np.float32,
     )
+
+
+def observe_vector(env, state: list) -> np.ndarray:
+    """Backward-compatible alias for make_vector_observation."""
+    return make_vector_observation(env, state)

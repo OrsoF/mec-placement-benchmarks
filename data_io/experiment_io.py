@@ -4,7 +4,7 @@ import pandas as pd
 import pickle as pkl
 import tqdm
 import pyomo as pyo
-from core.problem_classes.probleminstance import ProblemInstance, ToyInstance
+from core.problem_classes.problem_instance import ProblemInstance, ToyInstance
 from importlib.util import spec_from_file_location, module_from_spec
 from core.generic_solver import GenericSolver
 
@@ -13,6 +13,23 @@ INSTANCES_PATH = os.path.join(ARTIFACTS_PATH, "instances")
 RESULTS_PATH = os.path.join(ARTIFACTS_PATH, "data")
 SOLVER_PATH = os.path.join(os.getcwd(), "solvers")
 CURRENT_FOLDER = os.getcwd()
+SOLVER_FILE_ALIASES = {
+    "ILP_arc": "ilp_arc",
+    "ILP_arc_95": "ilp_arc_95_latency",
+    "ILP_path": "ilp_path",
+    "MILP_arc": "milp_arc",
+    "MILP_path": "milp_path",
+    "milp_arc_exact": "milp_arc_full",
+    "ILP_arc_heuristic_placement": "ilp_arc_heuristic_placement",
+    "ILP_arc_heuristic_warmstart": "ilp_arc_heuristic_warmstart",
+    "ILP_arc_rl_warmstart": "ilp_arc_rl_warmstart",
+    "LP_arc": "lp_arc",
+    "LP_path": "lp_path",
+    "LP_path_strong_latency": "lp_path_latency_tightened",
+    "rl_A2C": "a2c",
+    "rl_PPO": "ppo",
+    "rl_PPO_options": "ppo_options",
+}
 
 
 def pickle_save(object_instance: object, file_name: str):
@@ -160,6 +177,7 @@ def import_instance_from_file(instance_name: str) -> ProblemInstance:
 def import_solver_from_file(
     solver_name: str, instance: ProblemInstance
 ) -> GenericSolver:
+    solver_name = SOLVER_FILE_ALIASES.get(solver_name, solver_name)
     solver_file = solver_name + ".py" if not solver_name.endswith(".py") else solver_name
     direct_path = os.path.join(SOLVER_PATH, solver_file)
     if os.path.exists(direct_path):

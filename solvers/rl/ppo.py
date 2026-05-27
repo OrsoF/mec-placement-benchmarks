@@ -1,8 +1,8 @@
 "Solveur RL PPO"
 
 from core.generic_solver import GenericSolver
-from rl.generic_rl_solver import Solver as RLSolver
-from core.problem_classes.probleminstance import ProblemInstance
+from rl.base_solver import Solver as RLSolver
+from core.problem_classes.problem_instance import ProblemInstance
 
 
 class Solver(RLSolver):

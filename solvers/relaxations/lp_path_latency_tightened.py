@@ -1,7 +1,7 @@
 from core.problem_classes.service import Service
-from core.problem_classes.probleminstance import ProblemInstance
+from core.problem_classes.problem_instance import ProblemInstance
 from itertools import islice
-from data_io.data_management import get_result_informations
+from data_io.experiment_io import get_result_informations
 from core.generic_solver import GenericSolver
 
 import time

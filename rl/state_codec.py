@@ -3,7 +3,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from core.graph_utils import path_node_to_path_tuple
-from core.problem_classes.probleminstance import ProblemInstance
+from core.problem_classes.problem_instance import ProblemInstance
 from rl.path_cache import ShortestPathCache
 
 

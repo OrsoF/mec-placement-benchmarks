@@ -1,7 +1,7 @@
-from data_io.data_management import folder_management
-from instances.build_gml import make_instance_from_gml
-from instances.build_large import make_big_instances
-from instances.build_tree import make_tree_instance
+from data_io.experiment_io import folder_management
+from instances.gml_builder import make_instance_from_gml
+from instances.large_builder import make_big_instances
+from instances.tree_builder import make_tree_instance
 
 folder_management()
 

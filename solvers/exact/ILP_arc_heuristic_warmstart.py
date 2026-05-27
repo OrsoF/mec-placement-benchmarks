@@ -1,7 +1,7 @@
 from core.generic_solver import GenericSolver
 from core.problem_classes.service import Service
-from core.problem_classes.probleminstance import ProblemInstance
-from solvers.exact.ILP_arc import Solver as ILPSolver
+from core.problem_classes.problem_instance import ProblemInstance
+from solvers.exact.ilp_arc import Solver as ILPSolver
 
 import time
 import networkx as nx

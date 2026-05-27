@@ -1,6 +1,6 @@
-from rl.gym_instance import SPPEnv
-from instances.build_tree import make_tree_instance
-from data_io.data_management import solve
+from rl.spp_env import SPPEnv
+from instances.tree_builder import make_tree_instance
+from data_io.experiment_io import solve
 from stable_baselines3 import A2C
 import os
 

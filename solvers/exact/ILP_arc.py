@@ -1,8 +1,8 @@
 from core.generic_solver import GenericSolver
 from core.problem_classes.service import Service
-from core.problem_classes.probleminstance import ProblemInstance
+from core.problem_classes.problem_instance import ProblemInstance
 from core.graph_utils import get_encoded_incoming_arc, get_encoded_outgoing_arc
-from data_io.data_management import get_result_informations
+from data_io.experiment_io import get_result_informations
 import pyomo.environ as pyo
 import time
 from networkx.readwrite.gml import read_gml
@@ -11,7 +11,7 @@ import os
 import numpy as np
 
 from solvers.heuristic.heuristic import Solver as Heursolv
-from solvers.rl.rl_PPO import Solver as RlPPO
+from solvers.rl.ppo import Solver as RlPPO
 
 
 class Solver(GenericSolver):

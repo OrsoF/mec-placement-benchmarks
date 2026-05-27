@@ -1,7 +1,7 @@
-from instances.build_tree import make_tree_instance
-from data_io.data_management import solve, import_instance_from_file, import_solver_from_file
+from instances.tree_builder import make_tree_instance
+from data_io.experiment_io import solve, import_instance_from_file, import_solver_from_file
 import os
-from solvers.rl.rl_PPO import Solver
+from solvers.rl.ppo import Solver
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 

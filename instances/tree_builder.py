@@ -1,7 +1,7 @@
-from core.problem_classes.networkgraph import NetworkGraph
-from core.problem_classes.servicepackage import ServicePackage
-from core.problem_classes.probleminstance import ProblemInstance
-from core.problem_classes.solvinginstance import SolvingInstance
+from core.problem_classes.network_graph import NetworkGraph
+from core.problem_classes.service_package import ServicePackage
+from core.problem_classes.problem_instance import ProblemInstance
+from core.problem_classes.solving_instance import SolvingInstance
 from core.problem_classes.service import Service
 from core.problem_classes.demand import Demand
 

@@ -1,10 +1,10 @@
-from instances.build_tree import make_tree_instance
-from data_io.data_management import (
+from instances.tree_builder import make_tree_instance
+from data_io.experiment_io import (
     solve,
     import_instance_from_file,
     import_solver_from_file,
 )
-from solvers.rl.rl_A2C_GNN import Solver
+from solvers.rl.a2c_GNN import Solver
 import os
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"

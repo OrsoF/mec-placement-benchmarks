@@ -1,4 +1,4 @@
-from data_io.data_management import (
+from data_io.experiment_io import (
     reset,
     get_instance_list,
     get_solver_list,
@@ -6,10 +6,10 @@ from data_io.data_management import (
     create_dataframe_from_dict,
     folder_management,
 )
-from instances.build_gml import make_instance_from_gml
-from instances.build_large import make_big_instances
+from instances.gml_builder import make_instance_from_gml
+from instances.large_builder import make_big_instances
 import numpy as np
-from core.problem_classes.probleminstance import ProblemInstance
+from core.problem_classes.problem_instance import ProblemInstance
 from core.generic_solver import GenericSolver
 import multiprocessing
 

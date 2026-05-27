@@ -2,11 +2,11 @@ import pytest
 import networkx as nx
 
 from core.problem_classes.demand import Demand
-from core.problem_classes.networkgraph import NetworkGraph, is_graph_symmetric
-from core.problem_classes.probleminstance import ProblemInstance
+from core.problem_classes.network_graph import NetworkGraph, is_graph_symmetric
+from core.problem_classes.problem_instance import ProblemInstance
 from core.problem_classes.service import Service
-from core.problem_classes.servicepackage import ServicePackage
-from core.problem_classes.solvinginstance import SolvingInstance
+from core.problem_classes.service_package import ServicePackage
+from core.problem_classes.solving_instance import SolvingInstance
 
 
 def make_two_node_problem():

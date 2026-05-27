@@ -1,13 +1,13 @@
 from networkx.readwrite.gml import read_gml
 import networkx as nx
-from core.problem_classes.networkgraph import NetworkGraph
+from core.problem_classes.network_graph import NetworkGraph
 from core.problem_classes.demand import Demand
 from core.problem_classes.service import Service
-from core.problem_classes.servicepackage import ServicePackage
-from core.problem_classes.probleminstance import ProblemInstance
+from core.problem_classes.service_package import ServicePackage
+from core.problem_classes.problem_instance import ProblemInstance
 import numpy as np
 import os
-from data_io.pickle import pickle_save
+from data_io.pickle_io import pickle_save
 from core.graph_utils import make_graph_from_gml
 import matplotlib.pyplot as plt
 

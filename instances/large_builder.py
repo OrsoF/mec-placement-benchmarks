@@ -3,12 +3,12 @@ import networkx as nx
 import os
 import numpy as np
 import pickle
-from core.problem_classes.networkgraph import NetworkGraph
+from core.problem_classes.network_graph import NetworkGraph
 from core.problem_classes.demand import Demand
 from core.problem_classes.service import Service
-from core.problem_classes.servicepackage import ServicePackage
-from core.problem_classes.probleminstance import ProblemInstance
-from data_io.data_management import pickle_save
+from core.problem_classes.service_package import ServicePackage
+from core.problem_classes.problem_instance import ProblemInstance
+from data_io.experiment_io import pickle_save
 from core.graph_utils import make_graph_from_gml
 
 rnd_gen = np.random.default_rng(0)

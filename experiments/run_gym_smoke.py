@@ -1,8 +1,8 @@
-from instances.build_parallel import build_star_instance
+from instances.parallel_builder import build_star_instance
 
 instance = build_star_instance(5, 2, 3)
 
-from rl.gym_instance import SPPEnv
+from rl.spp_env import SPPEnv
 
 env = SPPEnv(instance, 500, 5)
 for _ in range(5000):

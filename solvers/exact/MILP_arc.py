@@ -1,9 +1,9 @@
 from core.generic_solver import GenericSolver
-from core.problem_classes.servicepackage import ServicePackage
-from core.problem_classes.networkgraph import NetworkGraph
+from core.problem_classes.service_package import ServicePackage
+from core.problem_classes.network_graph import NetworkGraph
 from core.problem_classes.service import Service
-from core.problem_classes.probleminstance import ProblemInstance
-from data_io.data_management import get_result_informations
+from core.problem_classes.problem_instance import ProblemInstance
+from data_io.experiment_io import get_result_informations
 from core.graph_utils import get_encoded_incoming_arc, get_encoded_outgoing_arc
 
 import pyomo.environ as pyo

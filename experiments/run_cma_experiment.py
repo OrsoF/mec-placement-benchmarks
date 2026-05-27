@@ -1,5 +1,5 @@
-from instances.build_parallel import build_star_instance
-from instances.build_tree import make_tree_instance
+from instances.parallel_builder import build_star_instance
+from instances.tree_builder import make_tree_instance
 
 instance = build_star_instance(
     users_per_group=10, number_of_groups=3, neighbors_connection=2

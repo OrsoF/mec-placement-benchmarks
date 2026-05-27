@@ -17,7 +17,7 @@ The central optimization problem is:
 
 ```text
 .
-|-- main.py                 # Batch runner for tree and parallel/star experiments
+|-- run_experiments.py                 # Batch runner for tree and parallel/star experiments
 |-- requirements.txt        # Python dependencies
 |-- main.tex                # LaTeX table snippet for reported results
 |-- core/                   # Domain model, graph helpers, placement helpers, solver contract
@@ -53,12 +53,12 @@ The central optimization problem is:
 
 `instances/` contains generators for several benchmark families:
 
-- `build_tree.py`: tree-like edge/cloud topology with one service per
+- `tree_builder.py`: tree-like edge/cloud topology with one service per
   user.
-- `build_parallel.py`: grouped star/parallel topology.
-- `build_gml.py`: instances derived from GML topologies in
+- `parallel_builder.py`: grouped star/parallel topology.
+- `gml_builder.py`: instances derived from GML topologies in
   `data/topologies/`.
-- `build_large.py`: larger synthetic instances.
+- `large_builder.py`: larger synthetic instances.
 
 ### Solvers
 
@@ -94,13 +94,13 @@ Some solvers require additional system setup:
 Run the main batch experiment on a tree topology:
 
 ```bash
-python main.py --instance tree
+python run_experiments.py --instance tree
 ```
 
 Run the grouped parallel/star topology experiment:
 
 ```bash
-python main.py --instance parallel
+python run_experiments.py --instance parallel
 ```
 
 The script writes a date-stamped CSV file such as `results_26_05_26.csv` under
@@ -122,7 +122,7 @@ The script writes a date-stamped CSV file such as `results_26_05_26.csv` under
 
 ## Suggested Next Improvements
 
-1. Move experiment configuration out of `main.py` into YAML/JSON or CLI flags.
+1. Move experiment configuration out of `run_experiments.py` into YAML/JSON or CLI flags.
 2. Standardize solver output names (`x_var`/`x_variable`, `y_var`/`y_variable`,
    `q_var`/`q_variable`) to reduce adapter code.
 3. Add reproducibility metadata to result CSVs: commit hash, solver options,
@@ -146,7 +146,7 @@ A cleaner long-term layout could look like this:
 |-- archive/
 |-- tests/
 |-- docs/
-|-- main.py
+|-- run_experiments.py
 |-- requirements.txt
 `-- README.md
 ```

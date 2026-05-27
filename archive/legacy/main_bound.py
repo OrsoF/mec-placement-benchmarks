@@ -1,11 +1,11 @@
 import pandas as pd
 import seaborn as sns
 import numpy as np
-from instances.build_tree import make_tree_instance
-from solvers.exact.ILP_arc import Solver as ilp_arc_Solver
-from solvers.relaxations.LP_arc import Solver as lp_arc_Solver
-from solvers.exact.ILP_path import Solver as ilp_path_Solver
-from solvers.relaxations.LP_path_strong_latency import Solver as lp_path_strong_latency_Solver
+from instances.tree_builder import make_tree_instance
+from solvers.exact.ilp_arc import Solver as ilp_arc_Solver
+from solvers.relaxations.lp_arc import Solver as lp_arc_Solver
+from solvers.exact.ilp_path import Solver as ilp_path_Solver
+from solvers.relaxations.lp_path_strong_latency import Solver as lp_path_strong_latency_Solver
 
 import matplotlib.pyplot as plt
 import os

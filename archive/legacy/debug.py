@@ -1,6 +1,6 @@
-from rl.gym_instance import SPPEnv
-from instances.build_parallel import build_star_instance
-from data_io.data_management import solve
+from rl.spp_env import SPPEnv
+from instances.parallel_builder import build_star_instance
+from data_io.experiment_io import solve
 import os
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"

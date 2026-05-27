@@ -12,10 +12,10 @@ import time
 import os
 from core.problem_classes.service import Service
 from itertools import islice
-from core.problem_classes.probleminstance import ProblemInstance
+from core.problem_classes.problem_instance import ProblemInstance
 from core.generic_solver import GenericSolver
 from core.graph_utils import path_node_to_path_tuple, path_tuple_to_path_node
-from core.problem_classes.solvinginstance import SolvingInstance
+from core.problem_classes.solving_instance import SolvingInstance
 
 rnd_gen = np.random.default_rng(0)
 

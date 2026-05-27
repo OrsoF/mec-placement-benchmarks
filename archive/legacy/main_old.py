@@ -1,5 +1,5 @@
-from instances.build_tree import make_tree_instance
-from data_io.data_management import solve
+from instances.tree_builder import make_tree_instance
+from data_io.experiment_io import solve
 import os
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
