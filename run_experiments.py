@@ -15,12 +15,15 @@ import pandas as pd
 
 from core.generic_solver import GenericSolver
 from core.problem_classes.problem_instance import ProblemInstance
+from instances.large_builder import make_large_instance
 from instances.parallel_builder import build_star_instance
 from instances.tree_builder import make_tree_instance
 from solvers.exact.ilp_arc import Solver as IlpArcSolver
 from solvers.heuristic.heuristic import Solver as HeuristicSolver
 from solvers.rl.ppo import Solver as PpoSolver
 
+
+INSTANCE_TYPES = ("tree", "parallel", "large")
 
 RESULT_COLUMNS = [
     "instance",
@@ -127,14 +130,18 @@ def build_problem_instance(
     users: int,
     neighbors: int,
     groups: int,
+    gml_path: Path | str | None = None,
 ) -> ProblemInstance:
     if instance_type == "tree":
         return make_tree_instance(users, neighbors)
-    return build_star_instance(users, neighbors, groups)
+    if instance_type == "parallel":
+        return build_star_instance(groups, users, neighbors)
+    assert gml_path is not None, "large instances require a GML topology path."
+    return make_large_instance(gml_path, n_services=users)
 
 
 def total_user_count(instance_type: str, users: int, groups: int) -> int:
-    if instance_type == "tree":
+    if instance_type in {"tree", "large"}:
         return users
     return users * groups
 
@@ -152,22 +159,17 @@ def append_result(
     groups: int,
     solver: GenericSolver,
 ) -> None:
-    result_row = pd.DataFrame(
-        [
-            {
-                "instance": instance_type,
-                "solver": solver_name,
-                "users": users,
-                "neighbors": neighbors,
-                "groups": groups,
-                "score": solver.score,
-                "runtime": solver.runtime,
-                "buildtime": solver.build_time or 0.0,
-            }
-        ],
-        columns=RESULT_COLUMNS,
+    append_result_row(
+        result_path,
+        solver_result_row(
+            instance_type,
+            solver_name,
+            users,
+            neighbors,
+            groups,
+            solver,
+        ),
     )
-    result_row.to_csv(result_path, mode="a", header=False, index=False)
 
 
 def run_solver(
@@ -177,6 +179,109 @@ def run_solver(
     solver = solver_factory(problem_instance)
     solver.run()
     return solver
+
+
+def solver_result_row(
+    instance_type: str,
+    solver_name: str,
+    users: int,
+    neighbors: int,
+    groups: int,
+    solver: GenericSolver,
+) -> dict[str, object]:
+    return {
+        "instance": instance_type,
+        "solver": solver_name,
+        "users": users,
+        "neighbors": neighbors,
+        "groups": groups,
+        "score": solver.score,
+        "runtime": solver.runtime,
+        "buildtime": solver.build_time or 0.0,
+    }
+
+
+def append_result_row(result_path: Path, row: dict[str, object]) -> None:
+    ensure_results_file(result_path)
+    pd.DataFrame([row], columns=RESULT_COLUMNS).to_csv(
+        result_path,
+        mode="a",
+        header=False,
+        index=False,
+    )
+
+
+def experience_all_solvers(
+    problem_instance: ProblemInstance,
+    solver_names: list[str] | None = None,
+    instance_type: str = "custom",
+    users: int | None = None,
+    neighbors: int | None = None,
+    groups: int | None = None,
+    result_path: Path | None = None,
+) -> list[dict[str, object]]:
+    """Run every selected solver on one already-built instance."""
+    rows = []
+    solver_names = DEFAULT_SOLVERS if solver_names is None else solver_names
+    users = problem_instance.number_of_service if users is None else users
+    neighbors = 0 if neighbors is None else neighbors
+    groups = 1 if groups is None else groups
+
+    for solver_name in solver_names:
+        if should_skip_solver(solver_name, problem_instance):
+            continue
+        solver = run_solver(SOLVER_REGISTRY[solver_name], problem_instance)
+        row = solver_result_row(
+            instance_type,
+            solver_name,
+            users,
+            neighbors,
+            groups,
+            solver,
+        )
+        rows.append(row)
+        if result_path is not None:
+            append_result_row(result_path, row)
+    return rows
+
+
+def experience_all_instance_types(
+    solver_name: str,
+    users: int,
+    neighbors: int = 1,
+    groups: int = 4,
+    instance_types: tuple[str, ...] = INSTANCE_TYPES,
+    gml_path: Path | str | None = None,
+    result_path: Path | None = None,
+) -> list[dict[str, object]]:
+    """Run one solver on one size from every selected instance family."""
+    assert solver_name in SOLVER_REGISTRY
+    rows = []
+    for instance_type in instance_types:
+        if instance_type == "large" and gml_path is None:
+            continue
+        instance = build_problem_instance(
+            instance_type,
+            users,
+            neighbors,
+            groups,
+            gml_path=gml_path,
+        )
+        if should_skip_solver(solver_name, instance):
+            continue
+        solver = run_solver(SOLVER_REGISTRY[solver_name], instance)
+        row = solver_result_row(
+            instance_type,
+            solver_name,
+            total_user_count(instance_type, users, groups),
+            neighbors,
+            groups,
+            solver,
+        )
+        rows.append(row)
+        if result_path is not None:
+            append_result_row(result_path, row)
+    return rows
 
 
 def run_one_size(config: ExperimentConfig, users: int) -> None:

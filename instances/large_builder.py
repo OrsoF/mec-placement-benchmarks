@@ -1,247 +1,162 @@
-from networkx.readwrite.gml import read_gml, write_gml
+from pathlib import Path
+
 import networkx as nx
-import os
 import numpy as np
-import pickle
-from core.problem_classes.network_graph import NetworkGraph
+
+from core.graph_utils import make_graph_from_gml
 from core.problem_classes.demand import Demand
+from core.problem_classes.network_graph import NetworkGraph
+from core.problem_classes.problem_instance import ProblemInstance
 from core.problem_classes.service import Service
 from core.problem_classes.service_package import ServicePackage
-from core.problem_classes.problem_instance import ProblemInstance
 from data_io.experiment_io import pickle_save
-from core.graph_utils import make_graph_from_gml
-
-rnd_gen = np.random.default_rng(0)
 
 
-def generate_one_service(
+rng = np.random.default_rng(0)
+
+
+def edge_tier(edge: tuple[int, int], n_core: int) -> int:
+    u, v = edge
+    if u < n_core and v < n_core:
+        return 0
+    if u < n_core or v < n_core:
+        return 1
+    return 2
+
+
+def make_three_level_graph(
+    base_graph: nx.Graph,
+    edge_per_core: int = 10,
+    users_per_core: int = 20,
+    user_degree: int = 4,
+) -> tuple[NetworkGraph, int, np.ndarray]:
+    # Three-tier synthetic edge-computing topology: imported backbone nodes
+    # form the core, each edge node attaches to one random core node, and
+    # each user attaches to a small random set of edge nodes.
+    g = nx.convert_node_labels_to_integers(base_graph.copy())
+    n_core = g.number_of_nodes()
+
+    edge_nodes = np.arange(n_core, n_core * (1 + edge_per_core))
+    user_nodes = np.arange(
+        edge_nodes[-1] + 1,
+        edge_nodes[-1] + 1 + n_core * users_per_core,
+    )
+
+    g.add_nodes_from(edge_nodes)
+    g.add_nodes_from(user_nodes)
+
+    core_parent = rng.integers(0, n_core, size=edge_nodes.size)
+    g.add_edges_from(zip(edge_nodes, core_parent))
+
+    edge_parent = rng.integers(
+        edge_nodes[0],
+        edge_nodes[-1] + 1,
+        size=(user_nodes.size, user_degree),
+    )
+    g.add_edges_from((u, e) for u, row in zip(user_nodes, edge_parent) for e in row)
+
+    resources = np.r_[
+        np.full(n_core, 1_000_000),
+        np.full(edge_nodes.size, 10_000),
+        np.full(user_nodes.size, 100),
+    ]
+
+    tier_params = np.array(
+        [
+            [5000.0, 0.5, 5.0],
+            [3000.0, 0.7, 7.0],
+            [500.0, 1.5, 15.0],
+        ]
+    )
+    tiers = np.fromiter((edge_tier(e, n_core) for e in g.edges), dtype=int)
+    cap = tier_params[tiers, 0]
+    alpha = tier_params[tiers, 1]
+    beta = tier_params[tiers, 2]
+
+    graph = NetworkGraph(
+        g,
+        resources.tolist(),
+        cap.tolist(),
+        alpha.tolist(),
+        beta.tolist(),
+    )
+    return graph, n_core, user_nodes
+
+
+def latency_budget(
     network_graph: NetworkGraph,
-    demand_number: int,
-    maximum_latency: float,
-    resources_needed: float,
-    flow: float,
-) -> Service:
-    task_list = []
-    for _ in range(demand_number):
-        origin_node = rnd_gen.choice(network_graph.nx_graph.nodes)
-        task = Demand(
-            origin_node_index=origin_node,
-            flow_min=1,
-            flow_max=flow,
-            max_latency=maximum_latency,
-            resources_needed=resources_needed,
-        )
-        task_list.append(task)
-    return Service(task_list, network_graph)
-
-
-def generate_experimental_service_package(
-    network_graph: NetworkGraph, service_number: int, graph_name: str
-) -> ServicePackage:
-    nx_graph = network_graph.nx_graph
-    average_alpha = sum(nx_graph.edges[edge]["alpha"] for edge in nx_graph.edges) / len(
-        nx_graph.edges
-    )
-    average_beta = sum(nx_graph.edges[edge]["beta"] for edge in nx_graph.edges) / len(
-        nx_graph.edges
-    )
-    max_latency = (
-        7.0
-        * (average_alpha * 5.0 * service_number**2 / len(nx_graph.edges) + average_beta)
-        * 1e3
-    )
-    services = [
-        generate_one_service(
-            network_graph=network_graph,
-            demand_number=service_number,
-            maximum_latency=max_latency,
-            resources_needed=5000 // service_number,
-            flow=100.0,
-        )
-        for _ in range(service_number)
-    ]
-
-    instance_name = "experimental_{}_{}_{}".format(
-        graph_name, service_number, service_number
+    n_services: int,
+    scale: float = 25.0,
+) -> float:
+    g = network_graph.nx_graph
+    alpha = np.fromiter((g.edges[e]["alpha"] for e in g.edges), dtype=float)
+    beta = np.fromiter((g.edges[e]["beta"] for e in g.edges), dtype=float)
+    return scale * (
+        alpha.mean() * 5.0 * n_services**2 / g.number_of_edges() + beta.mean()
     )
 
-    return ServicePackage(services, instance_name)
 
-
-def transform_base_graph(nx_graph: nx.Graph) -> NetworkGraph:
-    resources = [10**4 for _ in nx_graph.nodes]
-    capacities = [200 + 200 * len(nx_graph.nodes) // 15 for _ in nx_graph.edges]
-    alphas = [0.2 for _ in nx_graph.edges]
-    betas = [5.0 for _ in nx_graph.edges]
-    return NetworkGraph(nx_graph, resources, capacities, alphas, betas)
-
-
-def add_two_levels_to_base_graph(network_graph: NetworkGraph) -> NetworkGraph:
-    base_nx_graph = network_graph.nx_graph
-    node_number = len(base_nx_graph.nodes)
-
-    # Create 10*n edge servers
-    new_nodes_labels = list(range(node_number, 11 * node_number))
-    base_nx_graph.add_nodes_from(new_nodes_labels)
-
-    # Connect each edge server to a given server
-    server_edge_server_connection = [
-        (new_nodes_labels[i], rnd_gen.integers(node_number))
-        for i in range(10 * node_number)
-    ]
-    server_edge_server_connection += [
-        (arc[1], arc[0]) for arc in server_edge_server_connection
-    ]
-    base_nx_graph.add_edges_from(server_edge_server_connection)
-
-    # Create 20*n users
-    second_labels = list(range(11 * node_number, 31 * node_number))
-    base_nx_graph.add_nodes_from(second_labels)
-
-    # Connect each user with four random edges servers
-    new_connections = [
-        (second_labels[i], rnd_gen.integers(node_number, 11 * node_number))
-        for i in range(20 * node_number)
-        for _ in range(4)
-    ]
-    new_connections += [(arc[1], arc[0]) for arc in new_connections]
-    base_nx_graph.add_edges_from(new_connections)
-
-    resources = (
-        [10**6] * node_number + [10**4] * 10 * node_number + [10**2] * 20 * node_number
-    )
-
-    capacities = [0] * len(base_nx_graph.edges)
-
-    arc_dic = {edge: i for i, edge in enumerate(base_nx_graph.edges)}
-
-    for edge in base_nx_graph.edges:
-        node1, node2 = edge
-        if node1 < node_number and node2 < node_number:
-            capacities[arc_dic[(node1, node2)]] = 5000
-        elif node1 < node_number or node2 < node_number:
-            capacities[arc_dic[(node1, node2)]] = 3000
-        else:
-            capacities[arc_dic[(node1, node2)]] = 500
-
-    beta = [0] * len(base_nx_graph.edges)
-
-    for edge in base_nx_graph.edges:
-        node1, node2 = edge
-        if node1 < node_number and node2 < node_number:
-            beta[arc_dic[(node1, node2)]] = 5
-        elif node1 < node_number or node2 < node_number:
-            beta[arc_dic[(node1, node2)]] = 7
-        else:
-            beta[arc_dic[(node1, node2)]] = 15
-
-    alpha = [0] * len(base_nx_graph.edges)
-
-    for edge in base_nx_graph.edges:
-        node1, node2 = edge
-        if node1 < node_number and node2 < node_number:
-            alpha[arc_dic[(node1, node2)]] = 5 * 10**-1
-        elif node1 < node_number or node2 < node_number:
-            alpha[arc_dic[(node1, node2)]] = 7 * 10**-1
-        else:
-            alpha[arc_dic[(node1, node2)]] = 15 * 10**-1
-
-    return NetworkGraph(base_nx_graph, resources, capacities, alpha, beta)
-
-
-def generate_one_service_for_three_levels_graph(
+def make_services(
     network_graph: NetworkGraph,
-    task_number: int,
-    latency: float,
-    resources: float,
-    flow: float,
-):
-    nx_graph = network_graph.nx_graph
-    node_number = len(nx_graph.nodes) // 31
-    possible_origins = list(range(node_number)) + list(
-        range(21 * node_number, 31 * node_number)
-    )
-    task_list = []
-    for _ in range(task_number):
-        origin_node = rnd_gen.choice(possible_origins)
-        task = Demand(
-            origin_node_index=origin_node,
-            flow_min=1.0,
-            flow_max=flow,
-            max_latency=latency,
-        )
-        task_list.append(task)
-    return Service(
-        task_list=task_list, network_graph=network_graph, resources_needed=resources
-    )
-
-
-def generate_service_package_for_three_levels_graph(
-    network_graph: NetworkGraph, service_number: int, graph_name: str
-) -> ServicePackage:
-    nx_graph = network_graph.nx_graph
-    average_alpha = sum(nx_graph.edges[edge]["alpha"] for edge in nx_graph.edges) / len(
-        nx_graph.edges
-    )
-    average_beta = sum(nx_graph.edges[edge]["beta"] for edge in nx_graph.edges) / len(
-        nx_graph.edges
-    )
+    n_services: int,
+    n_core: int,
+    user_nodes: np.ndarray,
+    flow: float = 100.0,
+) -> list[Service]:
+    origins = np.r_[np.arange(n_core), user_nodes]
+    latency = latency_budget(network_graph, n_services)
+    resources = 5000 // n_services
 
     services = []
-    for _ in range(service_number):
-        service = generate_one_service_for_three_levels_graph(
-            network_graph=network_graph,
-            task_number=service_number,
-            latency=25.0
-            * (
-                average_alpha * 5.0 * service_number**2 / len(nx_graph.edges)
-                + average_beta
-            ),
-            resources=5000 // service_number,
-            flow=100.0,
-        )
-        services.append(service)
+    for _ in range(n_services):
+        demands = [
+            Demand(
+                origin_node_index=int(rng.choice(origins)),
+                flow_min=1.0,
+                flow_max=flow,
+                max_latency=latency,
+            )
+            for _ in range(n_services)
+        ]
+        services.append(Service(demands, network_graph, resources))
+    return services
 
-    instance_name = "three_levels_experimental_{}_{}_{}".format(
-        graph_name, service_number, service_number
+
+def make_large_instance(
+    gml_path: str | Path,
+    n_services: int = 5,
+    edge_per_core: int = 10,
+    users_per_core: int = 20,
+    user_degree: int = 4,
+) -> ProblemInstance:
+    gml_path = Path(gml_path)
+    base = make_graph_from_gml(gml_path)
+    graph, n_core, user_nodes = make_three_level_graph(
+        base.nx_graph,
+        edge_per_core=edge_per_core,
+        users_per_core=users_per_core,
+        user_degree=user_degree,
     )
 
-    return ServicePackage(services=services, instance_name=instance_name)
+    name = f"three_levels_{gml_path.stem}_{n_services}_{n_services}"
+    services = make_services(graph, n_services, n_core, user_nodes)
+    package = ServicePackage(services, name)
+    return ProblemInstance(graph, package, name)
 
 
-def make_big_instances():
-    gml_path = "data/topologies"
-    instance_path = os.path.join("artifacts", "instances")
-    os.makedirs(instance_path, exist_ok=True)
-    files = os.listdir(gml_path)
+def save_large_instances(
+    gml_dir: str | Path = Path("data") / "topologies",
+    out_dir: str | Path = Path("artifacts") / "instances",
+    n_services: tuple[int, ...] = (5,),
+) -> None:
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
 
-    for gml_graph_name in files[:1]:
-        gml_path = "data/topologies"
+    for gml_path in Path(gml_dir).glob("*.gml"):
+        for n in n_services:
+            instance = make_large_instance(gml_path, n_services=n)
+            pickle_save(instance, out_dir / f"{instance.problem_name}.pkl")
 
-        gml_path = os.path.join(gml_path, gml_graph_name)
-        graph_name = gml_graph_name[:-4]  # france.gml -> france
 
-        network_graph = make_graph_from_gml(gml_path)
-
-        three_levels_network_graph = add_two_levels_to_base_graph(network_graph)
-
-        for number_of_service in [5]:
-            service_package = generate_service_package_for_three_levels_graph(
-                three_levels_network_graph, number_of_service, graph_name
-            )
-
-            instance_name = "{}_{}_instance_{}_{}_{}".format(
-                len(three_levels_network_graph.nx_graph.edges),
-                len(three_levels_network_graph.nx_graph.edges),
-                number_of_service,
-                number_of_service,
-                graph_name,
-            )
-
-            problem_instance = ProblemInstance(
-                three_levels_network_graph, service_package, instance_name
-            )
-
-            saved_file_path = os.path.join(instance_path, instance_name + ".pkl")
-
-            pickle_save(problem_instance, saved_file_path)
+def make_big_instances() -> None:
+    save_large_instances()

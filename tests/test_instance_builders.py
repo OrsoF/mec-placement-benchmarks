@@ -2,6 +2,9 @@ import networkx as nx
 
 from instances.parallel_builder import build_star_instance
 from instances.tree_builder import make_tree_instance
+from instances.large_builder import make_services, make_three_level_graph
+from core.problem_classes.problem_instance import ProblemInstance
+from core.problem_classes.service_package import ServicePackage
 
 
 def assert_valid_problem_instance(instance, expected_services, expected_demands):
@@ -53,4 +56,25 @@ def test_parallel_builder_creates_valid_small_instance():
         instance,
         expected_services=groups * users_per_group,
         expected_demands=groups * users_per_group * 2,
+    )
+
+
+def test_large_builder_creates_valid_synthetic_instance():
+    base_graph = nx.path_graph(3)
+    n_services = 2
+
+    network_graph, n_core, user_nodes = make_three_level_graph(
+        base_graph,
+        edge_per_core=2,
+        users_per_core=2,
+        user_degree=1,
+    )
+    services = make_services(network_graph, n_services, n_core, user_nodes)
+    package = ServicePackage(services, "large_synthetic")
+    instance = ProblemInstance(network_graph, package, "large_synthetic")
+
+    assert_valid_problem_instance(
+        instance,
+        expected_services=n_services,
+        expected_demands=n_services * n_services,
     )

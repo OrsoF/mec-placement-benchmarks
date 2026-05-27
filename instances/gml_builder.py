@@ -1,16 +1,62 @@
-from networkx.readwrite.gml import read_gml
-import networkx as nx
-from core.problem_classes.network_graph import NetworkGraph
+from pathlib import Path
+
+import numpy as np
+
+from core.graph_utils import make_graph_from_gml
 from core.problem_classes.demand import Demand
+from core.problem_classes.network_graph import NetworkGraph
+from core.problem_classes.problem_instance import ProblemInstance
 from core.problem_classes.service import Service
 from core.problem_classes.service_package import ServicePackage
-from core.problem_classes.problem_instance import ProblemInstance
-import numpy as np
-import os
 from data_io.experiment_io import pickle_save
-from core.graph_utils import make_graph_from_gml
 
-rnd_gen = np.random.default_rng(0)
+RNG = np.random.default_rng(0)
+
+ALL_GML_PATH = Path.cwd() / "data" / "topologies"
+INSTANCE_PATH = Path.cwd() / "artifacts" / "instances"
+
+
+def estimate_latency_budget(
+    network_graph: NetworkGraph,
+    number_of_services: int,
+) -> float:
+    """
+    Estimate a feasible latency budget from average edge characteristics.
+    """
+    g = network_graph.nx_graph
+
+    edge_attributes = list(g.edges.values())
+
+    alpha_mean = np.mean([edge["alpha"] for edge in edge_attributes])
+    beta_mean = np.mean([edge["beta"] for edge in edge_attributes])
+
+    return 7.0 * (
+        alpha_mean * 5.0 * number_of_services**2 / g.number_of_edges()
+        + beta_mean
+    )
+
+
+def make_demands(
+    network_graph: NetworkGraph,
+    number_of_demands: int,
+    max_latency: float,
+    rng: np.random.Generator,
+) -> list[Demand]:
+    """
+    Generate a list of stochastic demands.
+    """
+    g = network_graph.nx_graph
+    nodes = list(g.nodes)
+
+    return [
+        Demand(
+            origin_node_index=int(rng.choice(nodes)),
+            flow_min=1,
+            flow_max=100,
+            max_latency=max_latency,
+        )
+        for _ in range(number_of_demands)
+    ]
 
 
 def make_services(
@@ -18,91 +64,131 @@ def make_services(
     number_of_demands_per_service: int,
     number_of_services: int,
     instance_name: str,
+    rng: np.random.Generator = RNG,
 ) -> ServicePackage:
     """
-    Build a ServicePackage object with multiples
-    services and multiple demands per services.
+    Build a ServicePackage with independent demands for each service.
     """
-    alpha_moyen = sum(
-        network_graph.nx_graph.edges[edge]["alpha"]
-        for edge in network_graph.nx_graph.edges
-    ) / len(network_graph.nx_graph.edges)
-    beta_moyen = sum(
-        network_graph.nx_graph.edges[edge]["beta"]
-        for edge in network_graph.nx_graph.edges
-    ) / len(network_graph.nx_graph.edges)
+    max_latency = estimate_latency_budget(
+        network_graph,
+        number_of_services,
+    )
 
-    demands = [
-        Demand(
-            origin_node_index=rnd_gen.choice(network_graph.nx_graph.nodes),
-            flow_min=1,
-            flow_max=100,
-            max_latency=7.0
-            * (
-                alpha_moyen
-                * 5.0
-                * number_of_services**2
-                / len(network_graph.nx_graph.edges)
-                + beta_moyen
-            ),
+    resources_per_service = 5000 // number_of_services
+
+    services: list[Service] = []
+
+    for _ in range(number_of_services):
+        demands = make_demands(
+            network_graph=network_graph,
+            number_of_demands=number_of_demands_per_service,
+            max_latency=max_latency,
+            rng=rng,
         )
-        for _ in range(number_of_demands_per_service)
-    ]
 
-    services = [
-        Service(
-            demands,
-            network_graph,
-            resources_needed=5000 // number_of_services,
+        services.append(
+            Service(
+                demands=demands,
+                network_graph=network_graph,
+                resources_needed=resources_per_service,
+            )
         )
-        for _ in range(number_of_services)
-    ]
 
-    service_package = ServicePackage(services, instance_name)
-
-    return service_package
+    return ServicePackage(services, instance_name)
 
 
-ALL_GML_PATH = os.path.join(os.getcwd(), "data", "topologies")
-INSTANCE_PATH = os.path.join(os.getcwd(), "artifacts", "instances")
+def build_instance_name(
+    network_graph: NetworkGraph,
+    number_of_services: int,
+    number_of_demands_per_service: int,
+    graph_name: str,
+) -> str:
+    g = network_graph.nx_graph
+
+    return (
+        f"{g.number_of_nodes()}_"
+        f"{g.number_of_edges()}_"
+        f"instance_"
+        f"{number_of_services}_"
+        f"{number_of_demands_per_service}_"
+        f"{graph_name}"
+    )
 
 
-def make_instance_from_gml(
-    all_gml_path: str = ALL_GML_PATH, instance_path: str = INSTANCE_PATH
-):
-    os.makedirs(instance_path, exist_ok=True)
-    gml_list_original = os.listdir(all_gml_path)
+def make_problem_instance(
+    network_graph: NetworkGraph,
+    number_of_services: int,
+    number_of_demands_per_service: int,
+    graph_name: str,
+    rng: np.random.Generator = RNG,
+) -> ProblemInstance:
+    """
+    Build a complete problem instance.
+    """
+    instance_name = build_instance_name(
+        network_graph=network_graph,
+        number_of_services=number_of_services,
+        number_of_demands_per_service=number_of_demands_per_service,
+        graph_name=graph_name,
+    )
 
-    for gml_graph_name in gml_list_original[:1]:
-        gml_path = os.path.join(all_gml_path, gml_graph_name)
-        graph_name = gml_graph_name[:-4]  # france.gml -> france
+    service_package = make_services(
+        network_graph=network_graph,
+        number_of_demands_per_service=number_of_demands_per_service,
+        number_of_services=number_of_services,
+        instance_name=instance_name,
+        rng=rng,
+    )
 
-        # Transforming gml into NetworkGraph
-        network_graph: NetworkGraph = make_graph_from_gml(gml_path)
+    return ProblemInstance(
+        network_graph,
+        service_package,
+        instance_name,
+    )
 
-        # Building services
-        for number_of_service in [2, 8]:
-            number_of_demands_per_service = number_of_service
 
-            instance_name = "{}_{}_instance_{}_{}_{}".format(
-                network_graph.nx_graph.number_of_nodes(),
-                network_graph.nx_graph.number_of_edges(),
-                number_of_service,
-                number_of_demands_per_service,
-                graph_name,
+def save_problem_instance(
+    problem_instance: ProblemInstance,
+    instance_path: Path,
+) -> None:
+    """
+    Persist a problem instance to disk.
+    """
+    instance_path.mkdir(parents=True, exist_ok=True)
+
+    save_path = instance_path / f"{problem_instance.instance_name}.pkl"
+
+    pickle_save(problem_instance, str(save_path))
+
+
+def make_instances_from_gml(
+    all_gml_path: Path = ALL_GML_PATH,
+    instance_path: Path = INSTANCE_PATH,
+    service_counts: list[int] | tuple[int, ...] = (2, 8),
+    rng: np.random.Generator = RNG,
+) -> None:
+    """
+    Generate and serialize problem instances from GML topologies.
+    """
+    gml_files = sorted(all_gml_path.glob("*.gml"))
+
+    for gml_file in gml_files[:1]:
+        graph_name = gml_file.stem
+
+        network_graph = make_graph_from_gml(str(gml_file))
+
+        for number_of_services in service_counts:
+            number_of_demands_per_service = number_of_services
+
+            problem_instance = make_problem_instance(
+                network_graph=network_graph,
+                number_of_services=number_of_services,
+                number_of_demands_per_service=number_of_demands_per_service,
+                graph_name=graph_name,
+                rng=rng,
             )
 
-            service_package = make_services(
-                network_graph,
-                number_of_demands_per_service,
-                number_of_service,
-                instance_name,
+            save_problem_instance(
+                problem_instance=problem_instance,
+                instance_path=instance_path,
             )
-
-            problem_instance = ProblemInstance(
-                network_graph, service_package, instance_name
-            )
-
-            saved_file_path = os.path.join(instance_path, instance_name + ".pkl")
-
-            pickle_save(problem_instance, saved_file_path)

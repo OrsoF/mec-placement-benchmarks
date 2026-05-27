@@ -1,17 +1,143 @@
-from networkx.readwrite.gml import read_gml
 import networkx as nx
-from core.problem_classes.network_graph import NetworkGraph
+import numpy as np
+
 from core.problem_classes.demand import Demand
+from core.problem_classes.network_graph import NetworkGraph
+from core.problem_classes.problem_instance import ProblemInstance
 from core.problem_classes.service import Service
 from core.problem_classes.service_package import ServicePackage
-from core.problem_classes.problem_instance import ProblemInstance
-import numpy as np
-import os
-from data_io.pickle_io import pickle_save
-from core.graph_utils import make_graph_from_gml
-import matplotlib.pyplot as plt
 
 rng_gen = np.random.default_rng(seed=0)
+
+
+def _validate_star_params(
+    number_of_groups: int,
+    users_per_group: int,
+    neighbors_connection: int,
+) -> None:
+    assert number_of_groups >= 1
+    assert users_per_group >= 1
+    assert neighbors_connection >= 0
+    assert neighbors_connection <= users_per_group // 2, "Too many neighbors."
+
+
+def _user_node(group_index: int, user_index: int) -> str:
+    return f"user_{group_index}_{user_index}"
+
+
+def _wap_node(group_index: int) -> str:
+    return f"wap_{group_index}"
+
+
+def _make_star_topology(
+    number_of_groups: int,
+    users_per_group: int,
+    neighbors_connection: int,
+    cloud_node: str,
+) -> nx.Graph:
+    g = nx.Graph()
+    g.add_nodes_from(
+        _user_node(group_index, user_index)
+        for group_index in range(number_of_groups)
+        for user_index in range(users_per_group)
+    )
+    g.add_nodes_from(_wap_node(group_index) for group_index in range(number_of_groups))
+    g.add_node(cloud_node)
+
+    for group_index in range(number_of_groups):
+        for user_index in range(users_per_group):
+            u = _user_node(group_index, user_index)
+            for offset in range(-neighbors_connection, neighbors_connection + 1):
+                connected = (user_index + offset) % users_per_group
+                v = _user_node(group_index, connected)
+                if u != v:
+                    g.add_edge(u, v)
+            g.add_edge(u, _wap_node(group_index))
+
+    g.add_edges_from(
+        (_wap_node(group_index), cloud_node) for group_index in range(number_of_groups)
+    )
+    return g
+
+
+def _star_resources(number_of_groups: int, users_per_group: int) -> list[float]:
+    user_resources = [int(rng_gen.random() < 0.5)] * number_of_groups * users_per_group
+    wap_resources = [rng_gen.integers(users_per_group)] * number_of_groups
+    cloud_resources = [number_of_groups * users_per_group]
+    return user_resources + wap_resources + cloud_resources
+
+
+def _star_edge_params(
+    g: nx.Graph,
+    users_per_group: int,
+    number_of_groups: int,
+    cloud_node: str,
+) -> tuple[list[float], list[float], list[float]]:
+    capacities = []
+    for u, v in nx.DiGraph(g).edges:
+        edge = {u, v}
+        if cloud_node in edge:
+            capacities.append(users_per_group * number_of_groups)
+        elif any(node.startswith("wap_") for node in edge):
+            capacities.append(users_per_group)
+        else:
+            capacities.append(users_per_group)
+
+    return capacities, [3.0] * len(capacities), [3.0] * len(capacities)
+
+
+def _make_star_network(
+    number_of_groups: int,
+    users_per_group: int,
+    neighbors_connection: int,
+    cloud_node: str,
+) -> NetworkGraph:
+    g = _make_star_topology(
+        number_of_groups,
+        users_per_group,
+        neighbors_connection,
+        cloud_node,
+    )
+    capacities, latency_alphas, latency_betas = _star_edge_params(
+        g,
+        users_per_group,
+        number_of_groups,
+        cloud_node,
+    )
+    return NetworkGraph(
+        base_graph=g,
+        node_resources=_star_resources(number_of_groups, users_per_group),
+        edge_capacity=capacities,
+        latency_alpha_factor=latency_alphas,
+        latency_beta_factor=latency_betas,
+    )
+
+
+def _make_star_services(
+    network_graph: NetworkGraph,
+    number_of_groups: int,
+    users_per_group: int,
+) -> list[Service]:
+    n_users = number_of_groups * users_per_group
+    cloud_index = network_graph.nx_graph.number_of_nodes() - 1
+    services = []
+    for user_index in range(n_users):
+        tasks = [
+            Demand(
+                origin_node_index=user_index,
+                flow_min=1,
+                flow_max=5,
+                max_latency=10 * n_users,
+            ),
+            Demand(
+                origin_node_index=cloud_index,
+                flow_min=1,
+                flow_max=2,
+                max_latency=10 * n_users,
+            ),
+        ]
+        services.append(Service(tasks, network_graph, resources_needed=1))
+    return services
 
 
 def build_star_instance(
@@ -19,118 +145,16 @@ def build_star_instance(
     users_per_group: int,
     neighbors_connection: int,
 ) -> ProblemInstance:
-    assert users_per_group >= 1
-    assert neighbors_connection >= 0
-    assert number_of_groups >= 1
-
-    assert neighbors_connection <= users_per_group // 2, "Too many neighbors."
-
-    nx_graph = nx.Graph()
-
-    # # Nodes (resources)
-    # Add users
-    for group_index in range(number_of_groups):
-        for user_index in range(users_per_group):
-            nx_graph.add_node(f"user_{group_index}_{user_index}")
-    # Add edges
-    nx_graph.add_nodes_from(
-        [f"wap_{group_index}" for group_index in range(number_of_groups)]
+    _validate_star_params(number_of_groups, users_per_group, neighbors_connection)
+    cloud_node = "cloud"
+    network_graph = _make_star_network(
+        number_of_groups,
+        users_per_group,
+        neighbors_connection,
+        cloud_node,
     )
-    # Add cloud
-    nx_graph.add_node("cloud")
-
-    # Resources
-    resources_nodes = (
-        [int(rng_gen.random() < 0.5)] * number_of_groups * users_per_group
-    )
-    resources_wap = [rng_gen.integers(users_per_group)] * number_of_groups
-    resources_cloud = [1 * number_of_groups * users_per_group]
-    resources = resources_nodes + resources_wap + resources_cloud
-
-    # # Edges
-    # Between users
-    for group_index in range(number_of_groups):
-        for user_index in range(users_per_group):
-            for connection in range(-neighbors_connection, neighbors_connection + 1):
-                origin_node = f"user_{group_index}_{user_index}"
-                connected_node = (user_index + connection) % users_per_group
-                destination_node = f"user_{group_index}_{connected_node}"
-                if origin_node != destination_node:
-                    nx_graph.add_edge(origin_node, destination_node)
-
-    # Between user and wap
-    for group_index in range(number_of_groups):
-        for user_index in range(users_per_group):
-            nx_graph.add_edge(f"user_{group_index}_{user_index}", f"wap_{group_index}")
-
-    # Between wap and cloud
-    for group_index in range(number_of_groups):
-        nx_graph.add_edge(f"wap_{group_index}", "cloud")
-
-    # Capacities
-    capacity_user_user = (
-        [1 * users_per_group]
-        * users_per_group
-        * neighbors_connection
-        * number_of_groups
-    )
-    capacity_user_wap = (
-        [1 * users_per_group] * users_per_group * number_of_groups
-    )
-    capacity_wap_cloud = [
-        1 * users_per_group * number_of_groups
-    ] * number_of_groups
-    capacities = capacity_user_user + capacity_user_wap + capacity_wap_cloud
-    latency_alphas = [3.0] * nx_graph.number_of_edges()
-    latency_betas = [3.0] * nx_graph.number_of_edges()
-
-    network_graph = NetworkGraph(
-        base_graph=nx_graph,
-        node_resources=resources,
-        edge_capacity=capacities,
-        latency_alpha_factor=latency_alphas,
-        latency_beta_factor=latency_betas,
-    )
-
-    # Create services, one per user
-    services = []
-    for user_index in range(users_per_group * number_of_groups):
-        demand_user = Demand(
-            origin_node_index=user_index,
-            flow_min=1,
-            flow_max=5,
-            max_latency=5 * users_per_group * number_of_groups,
-        )
-        demand_server = Demand(
-            origin_node_index=nx_graph.number_of_nodes() - 1,
-            flow_min=1,
-            flow_max=2,
-            max_latency=5 * users_per_group * number_of_groups,
-        )
-        service = Service(
-            task_list=[
-                demand_user,
-                demand_server,
-            ],
-            network_graph=network_graph,
-            resources_needed=1,
-        )
-        services.append(service)
-
-    PROBLEM_NAME = "tree_parallel_{}_{}".format(
-        users_per_group * number_of_groups, neighbors_connection
-    )
-    INSTANCE_PATH = os.path.join(
-        os.getcwd(),
-        "artifacts",
-        "instances",
-        PROBLEM_NAME + ".pkl",  # + f"{np.random.randint(100)}.pkl"
-    )
-    print("Instance creation...")
-
-    service_package = ServicePackage(services, PROBLEM_NAME)
-    problem_instance = ProblemInstance(network_graph, service_package, PROBLEM_NAME)
-
-    # pickle_save(problem_instance, INSTANCE_PATH)
-
-    return problem_instance
+    n_users = users_per_group * number_of_groups
+    problem_name = f"tree_parallel_{n_users}_{neighbors_connection}"
+    services = _make_star_services(network_graph, number_of_groups, users_per_group)
+    service_package = ServicePackage(services, problem_name)
+    return ProblemInstance(network_graph, service_package, problem_name)

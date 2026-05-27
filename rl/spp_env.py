@@ -13,7 +13,6 @@ from rl.observation import (
 from rl.path_cache import ShortestPathCache
 from rl.reward import served_quantity_score
 from rl.state_codec import (
-    SPPState,
     clip_state_to_bounds,
     make_basic_state,
     state_to_variables,
@@ -64,37 +63,32 @@ class SPPEnv(gym.Env):
         self.state = self._make_initial_state()
         self.best_state_record = (self.state, self._score_state(self.state))
 
-    def _make_initial_state(self) -> SPPState:
+    def _make_initial_state(self) -> np.ndarray:
         """Build the initial placement, routing, and quantity state."""
         if self.warm_start_heuristic and self.initial_solution is not None:
             return self.initial_solution
 
         basic_state = self._make_basic_state()
-        service_placement, path_indices, quantities = self._state_to_vectors(
-            basic_state
-        )
 
         if self.warm_start_heuristic:
             heuristic_solution = Solver(self.problem_instance, 3, 3)
             heuristic_solution.run()
 
-            service_placement = heuristic_solution.placement
-            path_indices = heuristic_solution.routing
-            quantities = heuristic_solution.quantities
-            self.served_quantity_history.append(sum(quantities))
-
-            self.initial_solution = SPPState(
-                list(service_placement),
-                list(path_indices),
-                list(quantities),
+            self.initial_solution = np.concatenate(
+                (
+                    np.asarray(heuristic_solution.placement, dtype=int),
+                    np.asarray(heuristic_solution.routing, dtype=int),
+                    np.asarray(heuristic_solution.quantities, dtype=int),
+                )
             )
+            self.served_quantity_history.append(sum(heuristic_solution.quantities))
             if self._is_feasible_state(self.initial_solution):
                 return self.initial_solution
             self.initial_solution = None
 
-        return SPPState(service_placement, path_indices, quantities)
+        return basic_state
 
-    def _make_basic_state(self) -> SPPState:
+    def _make_basic_state(self) -> np.ndarray:
         return make_basic_state(self.problem_instance, self.graph)
 
     def reset(
@@ -146,9 +140,8 @@ class SPPEnv(gym.Env):
 
     def _try_state_update(self, state, update_fn) -> tuple:
         """Apply one state mutation and keep the old state when infeasible."""
-        placement, routing, quantities = self._state_to_vectors(state)
-        new_state = SPPState(list(placement), list(routing), list(quantities))
-        update_fn(new_state)
+        new_state = np.asarray(state).copy()
+        update_fn(*self._state_to_vectors(new_state))
         is_feasible = self._is_feasible_state(new_state)
         if is_feasible:
             return new_state, is_feasible
@@ -158,15 +151,15 @@ class SPPEnv(gym.Env):
         self, state, selected_service: int, chosen_node: int
     ) -> tuple:
         """Try moving one service, keeping the old state when infeasible."""
-        def move_service(new_state):
-            new_state.placements[selected_service] = chosen_node
+        def move_service(placement, _, __):
+            placement[selected_service] = chosen_node
 
         return self._try_state_update(state, move_service)
 
     def _update_route(self, state, selected_demand: int, chosen_path_index: int) -> tuple:
         """Try rerouting one demand through the selected path index."""
-        def reroute_demand(new_state):
-            new_state.path_indices[selected_demand] = chosen_path_index
+        def reroute_demand(_, routing, __):
+            routing[selected_demand] = chosen_path_index
 
         return self._try_state_update(state, reroute_demand)
 
@@ -176,8 +169,8 @@ class SPPEnv(gym.Env):
         """For one demand, apply -1, 0, or +1 according to quantity_action."""
         quantity_delta = quantity_action - 1
 
-        def resize_demand(new_state):
-            new_state.quantities[selected_demand] += quantity_delta
+        def resize_demand(_, __, quantities):
+            quantities[selected_demand] += quantity_delta
 
         return self._try_state_update(state, resize_demand)
 

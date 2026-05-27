@@ -1,10 +1,11 @@
 import numpy as np
 from gymnasium.spaces import Box, MultiDiscrete
+import networkx as nx
 
-from rl.state_codec import state_to_list
+from core.problem_classes.problem_instance import ProblemInstance
 
 
-def make_action_space(problem_instance, graph, max_path_candidates: int) -> MultiDiscrete:
+def make_action_space(problem_instance: ProblemInstance, graph: nx.Graph, max_path_candidates: int) -> MultiDiscrete:
     return MultiDiscrete(
         [
             3,
@@ -18,7 +19,7 @@ def make_action_space(problem_instance, graph, max_path_candidates: int) -> Mult
 
 
 def make_vector_observation_space(
-    problem_instance, graph, max_path_candidates: int
+    problem_instance: ProblemInstance, graph: nx.Graph, max_path_candidates: int
 ) -> Box:
     demand_count = problem_instance.total_number_of_demands
     service_count = problem_instance.number_of_service
@@ -102,7 +103,7 @@ def make_vector_observation(env, state: list) -> np.ndarray:
     ]
 
     return np.array(
-        state_to_list(state)
+        np.asarray(state).tolist()
         + latency_proportion
         + arc_saturation_proportion
         + server_saturation
