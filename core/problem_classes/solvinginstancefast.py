@@ -6,8 +6,8 @@ from tqdm import trange
 from core.problem_classes.networkgraph import NetworkGraph
 from core.problem_classes.servicepackage import ServicePackage
 from core.problem_classes.probleminstance import ProblemInstance
-from utils.pickle import pickle_save
-from utils.graph_utils import (
+from data_io.pickle import pickle_save
+from core.graph_utils import (
     path_node_to_path_tuple,
     path_tuple_to_path_node,
     edges_to_path,

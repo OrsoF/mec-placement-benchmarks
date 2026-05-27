@@ -2,9 +2,9 @@ from core.problem_classes.networkgraph import NetworkGraph
 from core.problem_classes.servicepackage import ServicePackage
 import numpy as np
 import networkx as nx
-from utils.pickle import pickle_save
+from data_io.pickle import pickle_save
 import matplotlib.pyplot as plt
-from utils.graph_utils import path_node_to_path_tuple, path_tuple_to_path_node
+from core.graph_utils import path_node_to_path_tuple, path_tuple_to_path_node
 
 
 class ProblemInstance:

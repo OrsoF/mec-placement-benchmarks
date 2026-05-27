@@ -1,3 +1,3 @@
-from utils.data_management import reset
+from data_io.data_management import reset
 
 reset()

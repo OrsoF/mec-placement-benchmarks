@@ -1,7 +1,7 @@
 import networkx as nx
 
-from utils.build_instance_parallel import build_star_instance
-from utils.build_instance_tree import make_tree_instance
+from instances.build_parallel import build_star_instance
+from instances.build_tree import make_tree_instance
 
 
 def assert_valid_problem_instance(instance, expected_services, expected_demands):

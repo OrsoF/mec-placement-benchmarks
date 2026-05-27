@@ -48,7 +48,11 @@ def test_solver_subclasses_expose_required_output_attributes_without_super_init(
 
 def test_every_solver_module_uses_contract_base_class():
     solver_dir = Path(__file__).resolve().parents[1] / "solvers"
-    solver_files = sorted(solver_dir.glob("*.py"))
+    solver_files = sorted(
+        solver_file
+        for solver_file in solver_dir.rglob("*.py")
+        if solver_file.name != "__init__.py"
+    )
 
     assert solver_files
 

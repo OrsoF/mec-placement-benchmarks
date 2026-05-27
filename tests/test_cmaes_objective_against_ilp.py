@@ -1,6 +1,6 @@
-from utils.gym_instance import SPPEnv
-from utils.build_instance_tree import make_tree_instance
-from utils.data_management import solve
+from rl.gym_instance import SPPEnv
+from instances.build_tree import make_tree_instance
+from data_io.data_management import solve
 from stable_baselines3 import A2C
 import os
 import numpy as np

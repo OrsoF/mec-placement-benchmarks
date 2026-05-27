@@ -6,9 +6,9 @@ import pytest
 gymnasium = pytest.importorskip("gymnasium")
 pytest.importorskip("torch_geometric")
 
-from utils.build_instance_parallel import build_star_instance
-from utils.build_instance_tree import make_tree_instance
-from utils.gym_instance import SPPEnv
+from instances.build_parallel import build_star_instance
+from instances.build_tree import make_tree_instance
+from rl.gym_instance import SPPEnv
 
 
 def make_env(max_step=3):
@@ -37,12 +37,12 @@ def make_tree_env(max_step=3):
     )
 
 
-def test_only_primary_gym_environment_remains_in_utils():
+def test_primary_gym_environment_lives_in_rl_package():
     root_dir = Path(__file__).resolve().parents[1]
 
-    assert (root_dir / "utils" / "gym_instance.py").exists()
-    assert not (root_dir / "utils" / "gym_instance_2.py").exists()
-    assert (root_dir / "old" / "gym_instance_2.py").exists()
+    assert (root_dir / "rl" / "gym_instance.py").exists()
+    assert not (root_dir / "utils").exists()
+    assert (root_dir / "archive" / "legacy" / "gym_instance_2.py").exists()
 
 
 def test_gym_environment_reset_and_random_steps():

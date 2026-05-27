@@ -2,24 +2,24 @@ import os
 import pandas as pd
 import argparse
 from datetime import datetime
-from utils.build_instance_tree import make_tree_instance
-from utils.build_instance_parallel import build_star_instance
-from utils.data_management import solve
-from utils.pickle import pickle_load, pickle_save
+from instances.build_tree import make_tree_instance
+from instances.build_parallel import build_star_instance
+from data_io.data_management import solve
+from data_io.pickle import pickle_load, pickle_save
 from core.generic_solver import GenericSolver
-from solvers.ILP_arc import Solver as Solver_ILP_arc
-from solvers.ILP_arc_95 import Solver as Solver_ILP_arc_95
-from solvers.ILP_path import Solver as Solver_ILP_path
-from solvers.heuristic import Solver as Heuristic
-from solvers.cma import Solver as Cma
-from solvers.rl_A2C import Solver as A2c
-from solvers.rl_PPO import Solver as Ppo
-from solvers.ILP_arc_heuristic_warmstart import Solver as Solver_ILP_arc_hws
-from solvers.ILP_arc_heuristic_placement import (
+from solvers.exact.ILP_arc import Solver as Solver_ILP_arc
+from solvers.exact.ILP_arc_95 import Solver as Solver_ILP_arc_95
+from solvers.exact.ILP_path import Solver as Solver_ILP_path
+from solvers.heuristic.heuristic import Solver as Heuristic
+from solvers.evolutionary.cma import Solver as Cma
+from solvers.rl.rl_A2C import Solver as A2c
+from solvers.rl.rl_PPO import Solver as Ppo
+from solvers.exact.ILP_arc_heuristic_warmstart import Solver as Solver_ILP_arc_hws
+from solvers.exact.ILP_arc_heuristic_placement import (
     Solver as Solver_ILP_arc_heuristic_placement,
 )
-from solvers.ILP_arc_rl_warmstart import Solver as Solver_ILP_arc_rl_warm_start
-from solvers.rl_PPO_options import Solver as Ppo_options
+from solvers.exact.ILP_arc_rl_warmstart import Solver as Solver_ILP_arc_rl_warm_start
+from solvers.rl.rl_PPO_options import Solver as Ppo_options
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 argparser = argparse.ArgumentParser(description="Run the tree instance")
@@ -29,8 +29,9 @@ instance = args.instance
 assert instance in {"tree", "parallel"}
 
 current_date = datetime.now().strftime("%d_%m_%y")
-CSV_PATH = f"results_{current_date}.csv"
+CSV_PATH = os.path.join("artifacts", "data", f"results_{current_date}.csv")
 # CSV_PATH = "results_12_02_25.csv"
+os.makedirs(os.path.dirname(CSV_PATH), exist_ok=True)
 if not os.path.exists(CSV_PATH):
     df = pd.DataFrame(
         columns=[

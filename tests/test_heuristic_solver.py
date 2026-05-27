@@ -1,8 +1,8 @@
 import numpy as np
 
 from core.problem_classes.solvinginstance import SolvingInstance
-from solvers.heuristic import Solver as HeuristicSolver
-from utils.build_instance_tree import make_tree_instance
+from solvers.heuristic.heuristic import Solver as HeuristicSolver
+from instances.build_tree import make_tree_instance
 
 
 def test_heuristic_solver_runs_and_returns_feasible_solution():
