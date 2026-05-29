@@ -9,6 +9,15 @@ class Service:
         network_graph: NetworkGraph,
         resources_needed: float,
     ):
+        if not isinstance(network_graph, NetworkGraph):
+            raise TypeError("network_graph must be a NetworkGraph.")
+        if resources_needed < 0:
+            raise ValueError("resources_needed must be non-negative.")
+        if not task_list:
+            raise ValueError("task_list must not be empty.")
+        if not all(isinstance(task, Demand) for task in task_list):
+            raise TypeError("task_list must contain only Demand instances.")
+
         self.network_graph = network_graph
         self.node_number = self.network_graph.nx_graph.number_of_nodes()
         self.edge_number = self.network_graph.nx_graph.number_of_edges()
@@ -38,4 +47,7 @@ class Service:
         self.max_latencies.append(self.current_task_element.max_latency)
 
     def _check_task(self, task: Demand):
-        assert task.origin_node_index < self.node_number
+        if not 0 <= task.origin_node_index < self.node_number:
+            raise ValueError(
+                f"Demand origin node {task.origin_node_index} is outside graph nodes."
+            )

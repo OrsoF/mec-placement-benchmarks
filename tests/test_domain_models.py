@@ -68,11 +68,24 @@ def test_demand_and_service_collect_task_vectors():
     assert service.max_latencies == [10]
 
 
+def test_demand_rejects_invalid_values():
+    with pytest.raises(ValueError):
+        Demand(origin_node_index=-1, flow_min=1, flow_max=2, max_latency=10)
+    with pytest.raises(ValueError):
+        Demand(origin_node_index=0, flow_min=-1, flow_max=2, max_latency=10)
+    with pytest.raises(ValueError):
+        Demand(origin_node_index=0, flow_min=3, flow_max=2, max_latency=10)
+    with pytest.raises(ValueError):
+        Demand(origin_node_index=0, flow_min=1, flow_max=2, max_latency=-1)
+    with pytest.raises(TypeError):
+        Demand(origin_node_index=0.5, flow_min=1, flow_max=2, max_latency=10)
+
+
 def test_service_rejects_demand_from_unknown_node():
     instance = make_two_node_problem()
     bad_demand = Demand(origin_node_index=99, flow_min=1, flow_max=2, max_latency=10)
 
-    with pytest.raises(AssertionError):
+    with pytest.raises(ValueError):
         Service(
             task_list=[bad_demand],
             network_graph=instance.network_graph,
@@ -80,9 +93,64 @@ def test_service_rejects_demand_from_unknown_node():
         )
 
 
+def test_service_rejects_invalid_inputs():
+    instance = make_two_node_problem()
+    demand = Demand(origin_node_index=0, flow_min=1, flow_max=2, max_latency=10)
+
+    with pytest.raises(ValueError):
+        Service(task_list=[demand], network_graph=instance.network_graph, resources_needed=-1)
+    with pytest.raises(ValueError):
+        Service(task_list=[], network_graph=instance.network_graph, resources_needed=1)
+    with pytest.raises(TypeError):
+        Service(task_list=[object()], network_graph=instance.network_graph, resources_needed=1)
+    with pytest.raises(TypeError):
+        Service(task_list=[demand], network_graph=object(), resources_needed=1)
+
+
 def test_service_package_rejects_empty_services():
-    with pytest.raises(AssertionError):
+    with pytest.raises(ValueError):
         ServicePackage([], "empty")
+
+
+def test_service_package_rejects_inconsistent_services():
+    instance = make_two_node_problem()
+    service = instance.service_package.services[0]
+    another_service = Service(
+        task_list=[Demand(origin_node_index=0, flow_min=1, flow_max=2, max_latency=10)],
+        network_graph=instance.network_graph,
+        resources_needed=1,
+    )
+    different_task_count_service = Service(
+        task_list=[
+            Demand(origin_node_index=0, flow_min=1, flow_max=2, max_latency=10),
+            Demand(origin_node_index=1, flow_min=1, flow_max=2, max_latency=10),
+        ],
+        network_graph=instance.network_graph,
+        resources_needed=1,
+    )
+    graph = nx.Graph()
+    graph.add_edge("a", "b")
+    different_network = NetworkGraph(
+        base_graph=graph,
+        node_resources=[1, 10],
+        edge_capacity=[10],
+        latency_alpha_factor=[1],
+        latency_beta_factor=[1],
+    )
+    different_network_service = Service(
+        task_list=[Demand(origin_node_index=0, flow_min=1, flow_max=2, max_latency=10)],
+        network_graph=different_network,
+        resources_needed=1,
+    )
+
+    with pytest.raises(ValueError):
+        ServicePackage([service], "")
+    with pytest.raises(TypeError):
+        ServicePackage([object()], "bad")
+    with pytest.raises(ValueError):
+        ServicePackage([service, different_task_count_service], "bad")
+    with pytest.raises(ValueError):
+        ServicePackage([another_service, different_network_service], "bad")
 
 
 def test_problem_and_solving_instance_basic_solution_is_feasible():
