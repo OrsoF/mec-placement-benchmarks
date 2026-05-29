@@ -6,6 +6,7 @@ class Demand:
     A demand is a certain amount of resources needed at a destination
     node and a flow in [flow_min, flow_max] that need to transit.
     """
+
     def __init__(
         self,
         origin_node_index: int,

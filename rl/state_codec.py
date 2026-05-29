@@ -3,6 +3,7 @@ import networkx as nx
 
 from core.graph_utils import path_node_to_path_tuple
 from core.problem_classes.problem_instance import ProblemInstance
+from core.problem_classes.solving_instance import SolvingInstance
 from core.problem_classes.network_graph import NetworkGraph
 from rl.path_cache import ShortestPathCache
 
@@ -68,7 +69,7 @@ def make_state(
 
 def is_feasible_state(
     problem: ProblemInstance,
-    solution_checker: object,
+    solution_checker: SolvingInstance,
     path_cache: ShortestPathCache,
     s: np.ndarray | list,
 ) -> bool:

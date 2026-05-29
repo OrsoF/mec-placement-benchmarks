@@ -93,7 +93,7 @@ class SolvingInstance:
         return True
 
     def test_solution(self, placement: list, routing: list, quantities: list) -> bool:
-        """Test if the solution is feasible."""
+        """Test if the solution is feasible. IMPORTANT METHOD!"""
 
         if (
             len(placement) != self.problem_instance.number_of_service
@@ -180,6 +180,7 @@ class SolvingInstance:
         """Convert placement/routing/quantity vectors to plotting-compatible arrays."""
         self._validate_solution_vectors(placement, routing, quantities)
 
+        # Placement
         y_variable = np.zeros(
             (self.problem_instance.number_of_service, self.graph.number_of_nodes()),
             dtype=int,
@@ -187,6 +188,7 @@ class SolvingInstance:
         for service_index, node in enumerate(placement):
             y_variable[service_index, int(node)] = 1
 
+        # Routing
         x_variable = np.zeros(
             (
                 self.problem_instance.total_number_of_demands,
