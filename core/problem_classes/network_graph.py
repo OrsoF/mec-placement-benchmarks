@@ -76,18 +76,36 @@ class NetworkGraph:
         nx.classes.function.set_node_attributes(self.nx_graph, attribute_map, name)
 
     def set_edge_attribute(self, attributes: list[float], name: str):
-        if len(attributes) == self.nx_graph.number_of_edges() // 2:
-            for ind in range(len(attributes)):
-                attributes.insert(ind, attributes[ind])
-        assert (
-            len(attributes) == self.nx_graph.number_of_edges()
-        ), "{} parameters not equal to {} edges in graph.".format(
-            len(attributes), self.nx_graph.number_of_edges()
-        )
-        attribute_map = {
-            edge: attributes[edge_index]
-            for edge_index, edge in enumerate(self.nx_graph.edges)
-        }
+        edges = list(self.nx_graph.edges)
+
+        if len(attributes) == len(edges) // 2:
+            undirected_edges = []
+            seen = set()
+            for u, v in edges:
+                if (v, u) in seen:
+                    continue
+                undirected_edges.append((u, v))
+                seen.add((u, v))
+
+            assert len(attributes) == len(
+                undirected_edges
+            ), "{} parameters not equal to {} undirected edges in graph.".format(
+                len(attributes), len(undirected_edges)
+            )
+            attribute_map = {}
+            for edge, value in zip(undirected_edges, attributes):
+                u, v = edge
+                attribute_map[(u, v)] = value
+                attribute_map[(v, u)] = value
+        else:
+            assert len(attributes) == len(
+                edges
+            ), "{} parameters not equal to {} edges in graph.".format(
+                len(attributes), len(edges)
+            )
+            attribute_map = {
+                edge: attributes[edge_index] for edge_index, edge in enumerate(edges)
+            }
         nx.classes.function.set_edge_attributes(self.nx_graph, attribute_map, name)
 
     def make_graph_symmetric(self):

@@ -232,6 +232,13 @@ class ProblemInstance:
             assert used_resources <= self.network_graph.available_resources[node]
 
         assert np.all(
+            np.array(self.min_flows) <= self.q_variable
+        ), f"Demand quantity below minimum flow : {self.q_variable} >= {np.array(self.min_flows)}"
+        assert np.all(
+            self.q_variable <= np.array(self.max_flows)
+        ), f"Demand quantity above maximum flow : {self.q_variable} <= {np.array(self.max_flows)}"
+
+        assert np.all(
             self.x_variable.T.dot(self.q_variable)
             <= np.array(self.network_graph.capacities)
         ), f"Edge capacity exceeded : {self.x_variable.T.dot(self.q_variable)} <= {np.array(self.network_graph.capacities)}"  # Check edges capacities

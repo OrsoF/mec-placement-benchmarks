@@ -37,6 +37,26 @@ def test_network_graph_relabels_and_makes_graph_symmetric():
     assert instance.network_graph.capacities == [10, 10]
 
 
+def test_network_graph_duplicates_undirected_edge_attributes_by_reverse_pair():
+    graph = nx.path_graph(["user", "edge", "cloud"])
+
+    network = NetworkGraph(
+        base_graph=graph,
+        node_resources=[1, 5, 10],
+        edge_capacity=[10, 20],
+        latency_alpha_factor=[1, 2],
+        latency_beta_factor=[3, 4],
+    )
+
+    assert network.nx_graph.edges[0, 1]["capacity"] == 10
+    assert network.nx_graph.edges[1, 0]["capacity"] == 10
+    assert network.nx_graph.edges[1, 2]["capacity"] == 20
+    assert network.nx_graph.edges[2, 1]["capacity"] == 20
+    assert network.capacities == [10, 10, 20, 20]
+    assert network.alphas == [1, 1, 2, 2]
+    assert network.betas == [3, 3, 4, 4]
+
+
 def test_demand_and_service_collect_task_vectors():
     instance = make_two_node_problem()
     service = instance.service_package.services[0]
@@ -89,6 +109,22 @@ def test_check_current_solution_rejects_invalid_placement_assignment():
 def test_check_current_solution_rejects_invalid_capacity():
     instance = make_two_node_problem()
     instance.q_variable[0] = 11
+
+    with pytest.raises(AssertionError):
+        instance.check_current_solution()
+
+
+def test_check_current_solution_rejects_quantity_below_minimum():
+    instance = make_two_node_problem()
+    instance.q_variable[0] = 0
+
+    with pytest.raises(AssertionError):
+        instance.check_current_solution()
+
+
+def test_check_current_solution_rejects_quantity_above_maximum():
+    instance = make_two_node_problem()
+    instance.q_variable[0] = 4
 
     with pytest.raises(AssertionError):
         instance.check_current_solution()

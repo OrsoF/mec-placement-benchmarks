@@ -3,7 +3,7 @@ from rl.spp_env import SPPEnv
 
 
 def main() -> None:
-    instance = make_tree_instance(number_of_users=2, neighbors_connection=0)
+    instance = make_tree_instance(number_of_users=10, neighbors_connection=0)
     env = SPPEnv(
         instance,
         max_step=1,
