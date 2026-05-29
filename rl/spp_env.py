@@ -24,6 +24,8 @@ from solvers.heuristic.heuristicprecise import Solver
 
 
 class SPPEnv(gym.Env):
+    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 4}
+
     def __init__(
         self,
         problem: ProblemInstance | list[ProblemInstance],
@@ -32,9 +34,12 @@ class SPPEnv(gym.Env):
         warm_start_heuristic: bool = True,
         observation_type: str = "vector",
         reuse_best_on_reset: bool = False,
+        render_mode: str | None = None,
     ):
         """Initialize the environment for one problem or a compatible problem set."""
         self._validate_observation_type(observation_type)
+        self._validate_render_mode(render_mode)
+        self.render_mode = render_mode
         self.max_path_candidates = max_path_candidates
         self.max_steps = max_step
         self.problem_instances = self._make_problem_instances(problem)
@@ -64,6 +69,15 @@ class SPPEnv(gym.Env):
         """Reject unsupported observation modes while preserving the public option."""
         if observation_type != "vector":
             raise ValueError("Only vector observations are implemented.")
+
+    @classmethod
+    def _validate_render_mode(cls: type["SPPEnv"], render_mode: str | None) -> None:
+        """Reject unsupported Gym render modes."""
+        if render_mode is not None and render_mode not in cls.metadata["render_modes"]:
+            raise ValueError(
+                f"Unsupported render mode {render_mode!r}. "
+                f"Expected one of {cls.metadata['render_modes']}."
+            )
 
     @staticmethod
     def _problem_compatibility_signature(problem_instance: ProblemInstance) -> tuple:
@@ -229,9 +243,28 @@ class SPPEnv(gym.Env):
 
         return self._try_state_update(state, resize_demand)
 
-    def render(self) -> None:
-        """Print the current flat state."""
-        print(self.state)
+    def render(self, mode: str | None = None):
+        """Render the current solution state."""
+        from plotting.result_plots import plot_instance_solution
+
+        render_mode = mode or self.render_mode or "human"
+        self._validate_render_mode(render_mode)
+        fig, _ = plot_instance_solution(
+            self.problem_instance,
+            state=self.state,
+            env=self,
+            show=render_mode == "human",
+        )
+
+        if render_mode == "rgb_array":
+            fig.canvas.draw()
+            image = np.asarray(fig.canvas.buffer_rgba())[..., :3].copy()
+            import matplotlib.pyplot as plt
+
+            plt.close(fig)
+            return image
+
+        return None
 
     def step(self, action: tuple) -> tuple:
         """Apply one environment action and return the Gym step tuple."""

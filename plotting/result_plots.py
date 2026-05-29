@@ -1,99 +1,372 @@
-import os
+from __future__ import annotations
+
+from pathlib import Path
+
 import matplotlib.pyplot as plt
-import numpy as np
 import networkx as nx
+import numpy as np
+
 from core.problem_classes.problem_instance import ProblemInstance
 
-red_color = "tab:red"
-gray_color = "tab:gray"
+ORIGIN_COLOR = "tab:red"
+SERVER_COLOR = "tab:blue"
+ORIGIN_SERVER_COLOR = "tab:purple"
+DEFAULT_NODE_COLOR = "tab:gray"
+USED_EDGE_COLOR = "tab:orange"
+UNUSED_EDGE_COLOR = "lightgray"
 
 
-def plot_large_instance(
-    nx_graph: nx.Graph,
-    x: np.ndarray = None,
-    p: np.ndarray = None,
-    y: np.ndarray = None,
-    problem_instance: ProblemInstance = None,
-):
-    services = problem_instance.service_package.services
-    weights = 0.5 * np.log(3 * np.dot(x.transpose(), p) + 1) + 0.01
-    size = 200 * np.sum(y, axis=0) + 100
-    origins = [demand["origin"] for service in services for demand in service]
-    colors = [gray_color] * len(nx_graph.nodes)
-    for origin in origins:
-        colors[origin] = red_color
+def plot_instance_solution(
+    problem_instance: ProblemInstance,
+    x: np.ndarray | None = None,
+    y: np.ndarray | None = None,
+    q: np.ndarray | None = None,
+    *,
+    state: np.ndarray | list | None = None,
+    env: object | None = None,
+    ax: plt.Axes | None = None,
+    layout: str = "auto",
+    show: bool = True,
+    save_path: str | Path | None = None,
+    with_labels: bool | None = None,
+    show_node_usage: bool | None = None,
+    show_edge_usage: bool | None = None,
+    show_solution_summary: bool = True,
+) -> tuple[plt.Figure, plt.Axes]:
+    """Plot any problem instance, optionally highlighting a solved state."""
+    x, y, q = _resolve_solution(problem_instance, x=x, y=y, q=q, state=state, env=env)
+    graph = problem_instance.network_graph.nx_graph
+    pos = _make_layout(graph, problem_instance, layout)
 
-    used_servers = np.sum(y, axis=0)
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(12, 12))
+    else:
+        fig = ax.figure
 
-    for index, server in enumerate(used_servers):
-        if server and colors[index] == red_color:
-            colors[index] = "tab:purple"
-        elif server and colors[index] == gray_color:
-            colors[index] = "tab:blue"
+    node_colors = _node_colors(problem_instance, y)
+    node_sizes = _node_sizes(graph, y)
+    edge_widths = _edge_widths(graph, x, q)
+    edge_colors = [
+        USED_EDGE_COLOR if width > 0.5 else UNUSED_EDGE_COLOR for width in edge_widths
+    ]
+    resource_usage = _node_resource_usage(problem_instance, y)
+    capacity_usage = _edge_capacity_usage(problem_instance, x, q)
 
-    n = len(nx_graph.nodes) // 31
-    for index in range(len(nx_graph.edges)):
-        if index < n and colors[index] == gray_color:
-            colors[index] = "black"
-        elif n <= index < 11 * n and colors[index] == gray_color:
-            colors[index] = "dimgray"
-        elif 11 * n <= index < 31 * n and colors[index] == gray_color:
-            colors[index] = "lightgray"
-
-    pos = nx.shell_layout(nx_graph, [range(n), range(n, 11 * n), range(11 * n, 31 * n)])
-
-    plt.axis("off")
-    plt.figure(3, figsize=(12, 12))
-    nx.draw_networkx_nodes(nx_graph, pos, node_color=colors, node_size=size)
+    ax.axis("off")
     nx.draw_networkx_edges(
-        nx_graph, pos, connectionstyle="arc3,rad=0.1", width=weights, arrowstyle="->"
+        graph,
+        pos,
+        ax=ax,
+        edge_color=edge_colors,
+        width=edge_widths,
+        arrows=graph.is_directed(),
+        arrowsize=10,
+        connectionstyle="arc3,rad=0.08",
+    )
+    nx.draw_networkx_nodes(
+        graph,
+        pos,
+        ax=ax,
+        node_color=node_colors,
+        node_size=node_sizes,
+        linewidths=0.8,
+        edgecolors="white",
     )
 
-    plt.show()
+    if with_labels is None:
+        with_labels = graph.number_of_nodes() <= 100
+    if show_node_usage is None:
+        show_node_usage = graph.number_of_nodes() <= 100
+    if show_edge_usage is None:
+        show_edge_usage = graph.number_of_edges() <= 100
+
+    if with_labels:
+        nx.draw_networkx_labels(
+            graph,
+            pos,
+            ax=ax,
+            labels=_node_labels(graph, resource_usage, show_node_usage),
+            font_size=8,
+        )
+    if show_edge_usage:
+        nx.draw_networkx_edge_labels(
+            graph,
+            pos,
+            ax=ax,
+            edge_labels=_edge_labels(graph, capacity_usage),
+            font_size=7,
+            label_pos=0.55,
+        )
+
+    ax.set_title(problem_instance.problem_name)
+    if show_solution_summary:
+        ax.text(
+            1.02,
+            1.0,
+            _solution_summary(problem_instance, x, q),
+            transform=ax.transAxes,
+            va="top",
+            ha="left",
+            fontsize=8,
+            family="monospace",
+        )
+    fig.tight_layout()
+    if show_solution_summary:
+        fig.subplots_adjust(right=0.72)
+
+    if save_path is not None:
+        fig.savefig(save_path, bbox_inches="tight")
+    if show:
+        plt.show()
+
+    return fig, ax
+
+
+def plot_instance(
+    nx_graph: nx.Graph | None = None,
+    x: np.ndarray | None = None,
+    p: np.ndarray | None = None,
+    y: np.ndarray | None = None,
+    q: np.ndarray | None = None,
+    problem_instance: ProblemInstance | None = None,
+    **kwargs,
+) -> tuple[plt.Figure, plt.Axes]:
+    """Backward-compatible wrapper around :func:`plot_instance_solution`."""
+    if problem_instance is None:
+        raise ValueError("plot_instance requires a problem_instance.")
+    if q is None:
+        q = p
+    return plot_instance_solution(problem_instance, x=x, y=y, q=q, **kwargs)
 
 
 def plot_small_instance(
     nx_graph: nx.Graph,
-    x: np.ndarray = None,
-    p: np.ndarray = None,
-    y: np.ndarray = None,
-    problem_instance: ProblemInstance = None,
-):
-    services = problem_instance.service_package.services
-    pos = nx.drawing.layout.spring_layout(nx_graph)
-    weights = np.log(3 * np.dot(x.transpose(), p) + 1) + 0.5
-    size = 200 * np.sum(y, axis=0) + 100
-    origins = [demand["origin"] for service in services for demand in service]
-    colors = [gray_color] * len(nx_graph.nodes)
-    for origin in origins:
-        colors[origin] = red_color
-
-    used_servers = np.sum(y, axis=0)
-    # print(used_servers)
-    for index, server in enumerate(used_servers):
-        if server and colors[index] == red_color:
-            colors[index] = "tab:purple"
-        elif server and colors[index] == gray_color:
-            colors[index] = "tab:blue"
-
-    plt.axis("off")
-    plt.figure(3, figsize=(12, 12))
-    nx.draw_networkx_nodes(nx_graph, pos, node_color=colors, node_size=size)
-    nx.draw_networkx_edges(nx_graph, pos, connectionstyle="arc3,rad=0.1", width=weights)
-    nx.draw_networkx_labels(
-        nx_graph, pos, labels={i: i for i in range(len(nx_graph.nodes))}
-    )
-    plt.show()
+    x: np.ndarray | None = None,
+    p: np.ndarray | None = None,
+    y: np.ndarray | None = None,
+    q: np.ndarray | None = None,
+    problem_instance: ProblemInstance | None = None,
+) -> tuple[plt.Figure, plt.Axes]:
+    """Compatibility wrapper for old callers."""
+    return plot_instance(nx_graph, x=x, p=p, y=y, q=q, problem_instance=problem_instance)
 
 
-def plot_instance(
+def plot_large_instance(
     nx_graph: nx.Graph,
-    x: np.ndarray = None,
-    p: np.ndarray = None,
-    y: np.ndarray = None,
-    problem_instance: ProblemInstance = None,
-):
-    if nx_graph.number_of_nodes() > 1000:
-        plot_large_instance(nx_graph, x, p, y, problem_instance)
-    else:
-        plot_small_instance(nx_graph, x, p, y, problem_instance)
+    x: np.ndarray | None = None,
+    p: np.ndarray | None = None,
+    y: np.ndarray | None = None,
+    q: np.ndarray | None = None,
+    problem_instance: ProblemInstance | None = None,
+) -> tuple[plt.Figure, plt.Axes]:
+    """Compatibility wrapper for old callers."""
+    return plot_instance(
+        nx_graph,
+        x=x,
+        p=p,
+        y=y,
+        q=q,
+        problem_instance=problem_instance,
+        layout="shell",
+        with_labels=False,
+    )
+
+
+def _resolve_solution(
+    problem_instance: ProblemInstance,
+    *,
+    x: np.ndarray | None,
+    y: np.ndarray | None,
+    q: np.ndarray | None,
+    state: np.ndarray | list | None,
+    env: object | None,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    if state is not None:
+        if env is None or not hasattr(env, "_state_to_variables"):
+            raise ValueError("state plotting requires an env with _state_to_variables().")
+        x, y, q = env._state_to_variables(state)
+
+    if x is None:
+        x = getattr(problem_instance, "x_variable", None)
+    if y is None:
+        y = getattr(problem_instance, "y_variable", None)
+    if q is None:
+        q = getattr(problem_instance, "q_variable", None)
+
+    if x is None or y is None or q is None:
+        raise ValueError("A solution must provide x, y, and q variables.")
+
+    x = np.asarray(x)
+    y = np.asarray(y)
+    q = np.asarray(q)
+    _validate_solution_shapes(problem_instance, x, y, q)
+    return x, y, q
+
+
+def _validate_solution_shapes(
+    problem_instance: ProblemInstance,
+    x: np.ndarray,
+    y: np.ndarray,
+    q: np.ndarray,
+) -> None:
+    graph = problem_instance.network_graph.nx_graph
+    expected_x = (problem_instance.total_number_of_demands, graph.number_of_edges())
+    expected_y = (problem_instance.number_of_service, graph.number_of_nodes())
+    expected_q = (problem_instance.total_number_of_demands,)
+
+    if x.shape != expected_x:
+        raise ValueError(f"x has shape {x.shape}, expected {expected_x}.")
+    if y.shape != expected_y:
+        raise ValueError(f"y has shape {y.shape}, expected {expected_y}.")
+    if q.shape != expected_q:
+        raise ValueError(f"q has shape {q.shape}, expected {expected_q}.")
+
+
+def _node_colors(problem_instance: ProblemInstance, y: np.ndarray) -> list[str]:
+    graph = problem_instance.network_graph.nx_graph
+    origins = set(problem_instance.origins)
+    used_servers = set(np.nonzero(np.sum(y, axis=0))[0])
+
+    colors = []
+    for node in graph.nodes:
+        is_origin = node in origins
+        is_server = node in used_servers
+        if is_origin and is_server:
+            colors.append(ORIGIN_SERVER_COLOR)
+        elif is_origin:
+            colors.append(ORIGIN_COLOR)
+        elif is_server:
+            colors.append(SERVER_COLOR)
+        else:
+            colors.append(DEFAULT_NODE_COLOR)
+    return colors
+
+
+def _node_sizes(graph: nx.Graph, y: np.ndarray) -> np.ndarray:
+    services_per_node = np.sum(y, axis=0)
+    return 120 + 180 * services_per_node
+
+
+def _edge_widths(graph: nx.Graph, x: np.ndarray, q: np.ndarray) -> np.ndarray:
+    edge_loads = np.asarray(x.T @ q, dtype=float)
+    if graph.number_of_edges() == 0 or edge_loads.max(initial=0) <= 0:
+        return np.full(graph.number_of_edges(), 0.5)
+    return 0.5 + 4.0 * edge_loads / edge_loads.max()
+
+
+def _node_resource_usage(
+    problem_instance: ProblemInstance,
+    y: np.ndarray,
+) -> np.ndarray:
+    needed_resources = np.asarray(problem_instance.needed_resources, dtype=float)
+    return np.asarray(y.T @ needed_resources, dtype=float)
+
+
+def _edge_capacity_usage(
+    problem_instance: ProblemInstance,
+    x: np.ndarray,
+    q: np.ndarray,
+) -> np.ndarray:
+    return np.asarray(x.T @ q, dtype=float)
+
+
+def _node_labels(
+    graph: nx.Graph,
+    resource_usage: np.ndarray,
+    show_node_usage: bool,
+) -> dict:
+    if not show_node_usage:
+        return {node: str(node) for node in graph.nodes}
+
+    labels = {}
+    for node in graph.nodes:
+        available = graph.nodes[node]["available_resources"]
+        used = resource_usage[node]
+        labels[node] = f"{node}\nR {used:g}/{available:g}"
+    return labels
+
+
+def _edge_labels(
+    graph: nx.Graph,
+    capacity_usage: np.ndarray,
+) -> dict:
+    labels = {}
+    for edge_index, edge in enumerate(graph.edges):
+        capacity = graph.edges[edge]["capacity"]
+        used = capacity_usage[edge_index]
+        labels[edge] = f"C {used:g}/{capacity:g}"
+    return labels
+
+
+def _solution_summary(
+    problem_instance: ProblemInstance,
+    x: np.ndarray,
+    q: np.ndarray,
+) -> str:
+    lines = ["solution"]
+    demand_index = 0
+    for service_index, demand_count in enumerate(problem_instance.demand_per_service):
+        lines.append(f"S{service_index}")
+        for _ in range(demand_count):
+            latency = _demand_latency(problem_instance, x, q, demand_index)
+            max_latency = problem_instance.latencies[demand_index]
+            max_quantity = problem_instance.max_flows[demand_index]
+            quantity = q[demand_index]
+            ratio = quantity / max_quantity if max_quantity else 0
+            lines.append(
+                f" d{demand_index}: L {latency:g}/{max_latency:g} "
+                f"q {quantity:g}/{max_quantity:g} ({ratio:.0%})"
+            )
+            demand_index += 1
+
+    return "\n".join(lines)
+
+
+def _demand_latency(
+    problem_instance: ProblemInstance,
+    x: np.ndarray,
+    q: np.ndarray,
+    demand_index: int,
+) -> float:
+    used_edge_indices = np.nonzero(x[demand_index])[0]
+    quantity = q[demand_index]
+    return float(
+        sum(
+            problem_instance.network_graph.alphas[edge_index] * quantity
+            + problem_instance.network_graph.betas[edge_index]
+            for edge_index in used_edge_indices
+        )
+    )
+
+
+def _make_layout(
+    graph: nx.Graph,
+    problem_instance: ProblemInstance,
+    layout: str,
+) -> dict:
+    if layout == "auto":
+        layout = "shell" if _looks_like_layered_large_instance(graph) else "spring"
+
+    if layout == "shell":
+        shells = _large_instance_shells(graph)
+        if shells is not None:
+            return nx.shell_layout(graph, shells)
+        return nx.shell_layout(graph)
+    if layout == "kamada_kawai":
+        return nx.kamada_kawai_layout(graph)
+    if layout == "spring":
+        return nx.spring_layout(graph, seed=0)
+
+    raise ValueError(f"Unsupported layout: {layout}.")
+
+
+def _looks_like_layered_large_instance(graph: nx.Graph) -> bool:
+    return graph.number_of_nodes() > 1000 and graph.number_of_nodes() % 31 == 0
+
+
+def _large_instance_shells(graph: nx.Graph) -> list[range] | None:
+    if graph.number_of_nodes() % 31 != 0:
+        return None
+
+    n = graph.number_of_nodes() // 31
+    return [range(n), range(n, 11 * n), range(11 * n, 31 * n)]
