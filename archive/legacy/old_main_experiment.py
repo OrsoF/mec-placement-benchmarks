@@ -6,8 +6,6 @@ from data_io.experiment_io import (
     create_dataframe_from_dict,
     folder_management,
 )
-from instances.gml_builder import make_instance_from_gml
-from instances.large_builder import make_big_instances
 import numpy as np
 from core.problem_classes.problem_instance import ProblemInstance
 from core.generic_solver import GenericSolver
@@ -22,11 +20,7 @@ def check_network_graph(nx_graph):
 reset()
 folder_management()
 
-# Create basic instances (less than 50 nodes)
-make_instance_from_gml()
-
-# Create big custom instances (1000 nodes or more)
-make_big_instances()
+# Instance batch generation was removed from the simplified instances package.
 
 # Create a list of available instance
 instance_list = get_instance_list()

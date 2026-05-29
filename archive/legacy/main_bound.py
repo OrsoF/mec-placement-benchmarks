@@ -1,7 +1,7 @@
 import pandas as pd
 import seaborn as sns
 import numpy as np
-from instances.tree_builder import make_tree_instance
+from instances.builder import make_tree_instance
 from solvers.exact.ilp_arc import Solver as ilp_arc_Solver
 from solvers.relaxations.lp_arc import Solver as lp_arc_Solver
 from solvers.exact.ilp_path import Solver as ilp_path_Solver

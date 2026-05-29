@@ -5,14 +5,13 @@ import pytest
 
 gymnasium = pytest.importorskip("gymnasium")
 
-from instances.parallel_builder import build_star_instance
-from instances.tree_builder import make_tree_instance
+from instances.builder import make_star_instance, make_tree_instance
 from rl.spp_env import SPPEnv
 
 
 def make_env(max_step: int = 3):
     """Create a small star environment for Gym behavior tests."""
-    instance = build_star_instance(
+    instance = make_star_instance(
         number_of_groups=1,
         users_per_group=3,
         neighbors_connection=1,

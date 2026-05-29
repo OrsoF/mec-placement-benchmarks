@@ -15,9 +15,7 @@ import pandas as pd
 
 from core.generic_solver import GenericSolver
 from core.problem_classes.problem_instance import ProblemInstance
-from instances.large_builder import make_large_instance
-from instances.parallel_builder import build_star_instance
-from instances.tree_builder import make_tree_instance
+from instances.builder import make_large_instance, make_star_instance, make_tree_instance
 from solvers.exact.ilp_arc import Solver as IlpArcSolver
 from solvers.heuristic.heuristic import Solver as HeuristicSolver
 from solvers.rl.ppo import Solver as PpoSolver
@@ -135,7 +133,7 @@ def build_problem_instance(
     if instance_type == "tree":
         return make_tree_instance(users, neighbors)
     if instance_type == "parallel":
-        return build_star_instance(groups, users, neighbors)
+        return make_star_instance(groups, users, neighbors)
     assert gml_path is not None, "large instances require a GML topology path."
     return make_large_instance(gml_path, n_services=users)
 

@@ -1,4 +1,4 @@
-from instances.tree_builder import make_tree_instance
+from instances.builder import make_tree_instance
 from rl.spp_env import SPPEnv
 
 

@@ -1,15 +1,13 @@
 from data_io.experiment_io import folder_management
-from instances.gml_builder import make_instance_from_gml
-from instances.large_builder import make_big_instances
-from instances.tree_builder import make_tree_instance
+from instances.builder import make_tree_instance
 
 folder_management()
 
 # Create basic instances (less than 50 nodes)
-# make_instance_from_gml()
+# GML batch builders were removed from the simplified instances package.
 
 # Create big custom instances (1000 nodes or more)
-# make_big_instances()
+# Large instances are now created directly with instances.builder.make_large_instance.
 
 # Create simple tree instance
 make_tree_instance()

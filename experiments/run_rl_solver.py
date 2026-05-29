@@ -1,6 +1,6 @@
-from instances.parallel_builder import build_star_instance
+from instances.builder import make_star_instance
 
-instance = build_star_instance(5, 2, 3)
+instance = make_star_instance(5, 2, 3)
 
 from solvers.rl.a2c import Solver
 

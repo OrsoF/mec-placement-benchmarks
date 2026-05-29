@@ -1,5 +1,4 @@
-from instances.parallel_builder import build_star_instance
-from instances.tree_builder import make_tree_instance
+from instances.builder import make_star_instance, make_tree_instance
 import argparse
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -22,7 +21,7 @@ cloud = 1
 neighbors = 1
 
 if instance_type == "parallel":
-    instance = build_star_instance(users // edge, neighbors, edge)
+    instance = make_star_instance(users // edge, neighbors, edge)
 else:
     instance = make_tree_instance(users, neighbors)
 

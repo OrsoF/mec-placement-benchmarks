@@ -1,5 +1,5 @@
 from rl.spp_env import SPPEnv
-from instances.parallel_builder import build_star_instance
+from instances.builder import make_star_instance
 from data_io.experiment_io import solve
 import os
 
@@ -7,7 +7,7 @@ os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 users = 5
 neighbors = 4
-problem_instance = build_star_instance(
+problem_instance = make_star_instance(
     number_of_users=users, neighbors_connection=neighbors
 )
 

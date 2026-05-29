@@ -1,8 +1,8 @@
 import networkx as nx
+import numpy as np
 
-from instances.parallel_builder import build_star_instance
-from instances.tree_builder import make_tree_instance
-from instances.large_builder import make_services, make_three_level_graph
+from instances.builder import make_star_instance, make_tree_instance
+from instances.utility import random_services, three_level_graph
 from core.problem_classes.problem_instance import ProblemInstance
 from core.problem_classes.service_package import ServicePackage
 
@@ -45,13 +45,13 @@ def test_parallel_builder_creates_valid_small_instance():
     groups = 2
     users_per_group = 3
 
-    instance = build_star_instance(
+    instance = make_star_instance(
         number_of_groups=groups,
         users_per_group=users_per_group,
         neighbors_connection=1,
     )
 
-    assert instance.problem_name == "tree_parallel_6_1"
+    assert instance.problem_name == "star_2_3_1"
     assert_valid_problem_instance(
         instance,
         expected_services=groups * users_per_group,
@@ -63,13 +63,21 @@ def test_large_builder_creates_valid_synthetic_instance():
     base_graph = nx.path_graph(3)
     n_services = 2
 
-    network_graph, n_core, user_nodes = make_three_level_graph(
+    network_graph, n_core, user_nodes = three_level_graph(
         base_graph,
         edge_per_core=2,
         users_per_core=2,
         user_degree=1,
+        rng=np.random.default_rng(0),
     )
-    services = make_services(network_graph, n_services, n_core, user_nodes)
+    services = random_services(
+        network_graph,
+        np.r_[np.arange(n_core), user_nodes],
+        n_services,
+        n_services,
+        np.random.default_rng(0),
+        latency_scale=25.0,
+    )
     package = ServicePackage(services, "large_synthetic")
     instance = ProblemInstance(network_graph, package, "large_synthetic")
 

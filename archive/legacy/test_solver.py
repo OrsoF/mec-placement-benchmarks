@@ -1,11 +1,11 @@
-from instances.parallel_builder import build_star_instance
+from instances.builder import make_star_instance
 
 number_of_groups = 5
 users_per_group = 10
 neighbors_connection = 1
 
 
-instance = build_star_instance(
+instance = make_star_instance(
     number_of_groups,
     users_per_group,
     neighbors_connection,

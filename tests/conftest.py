@@ -3,8 +3,7 @@ import sys
 
 import pytest
 
-from instances.parallel_builder import build_star_instance
-from instances.tree_builder import make_tree_instance
+from instances.builder import make_star_instance, make_tree_instance
 
 
 ROOT_DIR = os.path.dirname(os.path.dirname(__file__))
@@ -25,7 +24,7 @@ def connected_tree_instance():
 
 @pytest.fixture
 def small_star_instance():
-    return build_star_instance(
+    return make_star_instance(
         number_of_groups=1,
         users_per_group=3,
         neighbors_connection=1,

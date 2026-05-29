@@ -1,5 +1,5 @@
 from rl.spp_env import SPPEnv
-from instances.tree_builder import make_tree_instance
+from instances.builder import make_tree_instance
 from data_io.experiment_io import solve
 from stable_baselines3 import A2C
 import os

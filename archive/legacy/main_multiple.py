@@ -2,8 +2,7 @@ import os
 import pandas as pd
 import argparse
 from datetime import datetime
-from instances.tree_builder import make_tree_instance
-from instances.parallel_builder import build_star_instance
+from instances.builder import make_star_instance, make_tree_instance
 from data_io.experiment_io import solve
 from data_io.pickle_io import pickle_load, pickle_save
 from core.generic_solver import GenericSolver
@@ -93,7 +92,7 @@ def experience(users: int):
     if instance == "tree":
         problem_instance = make_tree_instance(users, neighbors)
     elif instance == "parallel":
-        problem_instance = build_star_instance(
+        problem_instance = make_star_instance(
             users, neighbors, groups
         )
 

@@ -1,4 +1,4 @@
-from instances.tree_builder import make_tree_instance
+from instances.builder import make_tree_instance
 from data_io.experiment_io import solve, import_instance_from_file, import_solver_from_file
 import os
 from solvers.rl.a2c import Solver
