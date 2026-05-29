@@ -44,7 +44,7 @@ def test_primary_gym_environment_lives_in_rl_package():
 
     assert (root_dir / "rl" / "spp_env.py").exists()
     assert not (root_dir / "utils").exists()
-    assert (root_dir / "archive" / "legacy" / "gym_instance_2.py").exists()
+    assert not (root_dir / "archive" / "legacy" / "gym_instance_2.py").exists()
 
 
 def test_gym_environment_reset_and_random_steps():

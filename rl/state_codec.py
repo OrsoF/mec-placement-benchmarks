@@ -7,6 +7,11 @@ from core.problem_classes.network_graph import NetworkGraph
 from rl.path_cache import ShortestPathCache
 
 
+def to_integer_state(s: np.ndarray | list) -> np.ndarray:
+    """Return a rounded integer copy of a flat state."""
+    return np.rint(np.asarray(s, dtype=float)).astype(int)
+
+
 def state_to_vectors(
     problem: ProblemInstance,
     s: np.ndarray | list,
@@ -44,12 +49,40 @@ def clip_state_to_bounds(
     s: np.ndarray | list,
 ) -> np.ndarray:
     """Round and clip a flat state to valid state bounds."""
-    s = np.rint(np.asarray(s, dtype=float)).astype(int)
+    s = to_integer_state(s)
     p, r, q = state_to_vectors(problem, s)
     p[:] = np.clip(p, 0, graph.number_of_nodes() - 1)
     r[:] = np.clip(r, 0, max_path_candidates - 1)
     q[:] = np.clip(q, problem.min_flows, problem.max_flows)
     return s
+
+
+def make_state(
+    placement: np.ndarray | list,
+    routing: np.ndarray | list,
+    quantities: np.ndarray | list,
+) -> np.ndarray:
+    """Build a flat integer state from placement, routing, and quantities."""
+    return to_integer_state(np.concatenate((placement, routing, quantities)))
+
+
+def is_feasible_state(
+    problem: ProblemInstance,
+    solution_checker: object,
+    path_cache: ShortestPathCache,
+    s: np.ndarray | list,
+) -> bool:
+    """Return whether a flat state is feasible for the problem."""
+    placement, routing, quantities = state_to_vectors(problem, to_integer_state(s))
+    for demand_index in range(problem.total_number_of_demands):
+        service_index = problem.demand_to_service[demand_index]
+        origin = problem.origins[demand_index]
+        target = placement[service_index]
+        try:
+            path_cache.nth_shortest_path(origin, target, routing[demand_index])
+        except (IndexError, nx.NetworkXException):
+            return False
+    return solution_checker.test_solution(placement, routing, quantities)
 
 
 def state_to_variables(
@@ -60,9 +93,8 @@ def state_to_variables(
     s: np.ndarray | list,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Convert a flat state into arc, placement, and quantity variables."""
+    s = to_integer_state(s)
     p, r, q = state_to_vectors(problem, s)
-    p = p.astype(int, copy=False)
-    r = r.astype(int, copy=False)
 
     x = np.zeros((problem.total_number_of_demands, graph.number_of_edges()))
     for d in range(problem.total_number_of_demands):

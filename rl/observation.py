@@ -3,7 +3,10 @@ from gymnasium.spaces import Box, MultiDiscrete
 import networkx as nx
 from typing import Any
 
+from core.graph_utils import path_node_to_path_tuple
 from core.problem_classes.problem_instance import ProblemInstance
+from rl.path_cache import ShortestPathCache
+from rl.state_codec import state_to_vectors
 
 
 def make_action_space(
@@ -78,15 +81,18 @@ def make_vector_observation_space(
     )
 
 
-def make_vector_observation(env: Any, state: list) -> np.ndarray:
+def make_vector_observation(env: Any, state: np.ndarray | list) -> np.ndarray:
     """Build the flat observation vector used by current RL agents."""
-    env._reset_edge_attributes()
-    env._reset_node_attributes()
-    env._update_edge_attributes(state)
-    env._update_node_attributes(state)
+    apply_state_to_graph(env.problem_instance, env.graph, env.path_cache, state)
 
     latency_proportion = [
-        env._get_demand_latency(demand_index, state)
+        get_demand_latency(
+            env.problem_instance,
+            env.graph,
+            env.path_cache,
+            demand_index,
+            state,
+        )
         / env.problem_instance.latencies[demand_index]
         for demand_index in range(env.problem_instance.total_number_of_demands)
     ]
@@ -103,7 +109,7 @@ def make_vector_observation(env: Any, state: list) -> np.ndarray:
     ]
 
     path_lengths = [
-        len(env._get_demand_path(demand_index, state))
+        len(get_demand_path(env.problem_instance, env.path_cache, demand_index, state))
         for demand_index in range(env.problem_instance.total_number_of_demands)
     ]
 
@@ -122,6 +128,94 @@ def make_vector_observation(env: Any, state: list) -> np.ndarray:
     )
 
 
-def observe_vector(env: Any, state: list) -> np.ndarray:
+def observe_vector(env: Any, state: np.ndarray | list) -> np.ndarray:
     """Backward-compatible alias for make_vector_observation."""
     return make_vector_observation(env, state)
+
+
+def apply_state_to_graph(
+    problem: ProblemInstance,
+    graph: nx.Graph,
+    path_cache: ShortestPathCache,
+    state: np.ndarray | list,
+) -> None:
+    """Reset graph attributes, then apply state capacity and resource usage."""
+    reset_graph_attributes(graph)
+    update_edge_attributes(problem, graph, path_cache, state)
+    update_node_attributes(problem, graph, state)
+
+
+def reset_graph_attributes(graph: nx.Graph) -> None:
+    """Restore mutable edge and node attributes."""
+    for edge in graph.edges:
+        graph.edges[edge]["remaining_capacity"] = graph.edges[edge]["capacity"]
+        graph.edges[edge]["latency"] = graph.edges[edge]["beta"]
+
+    for node in graph.nodes:
+        graph.nodes[node]["remaining_resources"] = graph.nodes[node][
+            "available_resources"
+        ]
+
+
+def update_edge_attributes(
+    problem: ProblemInstance,
+    graph: nx.Graph,
+    path_cache: ShortestPathCache,
+    state: np.ndarray | list,
+) -> None:
+    """Update edge latency and remaining capacity for a state."""
+    service_placement, path_indices, quantities = state_to_vectors(problem, state)
+
+    for demand_index in range(problem.total_number_of_demands):
+        service_index = problem.demand_to_service[demand_index]
+        origin = problem.origins[demand_index]
+        target = service_placement[service_index]
+        path = path_cache.nth_shortest_path(origin, target, path_indices[demand_index])
+        demand_path = path_node_to_path_tuple(path)
+
+        for edge in demand_path:
+            graph.edges[edge]["remaining_capacity"] -= quantities[demand_index]
+            graph.edges[edge]["latency"] += quantities[demand_index] * graph.edges[edge][
+                "alpha"
+            ]
+
+
+def update_node_attributes(
+    problem: ProblemInstance,
+    graph: nx.Graph,
+    state: np.ndarray | list,
+) -> None:
+    """Update node resources consumed by the current service placement."""
+    service_placement = state_to_vectors(problem, state)[0]
+
+    for service_index in range(problem.number_of_service):
+        target_node = service_placement[service_index]
+        required_resources = problem.needed_resources[service_index]
+        graph.nodes[target_node]["remaining_resources"] -= required_resources
+
+
+def get_demand_latency(
+    problem: ProblemInstance,
+    graph: nx.Graph,
+    path_cache: ShortestPathCache,
+    demand_index: int,
+    state: np.ndarray | list,
+) -> float:
+    """Return the latency of one demand path in the updated graph."""
+    path = get_demand_path(problem, path_cache, demand_index, state)
+    demand_path = path_node_to_path_tuple(path)
+    return sum(graph.edges[edge]["latency"] for edge in demand_path)
+
+
+def get_demand_path(
+    problem: ProblemInstance,
+    path_cache: ShortestPathCache,
+    demand_index: int,
+    state: np.ndarray | list,
+) -> list:
+    """Return the selected path for a demand in the given state."""
+    service_placement, path_indices, _ = state_to_vectors(problem, state)
+    service_index = problem.demand_to_service[demand_index]
+    origin = problem.origins[demand_index]
+    target = service_placement[service_index]
+    return path_cache.nth_shortest_path(origin, target, path_indices[demand_index])

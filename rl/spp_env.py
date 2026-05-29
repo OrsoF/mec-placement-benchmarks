@@ -1,9 +1,7 @@
 import gymnasium as gym
-import networkx as nx
 import numpy as np
 from collections.abc import Callable
 
-from core.graph_utils import path_node_to_path_tuple
 from core.problem_classes.problem_instance import ProblemInstance
 from core.problem_classes.solving_instance import SolvingInstance
 from rl.observation import (
@@ -15,9 +13,12 @@ from rl.path_cache import ShortestPathCache
 from rl.reward import served_quantity_score
 from rl.state_codec import (
     clip_state_to_bounds,
+    is_feasible_state,
     make_basic_state,
+    make_state,
     state_to_variables,
     state_to_vectors,
+    to_integer_state,
 )
 from solvers.heuristic.heuristicprecise import Solver
 
@@ -45,7 +46,7 @@ class SPPEnv(gym.Env):
         self.steps_done = 0
         self.episode_start_score_index = 0
         self._load_problem_instance(self.base_problem_instance)
-        self.best_state_record = (self.state, self._score_state(self.state))
+        self.best_state_record = (self.state.copy(), self._score_state(self.state))
 
     @staticmethod
     def _make_problem_instances(
@@ -105,13 +106,13 @@ class SPPEnv(gym.Env):
         self.solution_checker = SolvingInstance(self.problem_instance)
         self.initial_solution = None
         self._configure_spaces()
-        self.state = self._integer_state(self._make_initial_state())
-        self.best_state_record = (self.state, self._score_state(self.state))
+        self.state = to_integer_state(self._make_initial_state())
+        self.best_state_record = (self.state.copy(), self._score_state(self.state))
 
     def _make_initial_state(self) -> np.ndarray:
         """Build the initial placement, routing, and quantity state."""
         if self.warm_start_heuristic and self.initial_solution is not None:
-            return self.initial_solution
+            return self.initial_solution.copy()
 
         basic_state = self._make_basic_state()
 
@@ -119,16 +120,14 @@ class SPPEnv(gym.Env):
             heuristic_solution = Solver(self.problem_instance, 3, 3)
             heuristic_solution.run()
 
-            self.initial_solution = np.concatenate(
-                (
-                    np.asarray(heuristic_solution.placement, dtype=int),
-                    np.asarray(heuristic_solution.routing, dtype=int),
-                    np.asarray(heuristic_solution.quantities, dtype=int),
-                )
+            self.initial_solution = make_state(
+                heuristic_solution.placement,
+                heuristic_solution.routing,
+                heuristic_solution.quantities,
             )
             self.served_quantity_history.append(sum(heuristic_solution.quantities))
             if self._is_feasible_state(self.initial_solution):
-                return self.initial_solution
+                return self.initial_solution.copy()
             self.initial_solution = None
 
         return basic_state
@@ -175,9 +174,9 @@ class SPPEnv(gym.Env):
             self._configure_spaces()
 
         if not self.reuse_best_on_reset:
-            self.state = self._integer_state(self._make_initial_state())
+            self.state = to_integer_state(self._make_initial_state())
         else:
-            self.state = self._integer_state(self.best_state_record[0])
+            self.state = to_integer_state(self.best_state_record[0])
 
         self.steps_done = 0
         self.episode_start_score_index = len(self.served_quantity_history)
@@ -189,10 +188,10 @@ class SPPEnv(gym.Env):
         update_fn: Callable[[np.ndarray, np.ndarray, np.ndarray], None],
     ) -> tuple:
         """Apply one state mutation and keep the old state when infeasible."""
-        old_state = self._integer_state(state)
+        old_state = to_integer_state(state)
         new_state = old_state.copy()
         update_fn(*self._state_to_vectors(new_state))
-        new_state = self._integer_state(new_state)
+        new_state = to_integer_state(new_state)
         is_feasible = self._is_feasible_state(new_state)
         if is_feasible:
             return new_state, is_feasible
@@ -239,7 +238,7 @@ class SPPEnv(gym.Env):
         terminated = False
         info = {}
 
-        state = self._integer_state(self.state)
+        state = to_integer_state(self.state)
 
         # Action layout: [operation, service, node, demand, quantity delta, path index].
         (
@@ -265,7 +264,7 @@ class SPPEnv(gym.Env):
             best_episode_quantity = self._best_episode_score()
             reward = max(0, current_served_quantity - best_episode_quantity)
 
-        self.state = self._integer_state(state)
+        self.state = to_integer_state(state)
         observation = self._observe(self.state)
         self.served_quantity_history.append(sum(self._state_to_vectors(self.state)[2]))
 
@@ -277,71 +276,16 @@ class SPPEnv(gym.Env):
         truncated = self.steps_done >= self.max_steps
         return observation, reward / 100, terminated, truncated, info
 
-    def _get_path_candidate(
-        self, source: int, destination: int, index: int
-    ) -> list:
-        """Return the index-th shortest path from source to destination."""
-        # Shortest-path generation is expensive, so route lookups are memoized.
-        return self.path_cache.nth_shortest_path(source, destination, index)
-
-    def _reset_edge_attributes(self) -> None:
-        """Restore mutable edge capacity and latency attributes."""
-        for edge in self.graph.edges:
-            self.graph.edges[edge]["remaining_capacity"] = self.graph.edges[edge][
-                "capacity"
-            ]
-            self.graph.edges[edge]["latency"] = self.graph.edges[edge]["beta"]
-
-    def _update_edge_attributes(self, state: np.ndarray | list) -> None:
-        """Update edge latency and remaining capacity for the current state."""
-        service_placement, path_indices, quantities = self._state_to_vectors(state)
-
-        for demand_index in range(self.problem_instance.total_number_of_demands):
-            service_index = self.problem_instance.demand_to_service[demand_index]
-            origin = self.problem_instance.origins[demand_index]
-            target = service_placement[service_index]
-            path = self._get_path_candidate(
-                origin, target, path_indices[demand_index]
-            )
-            demand_path = path_node_to_path_tuple(path)
-
-            for edge in demand_path:
-                self.graph.edges[edge]["remaining_capacity"] -= quantities[demand_index]
-                self.graph.edges[edge]["latency"] += (
-                    quantities[demand_index] * self.graph.edges[edge]["alpha"]
-                )
-
-    def _reset_node_attributes(self) -> None:
-        """Restore mutable node resource attributes."""
-        for node in self.graph.nodes:
-            self.graph.nodes[node]["remaining_resources"] = self.graph.nodes[node][
-                "available_resources"
-            ]
-
-    def _update_node_attributes(self, state: np.ndarray | list) -> None:
-        """Update node resources consumed by the current service placement."""
-        service_placement = self._state_to_vectors(state)[0]
-
-        for service_index in range(self.problem_instance.number_of_service):
-            target_node = service_placement[service_index]
-            required_resources = self.problem_instance.needed_resources[service_index]
-            self.graph.nodes[target_node]["remaining_resources"] -= required_resources
-
     def _is_feasible_state(self, state: np.ndarray | list | None = None) -> bool:
         """Test if a state is feasible."""
         if state is None:
             state = self.state
-        state = self._integer_state(state)
-        placement, routing, quantities = self._state_to_vectors(state)
-        for demand_index in range(self.problem_instance.total_number_of_demands):
-            service_index = self.problem_instance.demand_to_service[demand_index]
-            origin = self.problem_instance.origins[demand_index]
-            target = placement[service_index]
-            try:
-                self._get_path_candidate(origin, target, routing[demand_index])
-            except (IndexError, nx.NetworkXException):
-                return False
-        return self.solution_checker.test_solution(placement, routing, quantities)
+        return is_feasible_state(
+            self.problem_instance,
+            self.solution_checker,
+            self.path_cache,
+            state,
+        )
 
     def _configure_spaces(self) -> None:
         """Build the Gym action and observation spaces."""
@@ -357,11 +301,6 @@ class SPPEnv(gym.Env):
         """Clip the current flat state to action-compatible integer bounds."""
         self.state = self._canonical_state(self.state)
         return self.state
-
-    @staticmethod
-    def _integer_state(state: np.ndarray | list) -> np.ndarray:
-        """Return a rounded integer copy of a flat state."""
-        return np.rint(np.asarray(state, dtype=float)).astype(int)
 
     def _canonical_state(self, state: np.ndarray | list) -> np.ndarray:
         """Return an integer state rounded and clipped to valid bounds."""
@@ -395,22 +334,6 @@ class SPPEnv(gym.Env):
         """Transform a state into the flat observation vector."""
         # Observation features depend on mutable graph capacities and resources.
         return make_vector_observation(self, state)
-
-    def _get_demand_latency(self, demand_index: int, state: list) -> float:
-        """For a given demand, get its associated latency."""
-        path = self._get_demand_path(demand_index, state)
-        demand_path = path_node_to_path_tuple(path)
-        return sum(self.graph.edges[edge]["latency"] for edge in demand_path)
-
-    def _get_demand_path(self, demand_index: int, state: list) -> list:
-        """Return the selected path for a demand in the given state."""
-        service_placement, path_indices, _ = self._state_to_vectors(state)
-        service_index = self.problem_instance.demand_to_service[demand_index]
-        origin = self.problem_instance.origins[demand_index]
-        target = service_placement[service_index]
-        return self._get_path_candidate(
-            origin, target, path_indices[demand_index]
-        )
 
     def _score_state(self, state: np.ndarray | list) -> float:
         """Compute the scalar score for a state."""

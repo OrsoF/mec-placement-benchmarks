@@ -73,4 +73,7 @@ def test_every_solver_module_uses_contract_base_class():
         assert base_names & {
             "GenericSolver",
             "RLSolver",
-        }, f"{solver_file.name} Solver must inherit GenericSolver or RLSolver"
+            "A2CSolver",
+            "PPOSolver",
+            "PPOOptionsSolver",
+        }, f"{solver_file.name} Solver must inherit a known solver base"
