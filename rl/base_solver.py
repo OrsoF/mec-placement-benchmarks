@@ -24,6 +24,7 @@ class Solver(GenericSolver):
         evaluation_step: int,
         method: str,
         reuse_best_on_reset: bool = False,
+        seed: int = 0,
     ):
         """Initialize the RL solver around one problem or compatible problems."""
         if isinstance(problem, list) and not problem:
@@ -34,6 +35,7 @@ class Solver(GenericSolver):
         self.train_step = train_step
         self.evaluation_step = evaluation_step
         self.method = method.upper()
+        self.seed = seed
         self.solver_name = f"rl_{self.method}"
 
         self.env = self._make_env(
@@ -55,7 +57,7 @@ class Solver(GenericSolver):
             max_step=max_step,
             reuse_best_on_reset=reuse_best_on_reset,
         )
-        env.reset()
+        env.reset(seed=self.seed)
         return env
 
     def _make_model(self):
@@ -70,7 +72,7 @@ class Solver(GenericSolver):
             "policy": "MlpPolicy",
             "env": self.env,
             "verbose": 0,
-            "seed": 0,
+            "seed": self.seed,
         }
         if self.method == "PPO":
             model_kwargs["ent_coef"] = 0.01

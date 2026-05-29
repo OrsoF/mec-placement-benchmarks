@@ -8,7 +8,6 @@ environment and contains unfinished graph-observation code.
 import gymnasium as gym
 import numpy as np
 import networkx as nx
-from torch_geometric.utils.convert import from_networkx
 
 from gymnasium.spaces import Tuple, Box, MultiDiscrete
 from core.problem_classes.solving_instance import SolvingInstance
@@ -500,8 +499,6 @@ class SPPEnv(gym.Env):
     def _observe(self, state: list):
         if self.observation_type == "vector":
             return self._observe_vector(state)
-        elif self.observation_type == "gcn":
-            return self._observe_gcn(state)
         else:
             assert False, "Unknown observation space."
 
@@ -549,16 +546,6 @@ class SPPEnv(gym.Env):
             + self.problem_instance.needed_resources
             + longueur_chemins
         )
-
-    def _observe_gcn(self, state: list):
-        """Transform a given state into a graph element."""
-        self._reset_edge_attributes()
-        self._reset_node_attributes()
-        self._update_edge_attributes(state)
-        self._update_node_attributes(state)
-        data = from_networkx(self.graph)
-        print(data)
-        return data
 
     def _get_latency_demand(self, demand_index: int, state: list) -> float:
         """For a given demand, get its associated latency."""

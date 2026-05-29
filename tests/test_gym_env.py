@@ -124,7 +124,7 @@ def test_gym_rejects_unimplemented_gcn_observation_mode():
     """Reject observation modes that are not implemented."""
     instance = make_tree_instance(number_of_users=2, neighbors_connection=0)
 
-    with pytest.raises(AssertionError, match="Only vector observations"):
+    with pytest.raises(ValueError, match="Only vector observations"):
         SPPEnv(instance, max_step=2, observation_type="gcn")
 
 
@@ -147,8 +147,10 @@ def test_gym_reset_preserves_or_accepts_reset_configuration():
     )
 
     assert env.warm_start_heuristic is False
-    assert env.observation_type == "vector"
     assert env.reuse_best_on_reset is True
+
+    with pytest.raises(ValueError, match="Only vector observations"):
+        env.reset(observation_type="gcn")
 
 
 def test_gym_rejects_incompatible_problem_instances():

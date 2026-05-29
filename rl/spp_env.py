@@ -33,15 +33,12 @@ class SPPEnv(gym.Env):
         reuse_best_on_reset: bool = False,
     ):
         """Initialize the environment for one problem or a compatible problem set."""
+        self._validate_observation_type(observation_type)
         self.max_path_candidates = max_path_candidates
         self.max_steps = max_step
         self.problem_instances = self._make_problem_instances(problem)
         self._validate_problem_instances_compatibility(self.problem_instances)
         self.warm_start_heuristic = warm_start_heuristic
-        self.observation_type = observation_type
-        assert self.observation_type in [
-            "vector",
-        ], "Only vector observations are implemented."
         self.reuse_best_on_reset = reuse_best_on_reset
         self.base_problem_instance = self.problem_instances[0]
         self.served_quantity_history = [0]
@@ -60,6 +57,12 @@ class SPPEnv(gym.Env):
                 raise ValueError("SPPEnv requires at least one problem instance.")
             return problem
         return [problem]
+
+    @staticmethod
+    def _validate_observation_type(observation_type: str) -> None:
+        """Reject unsupported observation modes while preserving the public option."""
+        if observation_type != "vector":
+            raise ValueError("Only vector observations are implemented.")
 
     @staticmethod
     def _problem_compatibility_signature(problem_instance: ProblemInstance) -> tuple:
@@ -102,7 +105,7 @@ class SPPEnv(gym.Env):
         self.solution_checker = SolvingInstance(self.problem_instance)
         self.initial_solution = None
         self._configure_spaces()
-        self.state = self._make_initial_state()
+        self.state = self._integer_state(self._make_initial_state())
         self.best_state_record = (self.state, self._score_state(self.state))
 
     def _make_initial_state(self) -> np.ndarray:
@@ -150,13 +153,11 @@ class SPPEnv(gym.Env):
             if warm_start_heuristic is None
             else warm_start_heuristic
         )
-        observation_type = (
-            self.observation_type if observation_type is None else observation_type
-        )
+        if observation_type is not None:
+            self._validate_observation_type(observation_type)
         if reuse_best_on_reset is None:
             reuse_best_on_reset = self.reuse_best_on_reset
         self.warm_start_heuristic = warm_start_heuristic
-        self.observation_type = observation_type
         self.reuse_best_on_reset = reuse_best_on_reset
 
         next_problem_instance = self.problem_instance
@@ -174,9 +175,9 @@ class SPPEnv(gym.Env):
             self._configure_spaces()
 
         if not self.reuse_best_on_reset:
-            self.state = self._make_initial_state()
+            self.state = self._integer_state(self._make_initial_state())
         else:
-            self.state = self.best_state_record[0]
+            self.state = self._integer_state(self.best_state_record[0])
 
         self.steps_done = 0
         self.episode_start_score_index = len(self.served_quantity_history)
@@ -188,12 +189,14 @@ class SPPEnv(gym.Env):
         update_fn: Callable[[np.ndarray, np.ndarray, np.ndarray], None],
     ) -> tuple:
         """Apply one state mutation and keep the old state when infeasible."""
-        new_state = np.asarray(state).copy()
+        old_state = self._integer_state(state)
+        new_state = old_state.copy()
         update_fn(*self._state_to_vectors(new_state))
+        new_state = self._integer_state(new_state)
         is_feasible = self._is_feasible_state(new_state)
         if is_feasible:
             return new_state, is_feasible
-        return state, is_feasible
+        return old_state, is_feasible
 
     def _update_placement(
         self, state: np.ndarray | list, selected_service: int, chosen_node: int
@@ -236,7 +239,7 @@ class SPPEnv(gym.Env):
         terminated = False
         info = {}
 
-        state = self.state
+        state = self._integer_state(self.state)
 
         # Action layout: [operation, service, node, demand, quantity delta, path index].
         (
@@ -262,13 +265,13 @@ class SPPEnv(gym.Env):
             best_episode_quantity = self._best_episode_score()
             reward = max(0, current_served_quantity - best_episode_quantity)
 
-        self.state = state
-        observation = self._observe(state)
+        self.state = self._integer_state(state)
+        observation = self._observe(self.state)
         self.served_quantity_history.append(sum(self._state_to_vectors(self.state)[2]))
 
-        current_score = self._score_state(state)
+        current_score = self._score_state(self.state)
         if self.best_state_record[1] < current_score:
-            self.best_state_record = (state, current_score)
+            self.best_state_record = (self.state.copy(), current_score)
 
         self.steps_done += 1
         truncated = self.steps_done >= self.max_steps
@@ -328,6 +331,7 @@ class SPPEnv(gym.Env):
         """Test if a state is feasible."""
         if state is None:
             state = self.state
+        state = self._integer_state(state)
         placement, routing, quantities = self._state_to_vectors(state)
         for demand_index in range(self.problem_instance.total_number_of_demands):
             service_index = self.problem_instance.demand_to_service[demand_index]
@@ -341,26 +345,32 @@ class SPPEnv(gym.Env):
 
     def _configure_spaces(self) -> None:
         """Build the Gym action and observation spaces."""
-        if self.observation_type == "vector":
-            # State layout: [service placements | path indices | demand quantities].
-            self.action_space = make_action_space(
-                self.problem_instance, self.graph, self.max_path_candidates
-            )
-            self.observation_space = make_vector_observation_space(
-                self.problem_instance, self.graph, self.max_path_candidates
-            )
-        else:
-            assert False, "Unknown observation space."
+        # State layout: [service placements | path indices | demand quantities].
+        self.action_space = make_action_space(
+            self.problem_instance, self.graph, self.max_path_candidates
+        )
+        self.observation_space = make_vector_observation_space(
+            self.problem_instance, self.graph, self.max_path_candidates
+        )
 
     def clip_state(self) -> np.ndarray:
         """Clip the current flat state to action-compatible integer bounds."""
-        self.state = clip_state_to_bounds(
+        self.state = self._canonical_state(self.state)
+        return self.state
+
+    @staticmethod
+    def _integer_state(state: np.ndarray | list) -> np.ndarray:
+        """Return a rounded integer copy of a flat state."""
+        return np.rint(np.asarray(state, dtype=float)).astype(int)
+
+    def _canonical_state(self, state: np.ndarray | list) -> np.ndarray:
+        """Return an integer state rounded and clipped to valid bounds."""
+        return clip_state_to_bounds(
             self.problem_instance,
             self.graph,
             self.max_path_candidates,
-            self.state,
+            state,
         )
-        return self.state
 
     def _best_episode_score(self) -> float:
         """Return the best served quantity seen since the episode started."""
@@ -382,12 +392,6 @@ class SPPEnv(gym.Env):
         return state_to_vectors(self.problem_instance, state)
 
     def _observe(self, state: np.ndarray | list) -> np.ndarray:
-        """Dispatch state observation construction by observation type."""
-        if self.observation_type == "vector":
-            return self._observe_vector(state)
-        assert False, "Unknown observation space."
-
-    def _observe_vector(self, state: list) -> np.ndarray:
         """Transform a state into the flat observation vector."""
         # Observation features depend on mutable graph capacities and resources.
         return make_vector_observation(self, state)
