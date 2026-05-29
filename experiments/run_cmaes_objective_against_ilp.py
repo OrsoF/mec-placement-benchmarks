@@ -16,12 +16,13 @@ problem_instance = make_tree_instance(
     number_of_users=users, neighbors_connection=neighbors
 )
 
-env = SPPEnv(main_problem_instance=problem_instance)
+env = SPPEnv(problem=problem_instance)
 env.reset()
 max_value = 0
 
 
 def objective(value: np.ndarray):
+    """Evaluate a CMA candidate by clipping and scoring the environment state."""
     global max_value
     S = problem_instance.number_of_service
     D = problem_instance.total_number_of_demands

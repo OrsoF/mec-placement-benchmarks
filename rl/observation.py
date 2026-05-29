@@ -1,11 +1,15 @@
 import numpy as np
 from gymnasium.spaces import Box, MultiDiscrete
 import networkx as nx
+from typing import Any
 
 from core.problem_classes.problem_instance import ProblemInstance
 
 
-def make_action_space(problem_instance: ProblemInstance, graph: nx.Graph, max_path_candidates: int) -> MultiDiscrete:
+def make_action_space(
+    problem_instance: ProblemInstance, graph: nx.Graph, max_path_candidates: int
+) -> MultiDiscrete:
+    """Build the discrete action space for the loaded problem dimensions."""
     return MultiDiscrete(
         [
             3,
@@ -21,6 +25,7 @@ def make_action_space(problem_instance: ProblemInstance, graph: nx.Graph, max_pa
 def make_vector_observation_space(
     problem_instance: ProblemInstance, graph: nx.Graph, max_path_candidates: int
 ) -> Box:
+    """Build the vector observation bounds for the loaded problem."""
     demand_count = problem_instance.total_number_of_demands
     service_count = problem_instance.number_of_service
     node_count = graph.number_of_nodes()
@@ -73,7 +78,7 @@ def make_vector_observation_space(
     )
 
 
-def make_vector_observation(env, state: list) -> np.ndarray:
+def make_vector_observation(env: Any, state: list) -> np.ndarray:
     """Build the flat observation vector used by current RL agents."""
     env._reset_edge_attributes()
     env._reset_node_attributes()
@@ -117,6 +122,6 @@ def make_vector_observation(env, state: list) -> np.ndarray:
     )
 
 
-def observe_vector(env, state: list) -> np.ndarray:
+def observe_vector(env: Any, state: list) -> np.ndarray:
     """Backward-compatible alias for make_vector_observation."""
     return make_vector_observation(env, state)

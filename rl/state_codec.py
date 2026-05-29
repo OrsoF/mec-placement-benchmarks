@@ -11,6 +11,7 @@ def state_to_vectors(
     problem: ProblemInstance,
     s: np.ndarray | list,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Split a flat state into placement, routing, and quantity vectors."""
     s = np.asarray(s)
     S = problem.number_of_service
     D = problem.total_number_of_demands
@@ -18,6 +19,7 @@ def state_to_vectors(
 
 
 def make_basic_state(problem: ProblemInstance, graph: nx.Graph) -> np.ndarray:
+    """Create a default state that places all services on the largest node."""
     S = problem.number_of_service
     D = problem.total_number_of_demands
     resources = np.fromiter(
@@ -41,6 +43,7 @@ def clip_state_to_bounds(
     max_path_candidates: int,
     s: np.ndarray | list,
 ) -> np.ndarray:
+    """Round and clip a flat state to valid state bounds."""
     s = np.rint(np.asarray(s, dtype=float)).astype(int)
     p, r, q = state_to_vectors(problem, s)
     p[:] = np.clip(p, 0, graph.number_of_nodes() - 1)
@@ -56,6 +59,7 @@ def state_to_variables(
     path_cache: ShortestPathCache,
     s: np.ndarray | list,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Convert a flat state into arc, placement, and quantity variables."""
     p, r, q = state_to_vectors(problem, s)
     p = p.astype(int, copy=False)
     r = r.astype(int, copy=False)

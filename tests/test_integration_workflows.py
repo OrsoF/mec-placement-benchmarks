@@ -1,9 +1,11 @@
 import pytest
+from core.problem_classes.problem_instance import ProblemInstance
 
 
 @pytest.mark.integration
 @pytest.mark.requires_rl
-def test_rl_solver_can_train_for_one_timestep(small_tree_instance):
+def test_rl_solver_can_train_for_one_timestep(small_tree_instance: ProblemInstance):
+    """Verify a minimal SB3 training loop can run on SPPEnv."""
     pytest.importorskip("stable_baselines3")
 
     from rl.base_solver import Solver as RLSolver
@@ -12,7 +14,7 @@ def test_rl_solver_can_train_for_one_timestep(small_tree_instance):
     from stable_baselines3 import A2C
 
     env = SPPEnv(
-        main_problem_instance=small_tree_instance,
+        problem=small_tree_instance,
         max_step=2,
         warm_start_heuristic=False,
     )
@@ -26,10 +28,12 @@ def test_rl_solver_can_train_for_one_timestep(small_tree_instance):
 @pytest.mark.integration
 @pytest.mark.requires_cma
 def test_cma_dependency_is_available_for_cma_workflows():
+    """Verify the optional CMA dependency can be imported."""
     pytest.importorskip("cma")
 
 
 @pytest.mark.integration
 @pytest.mark.requires_pyomo
 def test_pyomo_dependency_is_available_for_exact_solver_workflows():
+    """Verify the optional Pyomo dependency can be imported."""
     pytest.importorskip("pyomo")

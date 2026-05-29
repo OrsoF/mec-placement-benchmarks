@@ -18,14 +18,17 @@ MODEL_CLASSES = {
 class Solver(GenericSolver):
     def __init__(
         self,
-        problem_instance: ProblemInstance,
-        training_instances_database: list[ProblemInstance] | None,
+        problem: ProblemInstance | list[ProblemInstance],
         max_step: int,
         train_step: int,
         evaluation_step: int,
         method: str,
         reuse_best_on_reset: bool = False,
     ):
+        """Initialize the RL solver around one problem or compatible problems."""
+        if isinstance(problem, list) and not problem:
+            raise ValueError("RL Solver requires at least one problem instance.")
+        problem_instance = problem[0] if isinstance(problem, list) else problem
         super().__init__(problem_instance)
 
         self.train_step = train_step
@@ -34,30 +37,29 @@ class Solver(GenericSolver):
         self.solver_name = f"rl_{self.method}"
 
         self.env = self._make_env(
-            problem_instance,
+            problem,
             max_step,
-            training_instances_database,
             reuse_best_on_reset,
         )
         self.model = self._make_model()
 
     def _make_env(
         self,
-        problem_instance: ProblemInstance,
+        problem: ProblemInstance | list[ProblemInstance],
         max_step: int,
-        training_instances_database: list[ProblemInstance] | None,
         reuse_best_on_reset: bool,
     ) -> SPPEnv:
+        """Create the Gym environment used by the SB3 model."""
         env = SPPEnv(
-            main_problem_instance=problem_instance,
+            problem=problem,
             max_step=max_step,
-            training_set=training_instances_database,
             reuse_best_on_reset=reuse_best_on_reset,
         )
         env.reset()
         return env
 
     def _make_model(self):
+        """Create the configured Stable-Baselines3 model."""
         if self.method not in MODEL_CLASSES:
             known_methods = ", ".join(sorted(MODEL_CLASSES))
             raise ValueError(
@@ -76,6 +78,7 @@ class Solver(GenericSolver):
         return MODEL_CLASSES[self.method](**model_kwargs)
 
     def run(self):
+        """Train the model and record aggregate solver metrics."""
         start_time = time.time()
 
         self.model.learn(total_timesteps=self.train_step, progress_bar=False)

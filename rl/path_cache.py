@@ -5,10 +5,12 @@ class ShortestPathCache:
     """Memoize indexed shortest paths for one graph."""
 
     def __init__(self, graph: nx.Graph):
+        """Store the graph and initialize the path memoization table."""
         self.graph = graph
         self._paths: dict[tuple[int, int, int], list] = {}
 
     def nth_shortest_path(self, source: int, destination: int, index: int) -> list:
+        """Return and cache the indexed shortest simple path."""
         index = int(index)
         cache_key = (source, destination, index)
         if cache_key in self._paths:

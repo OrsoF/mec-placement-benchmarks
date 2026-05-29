@@ -10,7 +10,8 @@ from instances.tree_builder import make_tree_instance
 from rl.spp_env import SPPEnv
 
 
-def make_env(max_step=3):
+def make_env(max_step: int = 3):
+    """Create a small star environment for Gym behavior tests."""
     instance = build_star_instance(
         number_of_groups=1,
         users_per_group=3,
@@ -25,7 +26,8 @@ def make_env(max_step=3):
     )
 
 
-def make_tree_env(max_step=3):
+def make_tree_env(max_step: int = 3):
+    """Create a small tree environment for state conversion tests."""
     instance = make_tree_instance(number_of_users=2, neighbors_connection=0)
     return SPPEnv(
         instance,
@@ -37,6 +39,7 @@ def make_tree_env(max_step=3):
 
 
 def test_primary_gym_environment_lives_in_rl_package():
+    """Check that the active Gym environment lives in the rl package."""
     root_dir = Path(__file__).resolve().parents[1]
 
     assert (root_dir / "rl" / "spp_env.py").exists()
@@ -45,6 +48,7 @@ def test_primary_gym_environment_lives_in_rl_package():
 
 
 def test_gym_environment_reset_and_random_steps():
+    """Exercise reset and a few sampled steps on the Gym environment."""
     env = make_env()
 
     observation, info = env.reset()
@@ -74,6 +78,7 @@ def test_gym_environment_reset_and_random_steps():
 
 
 def test_gym_state_to_vectors_splits_state_by_problem_dimensions():
+    """Verify flat state splitting follows the active problem dimensions."""
     env = make_env()
     state = env._make_basic_state()
 
@@ -86,6 +91,7 @@ def test_gym_state_to_vectors_splits_state_by_problem_dimensions():
 
 
 def test_gym_score_uses_quantities_only():
+    """Verify the default score comes from served quantities."""
     env = make_env()
     state = env._make_basic_state()
 
@@ -96,6 +102,7 @@ def test_gym_score_uses_quantities_only():
 
 
 def test_gym_state_to_variables_returns_feasible_solution_arrays():
+    """Check state-to-variable conversion shapes and feasibility."""
     env = make_tree_env()
     state = env._make_basic_state()
 
@@ -114,6 +121,7 @@ def test_gym_state_to_variables_returns_feasible_solution_arrays():
 
 
 def test_gym_rejects_unimplemented_gcn_observation_mode():
+    """Reject observation modes that are not implemented."""
     instance = make_tree_instance(number_of_users=2, neighbors_connection=0)
 
     with pytest.raises(AssertionError, match="Only vector observations"):
@@ -121,12 +129,12 @@ def test_gym_rejects_unimplemented_gcn_observation_mode():
 
 
 def test_gym_reset_preserves_or_accepts_reset_configuration():
+    """Verify reset-time options remain configurable with multiple problems."""
     first_instance = make_tree_instance(number_of_users=2, neighbors_connection=0)
-    second_instance = make_tree_instance(number_of_users=3, neighbors_connection=0)
+    second_instance = make_tree_instance(number_of_users=2, neighbors_connection=0)
     env = SPPEnv(
-        first_instance,
+        [first_instance, second_instance],
         max_step=2,
-        training_set=[second_instance],
         warm_start_heuristic=False,
         observation_type="vector",
         reuse_best_on_reset=True,
@@ -143,7 +151,17 @@ def test_gym_reset_preserves_or_accepts_reset_configuration():
     assert env.reuse_best_on_reset is True
 
 
+def test_gym_rejects_incompatible_problem_instances():
+    """Reject problem lists that would change Gym dimensions during training."""
+    first_instance = make_tree_instance(number_of_users=2, neighbors_connection=0)
+    second_instance = make_tree_instance(number_of_users=3, neighbors_connection=0)
+
+    with pytest.raises(ValueError, match="same Gym dimensions"):
+        SPPEnv([first_instance, second_instance], warm_start_heuristic=False)
+
+
 def test_gym_invalid_path_index_is_infeasible():
+    """Treat a route beyond the cached path range as infeasible."""
     env = make_tree_env()
     state = env._make_basic_state()
     placement, routing, quantities = env._state_to_vectors(state)
@@ -154,6 +172,7 @@ def test_gym_invalid_path_index_is_infeasible():
 
 
 def test_gym_reset_restores_step_count_and_initial_observation_shape():
+    """Reset the episode counter and return a valid initial observation."""
     env = make_env(max_step=2)
     env.step(env.action_space.sample())
 
@@ -166,6 +185,7 @@ def test_gym_reset_restores_step_count_and_initial_observation_shape():
 
 
 def test_gym_truncates_at_max_step():
+    """Truncate an episode when the configured step budget is reached."""
     env = make_env(max_step=1)
 
     _, _, terminated, truncated, _ = env.step(env.action_space.sample())

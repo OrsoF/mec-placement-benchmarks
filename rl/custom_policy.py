@@ -28,6 +28,7 @@ class CustomNetwork(nn.Module):
         last_layer_dim_pi: int = 64,
         last_layer_dim_vf: int = 64,
     ):
+        """Build separate latent networks for policy and value prediction."""
         super().__init__()
 
         # IMPORTANT:
@@ -52,10 +53,13 @@ class CustomNetwork(nn.Module):
         return self.forward_actor(features), self.forward_critic(features)
 
     def forward_actor(self, features: th.Tensor) -> th.Tensor:
+        """Compute policy latent features."""
         return self.policy_net(features)
 
     def forward_critic(self, features: th.Tensor) -> th.Tensor:
+        """Compute value latent features."""
         return self.value_net(features)
+
 
 class GCN(torch.nn.Module):
     """Graph Convolutional Network"""
@@ -66,6 +70,7 @@ class GCN(torch.nn.Module):
         last_layer_dim_pi: int = 64,
         last_layer_dim_vf: int = 64,
     ):
+        """Build graph convolution branches for policy and value prediction."""
         super().__init__()
         self.feature_dim = feature_dim
         self.last_layer_dim_pi = last_layer_dim_pi
@@ -87,9 +92,11 @@ class GCN(torch.nn.Module):
         return self.forward_actor(features), self.forward_critic(features)
 
     def forward_actor(self, features: th.Tensor) -> th.Tensor:
+        """Compute graph policy latent features."""
         return self.policy_net(features)
 
     def forward_critic(self, features: th.Tensor) -> th.Tensor:
+        """Compute graph value latent features."""
         return self.value_net(features)
 
 
@@ -100,9 +107,10 @@ class CustomActorCriticPolicy(ActorCriticPolicy):
         observation_space: spaces.Space,
         action_space: spaces.Space,
         lr_schedule: Callable[[float], float],
-        *args,
-        **kwargs,
+        *args: object,
+        **kwargs: object,
     ):
+        """Initialize the actor-critic policy with the custom extractor."""
         # Disable orthogonal initialization
         kwargs["ortho_init"] = False
         super().__init__(
@@ -115,4 +123,5 @@ class CustomActorCriticPolicy(ActorCriticPolicy):
         )
 
     def _build_mlp_extractor(self) -> None:
+        """Attach the custom latent network to the SB3 policy."""
         self.mlp_extractor = CustomNetwork(self.features_dim)
