@@ -22,11 +22,10 @@ The central optimization problem is:
 |-- main.tex                # LaTeX table snippet for reported results
 |-- core/                   # Domain model, graph helpers, placement helpers, solver contract
 |-- solvers/                # Exact, relaxation, heuristic, evolutionary, and RL solvers
-|-- instances/              # Synthetic and GML-based instance builders
+|-- instances/              # Synthetic instance builders
 |-- rl/                     # Gym environment, RL policies, and RL solver base class
 |-- data_io/                # Pickle, result parsing, and artifact I/O helpers
 |-- plotting/               # Plot generation helpers
-|-- data/topologies/        # Input network topologies in GML format
 |-- experiments/            # Exploratory experiment entry points
 |-- artifacts/              # Generated CSVs, plots, PDFs, pickles, and trained agents
 |-- archive/legacy/         # Legacy scripts and notebooks kept for reference
@@ -56,8 +55,6 @@ The central optimization problem is:
 - `tree_builder.py`: tree-like edge/cloud topology with one service per
   user.
 - `parallel_builder.py`: grouped star/parallel topology.
-- `gml_builder.py`: instances derived from GML topologies in
-  `data/topologies/`.
 - `large_builder.py`: larger synthetic instances.
 
 ### Solvers
