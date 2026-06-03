@@ -290,7 +290,7 @@ class Solver(GenericSolver):
         self.model.capacity = pyo.Constraint(
             self.model.A,
             rule=lambda model, a: model.nul[0]
-            + sum(model.delta[c, a] * model.P[c] for c in model.C)
+            + sum(float(model.delta[c, a]) * model.P[c] for c in model.C)
             <= model.arc_capacity[a],
         )
 
@@ -310,7 +310,8 @@ class Solver(GenericSolver):
             self.model.C,
             self.model.A,
             rule=lambda model, c, a: model.L[c, a]
-            <= model.alpha[a] * sum(model.delta[cp, a] * model.P[cp] for cp in model.C)
+            <= model.alpha[a]
+            * sum(float(model.delta[cp, a]) * model.P[cp] for cp in model.C)
             + model.beta[a],
         )
         self.model.latency_rule_2 = pyo.Constraint(
@@ -322,7 +323,8 @@ class Solver(GenericSolver):
             self.model.C,
             self.model.A,
             rule=lambda model, c, a: model.L[c, a]
-            >= model.alpha[a] * sum(model.delta[cp, a] * model.P[cp] for cp in model.C)
+            >= model.alpha[a]
+            * sum(float(model.delta[cp, a]) * model.P[cp] for cp in model.C)
             + model.beta[a]
             - self.n * (1 - model.l[c]),
         )
@@ -331,7 +333,7 @@ class Solver(GenericSolver):
             self.model.U,
             rule=lambda model, d, u: model.y[model.serv_number[d], u]
             <= sum(
-                model.ind_destination[c, u] * model.l[c]
+                float(model.ind_destination[c, u]) * model.l[c]
                 for c in range(model.path_demand[d], model.path_demand[d + 1])
             ),
         )
@@ -371,6 +373,8 @@ class Solver(GenericSolver):
                 self.upper_bound,
                 self.solving_status,
             ) = get_result_informations(solver_result)
+            self.score = pyo.value(self.model.obj)
 
         except ValueError:
             self.runtime, self.lower_bound, self.upper_bound = solving_time_limit, 0, 0
+            self.score = 0

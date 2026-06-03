@@ -72,6 +72,50 @@ def _generic_service_package(
 
 
 # ============================================================
+# GML services
+# ============================================================
+
+def build_gml_service_package(
+    network_graph: NetworkGraph,
+    n_services: int,
+    demands_per_service: int,
+    instance_name: str,
+    rng: np.random.Generator | None = None,
+) -> ServicePackage:
+
+    rng = rng or np.random.default_rng(0)
+
+    nx_graph = network_graph.nx_graph
+
+    alpha_mean = _mean_edge_attribute(nx_graph, "alpha", 1.0)
+    beta_mean = _mean_edge_attribute(nx_graph, "beta", 1.0)
+
+    latency = (
+        7.0
+        * (
+            alpha_mean
+            * 5.0
+            * n_services**2
+            / max(1, nx_graph.number_of_edges())
+            + beta_mean
+        )
+    )
+
+    return _generic_service_package(
+        network_graph=network_graph,
+        n_services=n_services,
+        demands_per_service=demands_per_service,
+        flow_min=1.0,
+        flow_max=100.0,
+        latency=latency,
+        resources_needed=5000 // n_services,
+        origin_nodes=list(nx_graph.nodes),
+        rng=rng,
+        instance_name=instance_name,
+    )
+
+
+# ============================================================
 # Tree services
 # ============================================================
 

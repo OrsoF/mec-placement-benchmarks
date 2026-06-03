@@ -1,4 +1,5 @@
-from experiments.run_instance_build import run_all_tests
+from experiments.run_all_solvers import run_all_solvers
 
 if __name__ == "__main__":
-    run_all_tests()
+    for row in run_all_solvers():
+        print(row)

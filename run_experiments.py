@@ -128,12 +128,14 @@ def build_problem_instance(
     users: int,
     neighbors: int,
     groups: int,
+    gml_path: Path | str | None = None,
 ) -> ProblemInstance:
     if instance_type == "tree":
         return make_tree_instance(users, neighbors)
     if instance_type == "parallel":
         return make_star_instance(groups, users, neighbors)
-    return make_large_instance(n_services=users)
+    assert gml_path is not None, "large instances require a GML topology path."
+    return make_large_instance(gml_path, n_services=users)
 
 
 def total_user_count(instance_type: str, users: int, groups: int) -> int:
@@ -247,17 +249,21 @@ def experience_all_instance_types(
     neighbors: int = 1,
     groups: int = 4,
     instance_types: tuple[str, ...] = INSTANCE_TYPES,
+    gml_path: Path | str | None = None,
     result_path: Path | None = None,
 ) -> list[dict[str, object]]:
     """Run one solver on one size from every selected instance family."""
     assert solver_name in SOLVER_REGISTRY
     rows = []
     for instance_type in instance_types:
+        if instance_type == "large" and gml_path is None:
+            continue
         instance = build_problem_instance(
             instance_type,
             users,
             neighbors,
             groups,
+            gml_path=gml_path,
         )
         if should_skip_solver(solver_name, instance):
             continue

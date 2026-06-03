@@ -8,11 +8,14 @@ Assumes:
 raise exceptions on failure.
 """
 
+from pathlib import Path
+
 import networkx as nx
 
 from instances.builder import (
     create_tree_problem_instance,
     create_star_problem_instance,
+    create_gml_problem_instance,
     create_large_problem_instance,
 )
 
@@ -42,6 +45,19 @@ def test_star_instance():
     print("Star instance: OK")
 
 
+def test_gml_instance():
+    instance = create_gml_problem_instance(
+        gml_path=Path("data/topologies/france.gml"),
+        n_services=4,
+        demands_per_service=4,
+    )
+
+    instance.validate_components()
+    instance.validate_instance()
+
+    print("GML instance: OK")
+
+
 def test_large_instance():
 
     # Small synthetic base graph
@@ -65,6 +81,7 @@ def run_all_tests():
 
     test_tree_instance()
     test_star_instance()
+    test_gml_instance()
     test_large_instance()
 
     print("\nAll instance tests passed.")

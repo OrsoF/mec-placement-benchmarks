@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import networkx as nx
 import numpy as np
 
@@ -8,6 +10,7 @@ from core.problem_classes.problem_instance import ProblemInstance
 from instances.graph_build import (
     build_tree_graph,
     build_star_graph,
+    build_graph_from_gml,
     build_large_graph,
 )
 
@@ -15,6 +18,7 @@ from instances.graph_build import (
 from instances.package_build import (
     build_tree_service_package,
     build_star_service_package,
+    build_gml_service_package,
     build_large_service_package,
 )
 
@@ -137,6 +141,62 @@ def create_star_problem_instance(
         n_groups=n_groups,
         users_per_group=users_per_group,
         instance_name=instance_name,
+    )
+
+    return ProblemInstance(
+        network_graph=network_graph,
+        service_package=service_package,
+        problem_name=instance_name,
+    )
+
+
+# ============================================================
+# GML instance
+# ============================================================
+
+def create_gml_problem_instance(
+    gml_path: str | Path,
+    n_services: int,
+    demands_per_service: int,
+    default_node_resources: float = 1e4,
+    default_edge_capacity: float = 1e3,
+    rng: np.random.Generator | None = None,
+) -> ProblemInstance:
+
+    rng = rng or np.random.default_rng(0)
+
+    graph = build_graph_from_gml(gml_path)
+
+    node_resources = (
+        [default_node_resources]
+        * graph.number_of_nodes()
+    )
+
+    edge_capacities = (
+        [default_edge_capacity]
+        * graph.number_of_edges()
+    )
+
+    network_graph = _make_network_graph(
+        graph=graph,
+        node_resources=node_resources,
+        edge_capacities=edge_capacities,
+        alpha=0.2,
+        beta=5.0,
+    )
+
+    graph_name = Path(gml_path).stem
+
+    instance_name = (
+        f"gml_{graph_name}_{n_services}_{demands_per_service}"
+    )
+
+    service_package = build_gml_service_package(
+        network_graph=network_graph,
+        n_services=n_services,
+        demands_per_service=demands_per_service,
+        instance_name=instance_name,
+        rng=rng,
     )
 
     return ProblemInstance(

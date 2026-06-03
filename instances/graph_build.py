@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import networkx as nx
 import numpy as np
 
@@ -99,6 +101,15 @@ def build_star_graph(
         graph.add_edge(wap, cloud)
 
     return graph
+
+
+def build_graph_from_gml(gml_path: str | Path) -> nx.Graph:
+    gml_path = Path(gml_path)
+
+    if not gml_path.exists():
+        raise FileNotFoundError(gml_path)
+
+    return nx.read_gml(gml_path)
 
 
 def build_large_graph(
