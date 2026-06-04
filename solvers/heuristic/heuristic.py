@@ -1,23 +1,10 @@
-"""
-Améliorer:
-- Augmentation greedy de q
-- 
-"""
+import time
 
 import numpy as np
-import networkx as nx
-from networkx.readwrite.gml import read_gml
-import pickle
-import time
-import os
-from core.problem_classes.service import Service
-from itertools import islice
-from core.problem_classes.problem_instance import ProblemInstance
-from core.generic_solver import GenericSolver
-from core.graph_utils import path_node_to_path_tuple, path_tuple_to_path_node
-from core.problem_classes.solving_instance import SolvingInstance
 
-rnd_gen = np.random.default_rng(0)
+from core.generic_solver import GenericSolver
+from core.problem_classes.problem_instance import ProblemInstance
+from core.problem_classes.solving_instance import SolvingInstance
 
 
 class Solver(GenericSolver):
@@ -26,100 +13,151 @@ class Solver(GenericSolver):
         problem_instance: ProblemInstance,
         limit_shortest_path: int = 20,
         step_no_progression: int = 50,
+        quantity_increment: int = 10,
+        seed: int = 0,
+        max_iter: int | None = None,
+        patience: int | None = None,
     ):
-        self.problem_instance = problem_instance
-        self.limit_shortest_path = limit_shortest_path
-        self.step_no_progression = step_no_progression
+        super().__init__(problem_instance)
+        if limit_shortest_path < 1:
+            raise ValueError("limit_shortest_path must be positive.")
+        if quantity_increment < 1:
+            raise ValueError("quantity_increment must be positive.")
+        if step_no_progression < 1:
+            raise ValueError("step_no_progression must be positive.")
+        if patience is not None and patience < 1:
+            raise ValueError("patience must be positive.")
+        if max_iter is not None and max_iter < 1:
+            raise ValueError("max_iter must be positive.")
 
-        self.nx_graph: nx.DiGraph = self.problem_instance.network_graph.nx_graph
+        self.nx_graph = self.problem_instance.network_graph.nx_graph
+        self.limit_shortest_path = limit_shortest_path
+        self.quantity_increment = quantity_increment
+        self.seed = seed
+        self.patience = step_no_progression if patience is None else patience
+        self.max_iter = max_iter or 50 * self.patience
         self.solver_name = "heuristic"
         self.solving_instance = SolvingInstance(self.problem_instance)
 
-    def run(
-        self,
-    ):
-        start_time = time.time()
+    def run(self):
+        start = time.time()
+        self.rng = np.random.default_rng(self.seed)
 
-        self.visited_objectives = []
+        placement, routing, quantities = self._initial_solution()
+        best = (placement, routing, quantities)
+        best_score = sum(quantities)
+        current = best
+        no_progress = 0
+        self.visited_objectives = [best_score]
 
+        for _ in range(self.max_iter):
+            candidate = self._repair(*self._mutate(*current))
+            if candidate is not None:
+                current = candidate
+                score = sum(candidate[2])
+                if score > best_score:
+                    best = candidate
+                    best_score = score
+                    no_progress = 0
+                else:
+                    no_progress += 1
+            else:
+                no_progress += 1
+
+            self.visited_objectives.append(best_score)
+            if no_progress >= self.patience:
+                break
+
+        self.placement, self.routing, self.quantities = best
+        self.x_var, self.y_var, self.q_var = (
+            self.solving_instance.solution_to_arc_variables(*best)
+        )
+        self.score = best_score
+        self.runtime = time.time() - start
+        self.build_time = 0.0
+        return self
+
+    def _initial_solution(self) -> tuple[list[int], list[int], list[int]]:
         placement, routing, quantities = (
             self.solving_instance.basic_placement_and_routing()
         )
-        placement, routing, quantities = self.solving_instance.maximize_quantities(
-            placement, routing, quantities
-        )
-        self.visited_objectives.append(sum(quantities))
+        return self._maximize_quantities(placement, routing, quantities)
 
-        while self.continue_search():
-            # print(self.visited_objectives[-1])
-            new_placement = placement.copy()
-            new_placement[rnd_gen.integers(self.problem_instance.number_of_service)] = (
-                rnd_gen.integers(self.nx_graph.number_of_nodes())
+    def _mutate(
+        self,
+        placement: list[int],
+        routing: list[int],
+        quantities: list[int],
+    ) -> tuple[list[int], list[int], list[int]]:
+        p, r, q = placement.copy(), routing.copy(), quantities.copy()
+        S = self.problem_instance.number_of_service
+        D = self.problem_instance.total_number_of_demands
+
+        op = self.rng.integers(3)
+        if op == 0:
+            p[self.rng.integers(S)] = self.rng.integers(self.nx_graph.number_of_nodes())
+            q = list(self.problem_instance.min_flows)
+        elif op == 1:
+            r[self.rng.integers(D)] = self.rng.integers(self.limit_shortest_path)
+            q = list(self.problem_instance.min_flows)
+        else:
+            d = self.rng.integers(D)
+            q[d] += self.rng.choice((-self.quantity_increment, self.quantity_increment))
+
+        return p, r, q
+
+    def _repair(
+        self,
+        placement: list[int],
+        routing: list[int],
+        quantities: list[int],
+    ) -> tuple[list[int], list[int], list[int]] | None:
+        p, r, q = self._clip(placement, routing, quantities)
+        if self.solving_instance.test_solution(p, r, q):
+            return self._maximize_quantities(p, r, q)
+
+        q = list(self.problem_instance.min_flows)
+        if not self.solving_instance.test_solution(p, r, q):
+            return None
+        return self._maximize_quantities(p, r, q)
+
+    def _maximize_quantities(
+        self,
+        placement: list[int],
+        routing: list[int],
+        quantities: list[int],
+    ) -> tuple[list[int], list[int], list[int]]:
+        q = quantities.copy()
+        D = self.problem_instance.total_number_of_demands
+        max_steps = D * max(1, max(self.problem_instance.max_flows))
+
+        for _ in range(max_steps):
+            d = self.rng.integers(D)
+            if q[d] >= self.problem_instance.max_flows[d]:
+                continue
+
+            q_new = q.copy()
+            q_new[d] += min(
+                self.quantity_increment,
+                self.problem_instance.max_flows[d] - q[d],
             )
-            new_routing = routing.copy()
-            new_routing[
-                rnd_gen.integers(self.problem_instance.total_number_of_demands)
-            ] = self.limit_shortest_path
-            new_quantities = [1] * self.problem_instance.total_number_of_demands
-            if self.solving_instance.test_solution(
-                new_placement, new_routing, new_quantities
-            ):
-                placement = new_placement
-                routing = new_routing
-                placement, routing, quantities = (
-                    self.solving_instance.maximize_quantities(
-                        placement, routing, new_quantities
-                    )
-                )
+            if self.solving_instance.test_solution(placement, routing, q_new):
+                q = q_new
 
-                if sum(quantities) > self.visited_objectives[-1]:
-                    self.visited_objectives.append(sum(quantities))
-                else:
-                    self.visited_objectives.append(self.visited_objectives[-1])
+        return placement, routing, q
 
-        self.score = max(self.visited_objectives)
-        # print(f"Heuristic score: {self.score}")
-        self.runtime = time.time() - start_time
-        # print(placement, routing, quantities)
-
-        self.x_var = np.zeros(
-            (
-                self.problem_instance.total_number_of_demands,
-                self.nx_graph.number_of_edges(),
-            )
+    def _clip(
+        self,
+        placement: list[int],
+        routing: list[int],
+        quantities: list[int],
+    ) -> tuple[list[int], list[int], list[int]]:
+        n = self.nx_graph.number_of_nodes()
+        p = np.clip(placement, 0, n - 1).astype(int).tolist()
+        r = np.clip(routing, 0, self.limit_shortest_path - 1).astype(int).tolist()
+        q = np.clip(
+            quantities,
+            self.problem_instance.min_flows,
+            self.problem_instance.max_flows,
         )
-        self.y_var = np.zeros(
-            (self.problem_instance.number_of_service, self.nx_graph.number_of_nodes())
-        )
-        self.q_var = np.zeros((self.problem_instance.total_number_of_demands))
-
-        for demand_index in range(self.problem_instance.total_number_of_demands):
-            self.q_var[demand_index] = quantities[demand_index]
-
-            service_index = self.problem_instance.demand_to_service[demand_index]
-            origin = self.problem_instance.origins[demand_index]
-            destination = placement[service_index]
-            path_index = routing[demand_index]
-            path = self.solving_instance.compute_nth_shortest_path(
-                origin, destination, path_index
-            )
-            path_tuple = path_node_to_path_tuple(path)
-            for edge in path_tuple:
-                edge_index = self.problem_instance.network_graph.arc_index_dictionary[
-                    edge
-                ]
-                self.x_var[demand_index, edge_index] = 1
-
-        for service_index in range(self.problem_instance.number_of_service):
-            self.y_var[service_index, placement[service_index]] = 1
-
-        self.placement, self.routing, self.quantities = placement, routing, quantities
-
-    def continue_search(self) -> bool:
-        """
-        If not enough experiences or no progression, end search.
-        """
-        return len(self.visited_objectives) < self.step_no_progression or (
-            min(self.visited_objectives[-self.step_no_progression :])
-            != max(self.visited_objectives[-self.step_no_progression :])
-        )
+        return p, r, q.astype(int).tolist()

@@ -76,4 +76,5 @@ def test_every_solver_module_uses_contract_base_class():
             "A2CSolver",
             "PPOSolver",
             "PPOOptionsSolver",
+            "HeuristicSolver",
         }, f"{solver_file.name} Solver must inherit a known solver base"
