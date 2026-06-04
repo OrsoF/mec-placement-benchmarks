@@ -5,6 +5,7 @@ import numpy as np
 from core.generic_solver import GenericSolver
 from core.problem_classes.problem_instance import ProblemInstance
 from core.problem_classes.solving_instance import SolvingInstance
+from core.solution import clip_solution, greedy_quantity_lift, repair_solution
 
 
 class Solver(GenericSolver):
@@ -112,14 +113,18 @@ class Solver(GenericSolver):
         routing: list[int],
         quantities: list[int],
     ) -> tuple[list[int], list[int], list[int]] | None:
-        p, r, q = self._clip(placement, routing, quantities)
-        if self.solving_instance.test_solution(p, r, q):
-            return self._maximize_quantities(p, r, q)
-
-        q = list(self.problem_instance.min_flows)
-        if not self.solving_instance.test_solution(p, r, q):
+        repaired = repair_solution(
+            self.problem_instance,
+            self.nx_graph,
+            self.solving_instance,
+            self.limit_shortest_path,
+            placement,
+            routing,
+            quantities,
+        )
+        if repaired is None:
             return None
-        return self._maximize_quantities(p, r, q)
+        return self._maximize_quantities(*repaired)
 
     def _maximize_quantities(
         self,
@@ -127,24 +132,18 @@ class Solver(GenericSolver):
         routing: list[int],
         quantities: list[int],
     ) -> tuple[list[int], list[int], list[int]]:
-        q = quantities.copy()
         D = self.problem_instance.total_number_of_demands
         max_steps = D * max(1, max(self.problem_instance.max_flows))
-
-        for _ in range(max_steps):
-            d = self.rng.integers(D)
-            if q[d] >= self.problem_instance.max_flows[d]:
-                continue
-
-            q_new = q.copy()
-            q_new[d] += min(
-                self.quantity_increment,
-                self.problem_instance.max_flows[d] - q[d],
-            )
-            if self.solving_instance.test_solution(placement, routing, q_new):
-                q = q_new
-
-        return placement, routing, q
+        return greedy_quantity_lift(
+            self.problem_instance,
+            self.solving_instance,
+            self.rng,
+            placement,
+            routing,
+            quantities,
+            max_steps,
+            self.quantity_increment,
+        )
 
     def _clip(
         self,
@@ -152,12 +151,11 @@ class Solver(GenericSolver):
         routing: list[int],
         quantities: list[int],
     ) -> tuple[list[int], list[int], list[int]]:
-        n = self.nx_graph.number_of_nodes()
-        p = np.clip(placement, 0, n - 1).astype(int).tolist()
-        r = np.clip(routing, 0, self.limit_shortest_path - 1).astype(int).tolist()
-        q = np.clip(
+        return clip_solution(
+            self.problem_instance,
+            self.nx_graph,
+            self.limit_shortest_path,
+            placement,
+            routing,
             quantities,
-            self.problem_instance.min_flows,
-            self.problem_instance.max_flows,
         )
-        return p, r, q.astype(int).tolist()

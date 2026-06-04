@@ -1,46 +1,33 @@
-import numpy as np
 import networkx as nx
+import numpy as np
 
-from core.graph_utils import path_node_to_path_tuple
+from core.problem_classes.network_graph import NetworkGraph
 from core.problem_classes.problem_instance import ProblemInstance
 from core.problem_classes.solving_instance import SolvingInstance
-from core.problem_classes.network_graph import NetworkGraph
+from core.solution import (
+    basic_state,
+    clip_state,
+    compact_to_arc,
+    make_state,
+    split_state,
+    to_int_array,
+)
 from rl.path_cache import ShortestPathCache
 
 
 def to_integer_state(s: np.ndarray | list) -> np.ndarray:
-    """Return a rounded integer copy of a flat state."""
-    return np.rint(np.asarray(s, dtype=float)).astype(int)
+    return to_int_array(s)
 
 
 def state_to_vectors(
     problem: ProblemInstance,
     s: np.ndarray | list,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Split a flat state into placement, routing, and quantity vectors."""
-    s = np.asarray(s)
-    S = problem.number_of_service
-    D = problem.total_number_of_demands
-    return s[:S], s[S : S + D], s[S + D : S + 2 * D]
+    return split_state(problem, s)
 
 
 def make_basic_state(problem: ProblemInstance, graph: nx.Graph) -> np.ndarray:
-    """Create a default state that places all services on the largest node."""
-    S = problem.number_of_service
-    D = problem.total_number_of_demands
-    resources = np.fromiter(
-        (graph.nodes[v]["available_resources"] for v in graph.nodes),
-        dtype=float,
-        count=graph.number_of_nodes(),
-    )
-    cloud = int(np.argmax(resources))
-    return np.concatenate(
-        (
-            np.full(S, cloud, dtype=int),
-            np.zeros(D, dtype=int),
-            np.asarray(problem.min_flows, dtype=int),
-        )
-    )
+    return basic_state(problem, graph)
 
 
 def clip_state_to_bounds(
@@ -49,22 +36,7 @@ def clip_state_to_bounds(
     max_path_candidates: int,
     s: np.ndarray | list,
 ) -> np.ndarray:
-    """Round and clip a flat state to valid state bounds."""
-    s = to_integer_state(s)
-    p, r, q = state_to_vectors(problem, s)
-    p[:] = np.clip(p, 0, graph.number_of_nodes() - 1)
-    r[:] = np.clip(r, 0, max_path_candidates - 1)
-    q[:] = np.clip(q, problem.min_flows, problem.max_flows)
-    return s
-
-
-def make_state(
-    placement: np.ndarray | list,
-    routing: np.ndarray | list,
-    quantities: np.ndarray | list,
-) -> np.ndarray:
-    """Build a flat integer state from placement, routing, and quantities."""
-    return to_integer_state(np.concatenate((placement, routing, quantities)))
+    return clip_state(problem, graph, max_path_candidates, s)
 
 
 def is_feasible_state(
@@ -73,14 +45,11 @@ def is_feasible_state(
     path_cache: ShortestPathCache,
     s: np.ndarray | list,
 ) -> bool:
-    """Return whether a flat state is feasible for the problem."""
-    placement, routing, quantities = state_to_vectors(problem, to_integer_state(s))
-    for demand_index in range(problem.total_number_of_demands):
-        service_index = problem.demand_to_service[demand_index]
-        origin = problem.origins[demand_index]
-        target = placement[service_index]
+    placement, routing, quantities = split_state(problem, to_int_array(s))
+    for d in range(problem.total_number_of_demands):
+        k = problem.demand_to_service[d]
         try:
-            path_cache.nth_shortest_path(origin, target, routing[demand_index])
+            path_cache.nth_shortest_path(problem.origins[d], placement[k], routing[d])
         except (IndexError, nx.NetworkXException):
             return False
     return solution_checker.test_solution(placement, routing, quantities)
@@ -93,17 +62,12 @@ def state_to_variables(
     path_cache: ShortestPathCache,
     s: np.ndarray | list,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Convert a flat state into arc, placement, and quantity variables."""
-    s = to_integer_state(s)
-    p, r, q = state_to_vectors(problem, s)
-
-    x = np.zeros((problem.total_number_of_demands, graph.number_of_edges()))
-    for d in range(problem.total_number_of_demands):
-        k = problem.demand_to_service[d]
-        path = path_cache.nth_shortest_path(problem.origins[d], p[k], r[d])
-        for e in path_node_to_path_tuple(path):
-            x[d, network_graph.arc_index_dictionary[e]] = 1.0
-
-    y = np.zeros((problem.number_of_service, graph.number_of_nodes()))
-    y[np.arange(problem.number_of_service), p] = 1.0
-    return x, y, np.asarray(q)
+    p, r, q = split_state(problem, to_int_array(s))
+    return compact_to_arc(
+        problem,
+        graph,
+        path_cache.nth_shortest_path,
+        p,
+        r,
+        q,
+    )

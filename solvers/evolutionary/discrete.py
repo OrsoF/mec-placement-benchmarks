@@ -5,6 +5,7 @@ import numpy as np
 from core.generic_solver import GenericSolver
 from core.problem_classes.problem_instance import ProblemInstance
 from core.problem_classes.solving_instance import SolvingInstance
+from core.solution import clip_solution, repair_solution
 
 
 class Solver(GenericSolver):
@@ -110,14 +111,18 @@ class Solver(GenericSolver):
         routing: list[int],
         quantities: list[int],
     ) -> tuple[list[int], list[int], list[int]] | None:
-        placement, routing, quantities = self._clip(placement, routing, quantities)
-        if self.sol_ins.test_solution(placement, routing, quantities):
-            return self._maximize_quantities(placement, routing, quantities)
-
-        min_q = list(self.problem_instance.min_flows)
-        if not self.sol_ins.test_solution(placement, routing, min_q):
+        repaired = repair_solution(
+            self.problem_instance,
+            self.nx_graph,
+            self.sol_ins,
+            self.max_pcc,
+            placement,
+            routing,
+            quantities,
+        )
+        if repaired is None:
             return None
-        return self._maximize_quantities(placement, routing, min_q)
+        return self._maximize_quantities(*repaired)
 
     def _maximize_quantities(
         self,
@@ -152,12 +157,11 @@ class Solver(GenericSolver):
         routing: list[int],
         quantities: list[int],
     ) -> tuple[list[int], list[int], list[int]]:
-        n = self.nx_graph.number_of_nodes()
-        p = np.clip(placement, 0, n - 1).astype(int).tolist()
-        r = np.clip(routing, 0, self.max_pcc - 1).astype(int).tolist()
-        q = np.clip(
+        return clip_solution(
+            self.problem_instance,
+            self.nx_graph,
+            self.max_pcc,
+            placement,
+            routing,
             quantities,
-            self.problem_instance.min_flows,
-            self.problem_instance.max_flows,
         )
-        return p, r, q.astype(int).tolist()

@@ -1,4 +1,5 @@
 from core.generic_solver import GenericSolver
+from core.pyomo_model import configure_gurobi, objective_value, problem_arrays
 from core.problem_classes.service import Service
 from core.problem_classes.problem_instance import ProblemInstance
 from core.graph_utils import get_encoded_incoming_arc, get_encoded_outgoing_arc
@@ -23,26 +24,23 @@ class Solver(GenericSolver):
         self.nx_graph = self.network_graph.nx_graph
 
     def _model_parameters(self):
-        # Service parameters
-        self.number_of_services = self.problem_instance.number_of_service
+        a = problem_arrays(self.problem_instance)
+        self.number_of_services = self.S = a.S
+        self.total_number_of_demands = self.D = a.D
+        self.node_number = self.U = a.U
+        self.arc_number = self.A = a.A
         self.demand_per_service = self.problem_instance.demand_per_service
-        self.total_number_of_demands = self.problem_instance.total_number_of_demands
-        self.needed_resources = self.problem_instance.needed_resources
-
-        self.origins = self.problem_instance.origins
-        self.min_flows = self.problem_instance.min_flows
-        self.max_flows = self.problem_instance.max_flows
-        self.latencies = self.problem_instance.latencies
-
-        # Graph parameters
-        self.arc_index_dictionary = self.network_graph.arc_index_dictionary
-        self.arc_list = self.network_graph.arc_list
-        self.alphas = self.network_graph.alphas
-        self.betas = self.network_graph.betas
-        self.node_number = self.nx_graph.number_of_nodes()
-        self.arc_number = self.nx_graph.number_of_edges()
-        self.capacities = self.network_graph.capacities
-        self.available_resources = self.network_graph.available_resources
+        self.needed_resources = self.resources = a.resources
+        self.origins = a.origins
+        self.min_flows = self.qmin = a.qmin
+        self.max_flows = self.qmax = a.qmax
+        self.latencies = a.latencies
+        self.arc_index_dictionary = self.arc_dic = a.arc_index
+        self.arc_list = a.arc_list
+        self.alphas = self.alpha = a.alpha
+        self.betas = self.beta = a.beta
+        self.capacities = a.capacities
+        self.available_resources = a.node_resources
 
         # Solution matrices
         self.demand_arc_transit: np.ndarray  # x matrix
@@ -123,7 +121,7 @@ class Solver(GenericSolver):
         self.model.resources = pyo.Param(
             self.model.number_of_services,
             initialize={
-                s: self.available_resources[s] for s in range(self.number_of_services)
+                s: self.needed_resources[s] for s in range(self.number_of_services)
             },
             mutable=False,
             within=pyo.NonNegativeIntegers,
@@ -269,7 +267,7 @@ class Solver(GenericSolver):
     def run(
         self,
         initial_value: tuple = None,
-        options: dict = {},
+        options: dict | None = None,
         heuristic_placement: bool = False,
         heuristic_solution: bool = False,
         rl_solution: bool = False,
@@ -296,13 +294,10 @@ class Solver(GenericSolver):
         if rl_solution:
             self.set_rl_solution()
 
-        opt = pyo.SolverFactory("gurobi")
-        # opt.options["threads"] = 1
-        opt.options["Heuristics"] = 0
-        opt.options["MemLimit"] = 8
-
-        for key, value in options.items():
-            opt.options[key] = value
+        opt = configure_gurobi(
+            pyo.SolverFactory("gurobi"),
+            {"Heuristics": 0, "MemLimit": 8, **(options or {})},
+        )
 
         solver_result = opt.solve(self.model)
         solver_runtime = get_result_informations(solver_result)[0]
@@ -328,7 +323,7 @@ class Solver(GenericSolver):
         self._set_output_variables(self.x_var, self.y_var, self.q_var)
 
         try:
-            self.score = np.sum(self.q_var)
+            self.score = objective_value(self.q_var)
         except:
             self.score = 0
             

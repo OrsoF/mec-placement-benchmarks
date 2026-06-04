@@ -249,10 +249,12 @@ class SPPEnv(gym.Env):
 
         render_mode = mode or self.render_mode or "human"
         self._validate_render_mode(render_mode)
+        x, y, q = self._state_to_variables(self.state)
         fig, _ = plot_instance_solution(
             self.problem_instance,
-            state=self.state,
-            env=self,
+            x=x,
+            y=y,
+            q=q,
             show=render_mode == "human",
         )
 

@@ -1,11 +1,10 @@
-import os
 import importlib
+import os
 import pandas as pd
 import pickle as pkl
 import tqdm
 import pyomo as pyo
 from core.problem_classes.problem_instance import ProblemInstance, ToyInstance
-from importlib.util import spec_from_file_location, module_from_spec
 from core.generic_solver import GenericSolver
 
 ARTIFACTS_PATH = os.path.join(os.getcwd(), "artifacts")
@@ -31,6 +30,27 @@ SOLVER_FILE_ALIASES = {
     "rl_PPO_options": "ppo_options",
     "base_heuristic": "heuristic",
     "rl_base": os.path.join("rl", "a2c"),
+}
+SOLVER_MODULES = {
+    "ilp_arc": "solvers.exact.ilp_arc",
+    "ilp_arc_95_latency": "solvers.exact.ilp_arc_95_latency",
+    "ilp_path": "solvers.exact.ilp_path",
+    "milp_arc": "solvers.exact.milp_arc",
+    "milp_path": "solvers.exact.milp_path",
+    "milp_arc_full": "solvers.exact.milp_arc_full",
+    "ilp_arc_heuristic_placement": "solvers.exact.ilp_arc_heuristic_placement",
+    "ilp_arc_heuristic_warmstart": "solvers.exact.ilp_arc_heuristic_warmstart",
+    "ilp_arc_rl_warmstart": "solvers.exact.ilp_arc_rl_warmstart",
+    "lp_arc": "solvers.relaxations.lp_arc",
+    "lp_path": "solvers.relaxations.lp_path",
+    "lp_path_latency_tightened": "solvers.relaxations.lp_path_latency_tightened",
+    "a2c": "solvers.rl.a2c",
+    "ppo": "solvers.rl.ppo",
+    "ppo_options": "solvers.rl.ppo_options",
+    "heuristic": "solvers.heuristic.heuristic",
+    "heuristicprecise": "solvers.heuristic.heuristicprecise",
+    "discrete": "solvers.evolutionary.discrete",
+    "cma": "solvers.evolutionary.cma",
 }
 
 
@@ -78,20 +98,10 @@ def get_instance_list() -> list[ProblemInstance]:
 
 
 def get_solver_list():
-    solver_list = []
-
-    for root, _, files in os.walk(SOLVER_PATH):
-        for solver_file in files:
-            if solver_file == "__init__.py" or not solver_file.endswith(".py"):
-                continue
-            module_path = os.path.relpath(
-                os.path.join(root, solver_file[:-3]), CURRENT_FOLDER
-            )
-            solver_module = module_path.replace(os.sep, ".")
-            current_solver = importlib.import_module(solver_module)
-            if hasattr(current_solver, "Solver"):
-                solver_list.append(current_solver.Solver)
-    return solver_list
+    return [
+        importlib.import_module(module_name).Solver
+        for module_name in SOLVER_MODULES.values()
+    ]
 
 
 def experience_index() -> int:
@@ -181,22 +191,9 @@ def import_solver_from_file(
     solver_name: str, instance: ProblemInstance
 ) -> GenericSolver:
     solver_name = SOLVER_FILE_ALIASES.get(solver_name, solver_name)
-    solver_file = solver_name + ".py" if not solver_name.endswith(".py") else solver_name
-    direct_path = os.path.join(SOLVER_PATH, solver_file)
-    if os.path.exists(direct_path):
-        solver_path = direct_path
-    else:
-        matches = []
-        for root, _, files in os.walk(SOLVER_PATH):
-            if solver_file in files:
-                matches.append(os.path.join(root, solver_file))
-        assert matches, f"Solver file not found: {solver_file}"
-        assert len(matches) == 1, f"Solver name is ambiguous: {solver_file}"
-        solver_path = matches[0]
-
-    spec = spec_from_file_location("__temp_module__", solver_path)
-    module = module_from_spec(spec)
-    spec.loader.exec_module(module)
+    solver_name = solver_name[:-3] if solver_name.endswith(".py") else solver_name
+    assert solver_name in SOLVER_MODULES, f"Unknown solver: {solver_name}"
+    module = importlib.import_module(SOLVER_MODULES[solver_name])
     return module.Solver(instance)
 
 

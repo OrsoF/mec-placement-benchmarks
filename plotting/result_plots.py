@@ -22,8 +22,6 @@ def plot_instance_solution(
     y: np.ndarray | None = None,
     q: np.ndarray | None = None,
     *,
-    state: np.ndarray | list | None = None,
-    env: object | None = None,
     ax: plt.Axes | None = None,
     layout: str = "auto",
     show: bool = True,
@@ -33,8 +31,8 @@ def plot_instance_solution(
     show_edge_usage: bool | None = None,
     show_solution_summary: bool = True,
 ) -> tuple[plt.Figure, plt.Axes]:
-    """Plot any problem instance, optionally highlighting a solved state."""
-    x, y, q = _resolve_solution(problem_instance, x=x, y=y, q=q, state=state, env=env)
+    """Plot any problem instance from canonical `(x, y, q)` variables."""
+    x, y, q = _resolve_solution(problem_instance, x=x, y=y, q=q)
     graph = problem_instance.network_graph.nx_graph
     pos = _make_layout(graph, problem_instance, layout)
 
@@ -178,14 +176,7 @@ def _resolve_solution(
     x: np.ndarray | None,
     y: np.ndarray | None,
     q: np.ndarray | None,
-    state: np.ndarray | list | None,
-    env: object | None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    if state is not None:
-        if env is None or not hasattr(env, "_state_to_variables"):
-            raise ValueError("state plotting requires an env with _state_to_variables().")
-        x, y, q = env._state_to_variables(state)
-
     if x is None:
         x = getattr(problem_instance, "x_variable", None)
     if y is None:

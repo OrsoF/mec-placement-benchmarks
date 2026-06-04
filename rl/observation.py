@@ -5,6 +5,7 @@ from typing import Any
 
 from core.graph_utils import path_node_to_path_tuple
 from core.problem_classes.problem_instance import ProblemInstance
+from core.solution import apply_residuals_to_graph, residual_arrays
 from rl.path_cache import ShortestPathCache
 from rl.state_codec import state_to_vectors
 
@@ -83,7 +84,9 @@ def make_vector_observation_space(
 
 def make_vector_observation(env: Any, state: np.ndarray | list) -> np.ndarray:
     """Build the flat observation vector used by current RL agents."""
-    apply_state_to_graph(env.problem_instance, env.graph, env.path_cache, state)
+    x, y, q = env._state_to_variables(state)
+    residual = residual_arrays(env.problem_instance, x, y, q)
+    apply_residuals_to_graph(env.problem_instance, env.graph, x, y, q)
 
     latency_proportion = [
         get_demand_latency(
@@ -98,14 +101,15 @@ def make_vector_observation(env: Any, state: np.ndarray | list) -> np.ndarray:
     ]
 
     arc_saturation_proportion = [
-        env.graph.edges[edge]["remaining_capacity"] / env.graph.edges[edge]["capacity"]
-        for edge in env.graph.edges
+        residual["remaining_capacity"][edge_index]
+        / env.problem_instance.network_graph.capacities[edge_index]
+        for edge_index in range(env.graph.number_of_edges())
     ]
 
     server_saturation = [
-        env.graph.nodes[node]["remaining_resources"]
-        / (env.graph.nodes[node]["available_resources"] + 0.01)
-        for node in env.graph.nodes
+        residual["remaining_resources"][node]
+        / (env.problem_instance.network_graph.available_resources[node] + 0.01)
+        for node in range(env.graph.number_of_nodes())
     ]
 
     path_lengths = [
@@ -140,9 +144,11 @@ def apply_state_to_graph(
     state: np.ndarray | list,
 ) -> None:
     """Reset graph attributes, then apply state capacity and resource usage."""
-    reset_graph_attributes(graph)
-    update_edge_attributes(problem, graph, path_cache, state)
-    update_node_attributes(problem, graph, state)
+    from core.solution import compact_to_arc
+
+    p, r, q = state_to_vectors(problem, state)
+    x, y, q = compact_to_arc(problem, graph, path_cache.nth_shortest_path, p, r, q)
+    apply_residuals_to_graph(problem, graph, x, y, q)
 
 
 def reset_graph_attributes(graph: nx.Graph) -> None:

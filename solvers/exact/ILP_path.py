@@ -1,4 +1,5 @@
 from core.generic_solver import GenericSolver
+from core.pyomo_model import objective_value, problem_arrays
 from core.problem_classes.service import Service
 from core.problem_classes.problem_instance import ProblemInstance
 from data_io.experiment_io import get_result_informations
@@ -28,53 +29,23 @@ class Solver(GenericSolver):
         self.nx_graph = self.network_graph.nx_graph
 
     def _model_parameters(self):
-        # Service parameters
-        self.number_of_services = self.problem_instance.number_of_service
-        self.demand_per_service = self.problem_instance.demand_per_service
-        self.total_number_of_demands = self.problem_instance.total_number_of_demands
-        self.needed_resources = self.problem_instance.needed_resources
-
-        self.origins = self.problem_instance.origins
-        self.min_flows = self.problem_instance.min_flows
-        self.max_flows = self.problem_instance.max_flows
-        self.latencies = self.problem_instance.latencies
-
-        # Graph parameters
-        self.arc_index_dictionary = self.network_graph.arc_index_dictionary
-        self.arc_list = self.network_graph.arc_list
-        self.alphas = self.network_graph.alphas
-        self.betas = self.network_graph.betas
-        self.node_number = self.nx_graph.number_of_nodes()
-        self.arc_number = self.nx_graph.number_of_edges()
-        self.capacities = self.network_graph.capacities
-        self.available_resources = self.network_graph.available_resources
-
-        self.service_nb = len(self.services)
-        self.task_nb_list = [service.task_number for service in self.services]
-        self.demand_nb = sum(self.task_nb_list)
-        self.node_nb = self.G.number_of_nodes()
-        self.edge_nb = self.G.number_of_edges()
-        self.arc_dic = {elem: i for i, elem in enumerate(self.G.edges)}
-        self.arc_list = list(self.G.edges)
-        self.origins = [
-            origin for service in self.services for origin in service.origin_nodes
-        ]
-        self.Pdmin = [
-            min_flow for service in self.services for min_flow in service.min_flows
-        ]
-        self.Pdmax = [
-            max_flow for service in self.services for max_flow in service.max_flows
-        ]
-        self.latencies = [
-            latency for service in self.services for latency in service.max_latencies
-        ]
-        self.resources = [
-            service.needed_resources
-            for service in self.services
-            for _ in service.task_list
-        ]
-        self.alpha = [self.G.edges[edge]["alpha"] for edge in self.G.edges]
-        self.beta = [self.G.edges[edge]["beta"] for edge in self.G.edges]
+        a = problem_arrays(self.problem_instance)
+        self.number_of_services = self.service_nb = a.S
+        self.total_number_of_demands = self.demand_nb = a.D
+        self.node_number = self.node_nb = a.U
+        self.arc_number = self.edge_nb = a.A
+        self.demand_per_service = self.task_nb_list = self.problem_instance.demand_per_service
+        self.needed_resources = self.resources = a.resources
+        self.origins = a.origins
+        self.min_flows = self.Pdmin = a.qmin
+        self.max_flows = self.Pdmax = a.qmax
+        self.latencies = a.latencies
+        self.arc_index_dictionary = self.arc_dic = a.arc_index
+        self.arc_list = a.arc_list
+        self.alphas = self.alpha = a.alpha
+        self.betas = self.beta = a.beta
+        self.capacities = a.capacities
+        self.available_resources = a.node_resources
 
         (
             self.paths,
@@ -245,7 +216,7 @@ class Solver(GenericSolver):
             self.service_nb,
             self.node_nb,
         )
-        self.score = float(np.sum(self.q_var))
+        self.score = objective_value(self.q_var)
         self.runtime = time.time() - start_time
         self.build_time = self.runtime - float(solver_runtime)
         return self

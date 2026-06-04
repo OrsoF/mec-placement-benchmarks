@@ -1,4 +1,5 @@
 from core.generic_solver import GenericSolver
+from core.pyomo_model import configure_gurobi, objective_value, problem_arrays
 from core.problem_classes.service import Service
 from core.problem_classes.problem_instance import ProblemInstance
 from data_io.experiment_io import get_result_informations
@@ -19,32 +20,18 @@ class Solver(GenericSolver):
         self.solver_name = "MILP_arc"
 
     def _model_parameters(self):
-        self.S = len(self.services)
-        self.Sd = [service.task_number for service in self.services]
-        self.D = sum(self.Sd)
-        self.U = self.G.number_of_nodes()
-        self.A = self.G.number_of_edges()
-        self.arc_dic = {elem: i for i, elem in enumerate(self.G.edges)}
-        self.arc_list = list(self.G.edges)
-        self.origins = [
-            origin for service in self.services for origin in service.origin_nodes
-        ]
-        self.Pdmin = [
-            min_flow for service in self.services for min_flow in service.min_flows
-        ]
-        self.Pdmax = [
-            max_flow for service in self.services for max_flow in service.max_flows
-        ]
-        self.latencies = [
-            latency for service in self.services for latency in service.max_latencies
-        ]
-        self.resources = [
-            service.needed_resources
-            for service in self.services
-            for _ in service.task_list
-        ]
-        self.alpha = [self.G.edges[edge]["alpha"] for edge in self.G.edges]
-        self.beta = [self.G.edges[edge]["beta"] for edge in self.G.edges]
+        a = problem_arrays(self.problem_instance)
+        self.S, self.D, self.U, self.A = a.S, a.D, a.U, a.A
+        self.Sd = self.problem_instance.demand_per_service
+        self.arc_dic = a.arc_index
+        self.arc_list = a.arc_list
+        self.origins = a.origins
+        self.Pdmin = a.qmin
+        self.Pdmax = a.qmax
+        self.latencies = a.latencies
+        self.resources = a.resources
+        self.alpha = a.alpha
+        self.beta = a.beta
 
     def _build_model(self):
         self.model = pyo.ConcreteModel()
@@ -201,10 +188,13 @@ class Solver(GenericSolver):
         self._build_constraints()
         self._build_objective()
 
-        opt = pyo.SolverFactory(solver)
         if solver == "gurobi":
-            opt.options["TimeLimit"] = solving_time_limit
-            opt.options["threads"] = thread_limit
+            opt = configure_gurobi(
+                pyo.SolverFactory(solver),
+                options,
+                time_limit=solving_time_limit,
+                thread_limit=thread_limit,
+            )
         else:
             assert False, "Not implemented yet."
 
@@ -225,7 +215,7 @@ class Solver(GenericSolver):
                 self.S,
                 self.U,
             )
-            self.score = float(np.sum(self.q_var))
+            self.score = objective_value(self.q_var)
             self.build_time = 0.0
 
         except ValueError:
