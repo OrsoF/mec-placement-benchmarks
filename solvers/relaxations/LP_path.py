@@ -1,17 +1,16 @@
 from core.generic_solver import GenericSolver
-from core.problem_classes.service_package import ServicePackage
-from core.problem_classes.network_graph import NetworkGraph
 from core.problem_classes.service import Service
 from core.problem_classes.problem_instance import ProblemInstance
-from data_io.experiment_io import get_result_informations
-from core.graph_utils import get_encoded_incoming_arc, get_encoded_outgoing_arc
-from itertools import islice
+from solvers.path_formulation import (
+    add_path_constraints,
+    add_path_params,
+    enumerate_candidate_paths,
+)
 
 import pyomo.environ as pyo
 import time
-from networkx.readwrite.gml import read_gml
 import networkx as nx
-import os
+import numpy as np
 
 
 class Solver(GenericSolver):
@@ -49,29 +48,14 @@ class Solver(GenericSolver):
         ]
         self.alpha = [self.G.edges[edge]["alpha"] for edge in self.G.edges]
         self.beta = [self.G.edges[edge]["beta"] for edge in self.G.edges]
-        self.shortest_paths = [
-            [
-                elem
-                for target in self.G.nodes
-                for elem in islice(
-                    nx.algorithms.simple_paths.shortest_simple_paths(
-                        self.G, self.origins[d], target
-                    ),
-                    self.limit,
-                )
-            ]
-            for d in range(self.D)
-        ]
-        self.all_shortest_paths = [
-            elem for path_list in self.shortest_paths for elem in path_list
-        ]
-        self.C = sum(len(elem) for elem in self.shortest_paths)
-        self.D_path_number = [
-            i for i, path_list in enumerate(self.shortest_paths) for _ in path_list
-        ]
-        self.D_path = [
-            i for i, path_list in enumerate(self.shortest_paths) for _ in path_list
-        ]
+        (
+            self.shortest_paths,
+            self.all_shortest_paths,
+            self.D_path_number,
+            self.path_start,
+        ) = enumerate_candidate_paths(self.G, self.origins, self.limit)
+        self.C = len(self.all_shortest_paths)
+        self.D_path = self.D_path_number
         self.m = max(self.Pdmax)
         self.n = max(self.latencies)
 
@@ -127,20 +111,6 @@ class Solver(GenericSolver):
             mutable=False,
             within=pyo.NonNegativeIntegers,
         )
-        self.model.Pdmax_path = pyo.Param(
-            self.model.C,
-            initialize={c: self.Pdmax[self.D_path_number[c]] for c in range(self.C)},
-            mutable=False,
-            within=pyo.NonNegativeIntegers,
-        )
-        self.model.latency_path = pyo.Param(
-            self.model.C,
-            initialize={
-                c: self.latencies[self.D_path_number[c]] for c in range(self.C)
-            },
-            mutable=False,
-            within=pyo.NonNegativeReals,
-        )
         self.model.node_resources = pyo.Param(
             self.model.U,
             initialize={
@@ -163,56 +133,10 @@ class Solver(GenericSolver):
             within=pyo.NonNegativeReals,
         )
 
-        self.model.delta = pyo.Param(
-            self.model.C,
-            self.model.A,
-            initialize={
-                (c, a): (
-                    self.arc_list[a]
-                    in [
-                        (
-                            self.all_shortest_paths[c][i],
-                            self.all_shortest_paths[c][i + 1],
-                        )
-                        for i in range(len(self.all_shortest_paths[c]) - 1)
-                    ]
-                )
-                for a in range(self.A)
-                for c in range(self.C)
-            },
-            mutable=False,
-            within=pyo.Binary,
-        )
         self.model.arc_capacity = pyo.Param(
             self.model.A,
             initialize={
                 a: self.G.edges[edge]["capacity"] for a, edge in enumerate(self.G.edges)
-            },
-            mutable=False,
-            within=pyo.NonNegativeIntegers,
-        )
-        self.model.all_shortest_paths_arc = pyo.Param(
-            self.model.C,
-            initialize={
-                c: [
-                    self.arc_dic[
-                        (
-                            self.all_shortest_paths[c][i],
-                            self.all_shortest_paths[c][i + 1],
-                        )
-                    ]
-                    for i in range(len(self.all_shortest_paths[c]) - 1)
-                ]
-                for c in range(self.C)
-            },
-            mutable=False,
-            within=pyo.Any,
-        )
-        self.model.path_demand = pyo.Param(
-            range(self.D + 1),
-            initialize={
-                d: sum(len(elem) for elem in self.shortest_paths[:d])
-                for d in range(self.D + 1)
             },
             mutable=False,
             within=pyo.NonNegativeIntegers,
@@ -227,105 +151,20 @@ class Solver(GenericSolver):
             mutable=False,
             within=pyo.NonNegativeIntegers,
         )
-        self.model.ind_destination = pyo.Param(
-            self.model.C,
-            self.model.U,
-            initialize={
-                (c, u): self.all_shortest_paths[c][-1] == u
-                for c in range(self.C)
-                for u in range(self.U)
-            },
-        )
-        self.model.D_path = pyo.Param(
-            self.model.C,
-            initialize={c: self.D_path[c] for c in range(self.C)},
-            mutable=False,
-            within=pyo.NonNegativeIntegers,
+        add_path_params(
+            self.model,
+            self.shortest_paths,
+            self.all_shortest_paths,
+            self.D_path_number,
+            self.path_start,
+            self.arc_dic,
+            self.arc_list,
+            self.Pdmax,
+            self.latencies,
         )
 
     def _build_constraints(self):
-        self.model.valeurs_p = pyo.Constraint(
-            self.model.D,
-            rule=lambda model, d: pyo.inequality(
-                model.Pdmin[d], model.p[d], model.Pdmax[d]
-            ),
-        )
-        self.model.valeurs_P = pyo.Constraint(
-            self.model.C, rule=lambda model, c: model.P[c] <= model.Pdmax_path[c]
-        )
-        self.model.valeurs_L = pyo.Constraint(
-            self.model.C,
-            self.model.A,
-            rule=lambda model, c, a: model.L[c, a] <= model.latency_path[c],
-        )
-        self.model.resources_constraint = pyo.Constraint(
-            self.model.U,
-            rule=lambda model, u: sum(
-                model.resources[s] * model.y[s, u] for s in model.S
-            )
-            <= model.node_resources[u],
-        )
-        self.model.capacity = pyo.Constraint(
-            self.model.A,
-            rule=lambda model, a: model.nul[0]
-            + sum(float(model.delta[c, a]) * model.P[c] for c in model.C)
-            <= model.arc_capacity[a],
-        )
-        self.model.latency = pyo.Constraint(
-            self.model.D,
-            rule=lambda model, d: sum(
-                model.L[c, a]
-                for c in range(model.path_demand[d], model.path_demand[d + 1])
-                for a in model.all_shortest_paths_arc[c]
-            )
-            <= model.latencies[d],
-        )
-
-        self.model.realization = pyo.Constraint(
-            self.model.S, rule=lambda model, s: sum(model.y[s, u] for u in model.U) >= 1
-        )
-        self.model.reach_server = pyo.Constraint(
-            self.model.D,
-            self.model.U,
-            rule=lambda model, d, u: model.y[model.serv_number[d], u]
-            <= sum(
-                float(model.ind_destination[c, u]) * model.l[c]
-                for c in range(model.path_demand[d], model.path_demand[d + 1])
-            ),
-        )
-        self.model.flow_rule_1 = pyo.Constraint(
-            self.model.C, rule=lambda model, c: model.P[c] <= model.p[model.D_path[c]]
-        )
-        self.model.flow_rule_2 = pyo.Constraint(
-            self.model.C, rule=lambda model, c: model.P[c] <= self.m * model.l[c]
-        )
-        self.model.flow_rule_3 = pyo.Constraint(
-            self.model.C,
-            rule=lambda model, c: model.P[c]
-            >= model.p[model.D_path[c]] - self.m * (1 - model.l[c]),
-        )
-        self.model.latency_rule_1 = pyo.Constraint(
-            self.model.C,
-            self.model.A,
-            rule=lambda model, c, a: model.L[c, a]
-            <= model.alpha[a]
-            * sum(float(model.delta[cp, a]) * model.P[cp] for cp in model.C)
-            + model.beta[a],
-        )
-        self.model.latency_rule_2 = pyo.Constraint(
-            self.model.C,
-            self.model.A,
-            rule=lambda model, c, a: model.L[c, a] <= self.n * model.l[c],
-        )
-        self.model.latency_rule_3 = pyo.Constraint(
-            self.model.C,
-            self.model.A,
-            rule=lambda model, c, a: model.L[c, a]
-            >= model.alpha[a]
-            * sum(float(model.delta[cp, a]) * model.P[cp] for cp in model.C)
-            + model.beta[a]
-            - self.n * (1 - model.l[c]),
-        )
+        add_path_constraints(self.model, self.m, self.n)
 
     def _build_objective(self):
         self.model.obj = pyo.Objective(
@@ -348,5 +187,18 @@ class Solver(GenericSolver):
         opt = pyo.SolverFactory("gurobi")
         opt.solve(self.model)
 
+        self._set_path_model_solution(
+            self.model.l,
+            self.model.y,
+            self.model.p,
+            self.all_shortest_paths,
+            self.D_path_number,
+            self.arc_dic,
+            self.D,
+            self.A,
+            self.S,
+            self.U,
+        )
         self.runtime = time.time() - start_time
-        self.score = pyo.value(self.model.obj)
+        self.score = float(np.sum(self.q_var))
+        self.build_time = 0.0

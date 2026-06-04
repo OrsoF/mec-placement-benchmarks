@@ -1,13 +1,12 @@
 from core.problem_classes.service import Service
 from core.problem_classes.problem_instance import ProblemInstance
 from itertools import islice
-from data_io.experiment_io import get_result_informations
 from core.generic_solver import GenericSolver
 
 import time
 import pyomo.environ as pyo
-from networkx.readwrite.gml import read_gml
 import networkx as nx
+import numpy as np
 
 
 class Solver(GenericSolver):
@@ -271,5 +270,18 @@ class Solver(GenericSolver):
         opt = pyo.SolverFactory("gurobi")
         opt.solve(self.model)
 
+        self._set_path_model_solution(
+            self.model.l,
+            self.model.y,
+            self.model.q,
+            self.paths,
+            self.p_to_d,
+            self.arc_dic,
+            self.D,
+            self.A,
+            self.S,
+            self.E,
+        )
         self.runtime = time.time() - start_time
-        self.score = pyo.value(self.model.obj)
+        self.score = float(np.sum(self.q_var))
+        self.build_time = 0.0

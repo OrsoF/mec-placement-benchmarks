@@ -12,6 +12,7 @@ REQUIRED_SOLVER_ATTRIBUTES = {
     "runtime",
     "build_time",
 }
+NON_SOLVER_MODULES = {"arc_formulation.py", "path_formulation.py"}
 
 
 def get_base_name(base):
@@ -22,6 +23,10 @@ def get_base_name(base):
         return base.attr
 
     return None
+
+
+def is_solver_module(path):
+    return path.name != "__init__.py" and path.name not in NON_SOLVER_MODULES
 
 
 def test_generic_solver_declares_required_output_attributes():
@@ -51,7 +56,7 @@ def test_every_solver_module_uses_contract_base_class():
     solver_files = sorted(
         solver_file
         for solver_file in solver_dir.rglob("*.py")
-        if solver_file.name != "__init__.py"
+        if is_solver_module(solver_file)
     )
 
     assert solver_files
@@ -78,3 +83,62 @@ def test_every_solver_module_uses_contract_base_class():
             "PPOOptionsSolver",
             "HeuristicSolver",
         }, f"{solver_file.name} Solver must inherit a known solver base"
+
+
+def test_solver_run_methods_populate_output_variables():
+    solver_dir = Path(__file__).resolve().parents[1] / "solvers"
+    solver_files = sorted(
+        solver_file
+        for solver_file in solver_dir.rglob("*.py")
+        if is_solver_module(solver_file)
+    )
+    output_helpers = {
+        "_set_output_variables",
+        "_set_arc_model_solution",
+        "_set_path_model_solution",
+        "_set_problem_baseline_solution",
+        "solution_to_arc_variables",
+        "_state_to_variables",
+    }
+
+    for solver_file in solver_files:
+        tree = ast.parse(solver_file.read_text())
+        solver_class = next(
+            (
+                node
+                for node in tree.body
+                if isinstance(node, ast.ClassDef) and node.name == "Solver"
+            ),
+            None,
+        )
+        run_method = next(
+            (
+                node
+                for node in solver_class.body
+                if isinstance(node, ast.FunctionDef) and node.name == "run"
+            ),
+            None,
+        )
+        if run_method is None:
+            continue
+
+        assigned = set()
+        helper_calls = set()
+        for node in ast.walk(run_method):
+            if isinstance(node, ast.Assign):
+                for target in node.targets:
+                    targets = target.elts if isinstance(target, ast.Tuple) else [target]
+                    for item in targets:
+                        if (
+                            isinstance(item, ast.Attribute)
+                            and isinstance(item.value, ast.Name)
+                            and item.value.id == "self"
+                        ):
+                            assigned.add(item.attr)
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
+                helper_calls.add(node.func.attr)
+
+        assert (
+            {"x_var", "y_var", "q_var"} <= assigned
+            or helper_calls & output_helpers
+        ), f"{solver_file.name} run() must populate x_var, y_var, and q_var"

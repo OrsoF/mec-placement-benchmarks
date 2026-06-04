@@ -52,6 +52,80 @@ class GenericSolver:
             else:
                 setattr(self, attribute, None)
 
+    @staticmethod
+    def _value(x) -> float:
+        value = getattr(x, "value", x)
+        if value is None:
+            return 0.0
+        return float(value)
+
+    def _set_output_variables(self, x_var, y_var, q_var) -> None:
+        self.x_var = np.asarray(x_var, dtype=float)
+        self.y_var = np.asarray(y_var, dtype=float)
+        self.q_var = np.asarray(q_var, dtype=float)
+
+        # Legacy aliases still used by older experiment helpers.
+        self.x_variable = self.x_var
+        self.y_variable = self.y_var
+        self.q_variable = self.q_var
+
+    def _set_problem_baseline_solution(self) -> None:
+        self._set_output_variables(
+            self.problem_instance.x_variable,
+            self.problem_instance.y_variable,
+            self.problem_instance.q_variable,
+        )
+        self.score = float(np.sum(self.q_var))
+
+    def _set_arc_model_solution(
+        self,
+        x,
+        y,
+        q,
+        demand_count: int,
+        arc_count: int,
+        service_count: int,
+        node_count: int,
+    ) -> None:
+        self._set_output_variables(
+            [
+                [self._value(x[d, a]) for a in range(arc_count)]
+                for d in range(demand_count)
+            ],
+            [
+                [self._value(y[s, u]) for u in range(node_count)]
+                for s in range(service_count)
+            ],
+            [self._value(q[d]) for d in range(demand_count)],
+        )
+
+    def _set_path_model_solution(
+        self,
+        l,
+        y,
+        q,
+        paths: list[list[int]],
+        path_to_demand: list[int],
+        arc_index: dict,
+        demand_count: int,
+        arc_count: int,
+        service_count: int,
+        node_count: int,
+    ) -> None:
+        x_var = np.zeros((demand_count, arc_count))
+        for p, path in enumerate(paths):
+            weight = self._value(l[p])
+            d = path_to_demand[p]
+            for i in range(len(path) - 1):
+                x_var[d, arc_index[(path[i], path[i + 1])]] += weight
+
+        y_var = [
+            [self._value(y[s, u]) for u in range(node_count)]
+            for s in range(service_count)
+        ]
+        q_var = [self._value(q[d]) for d in range(demand_count)]
+        self._set_output_variables(x_var, y_var, q_var)
+
     def run(
         self,
         initial_variable: tuple,

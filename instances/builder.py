@@ -72,7 +72,7 @@ def create_tree_problem_instance(
         + [1000]    # cloud
     )
 
-    edge_capacities = [50] * graph.number_of_edges()
+    edge_capacities = [max(50, n_users)] * graph.number_of_edges()
 
     network_graph = _make_network_graph(
         graph=graph,
@@ -283,4 +283,45 @@ def create_large_problem_instance(
         network_graph=network_graph,
         service_package=service_package,
         problem_name=instance_name,
+    )
+
+
+def make_tree_instance(
+    number_of_users: int,
+    neighbors_connection: int = 1,
+) -> ProblemInstance:
+    return create_tree_problem_instance(
+        n_users=number_of_users,
+        neighbors=neighbors_connection,
+    )
+
+
+def make_star_instance(
+    number_of_groups: int,
+    users_per_group: int,
+    neighbors_connection: int = 1,
+) -> ProblemInstance:
+    return create_star_problem_instance(
+        n_groups=number_of_groups,
+        users_per_group=users_per_group,
+        neighbors=neighbors_connection,
+    )
+
+
+def make_large_instance(
+    gml_path: str | Path,
+    n_services: int,
+    demands_per_service: int | None = None,
+    edge_per_core: int = 10,
+    users_per_edge: int = 2,
+    rng: np.random.Generator | None = None,
+) -> ProblemInstance:
+    base_graph = build_graph_from_gml(gml_path)
+    return create_large_problem_instance(
+        base_graph=base_graph,
+        n_services=n_services,
+        demands_per_service=n_services if demands_per_service is None else demands_per_service,
+        edge_per_core=edge_per_core,
+        users_per_edge=users_per_edge,
+        rng=rng,
     )

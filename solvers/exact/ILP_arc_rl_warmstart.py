@@ -51,6 +51,11 @@ class Solver(GenericSolver):
         ilp_solver_arc = ILPSolver(self.problem_instance)
         ilp_solver_arc.run(rl_solution=True)
 
+        self._set_output_variables(
+            ilp_solver_arc.x_var,
+            ilp_solver_arc.y_var,
+            ilp_solver_arc.q_var,
+        )
         self.score = ilp_solver_arc.score
         self.runtime = ilp_solver_arc.runtime
         self.build_time = ilp_solver_arc.build_time

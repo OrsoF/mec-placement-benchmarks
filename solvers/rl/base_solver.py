@@ -85,8 +85,11 @@ class Solver(GenericSolver):
 
         self.model.learn(total_timesteps=self.train_step, progress_bar=False)
 
+        best_state = self.env.best_state_record[0]
+        self.x_var, self.y_var, self.q_var = self.env._state_to_variables(best_state)
+        self._set_output_variables(self.x_var, self.y_var, self.q_var)
         self.runtime = time.time() - start_time
-        self.score = max(self.env.served_quantity_history)
+        self.score = sum(self.q_var)
         self.build_time = 0.0
         return self
 

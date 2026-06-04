@@ -1,16 +1,13 @@
 from core.generic_solver import GenericSolver
-from core.problem_classes.service_package import ServicePackage
-from core.problem_classes.network_graph import NetworkGraph
 from core.problem_classes.service import Service
 from core.problem_classes.problem_instance import ProblemInstance
-from data_io.experiment_io import get_result_informations
 from core.graph_utils import get_encoded_incoming_arc, get_encoded_outgoing_arc
+from solvers.arc_formulation import add_arc_constraints
 
 import pyomo.environ as pyo
 import time
-from networkx.readwrite.gml import read_gml
 import networkx as nx
-import os
+import numpy as np
 
 
 class Solver(GenericSolver):
@@ -178,76 +175,13 @@ class Solver(GenericSolver):
         )
 
     def _build_constraints(self):
-        self.model.valeurs_p = pyo.Constraint(
-            self.model.D,
-            rule=lambda model, d: pyo.inequality(
-                model.Pdmin[d], model.p[d], model.Pdmax[d]
-            ),
-        )
-        self.model.valeurs_P = pyo.Constraint(
+        add_arc_constraints(
+            self.model,
             self.model.D,
             self.model.A,
-            rule=lambda model, d, a: model.P[d, a] <= model.Pdmax[d],
-        )
-        self.model.conservation_constraint = pyo.Constraint(
-            self.model.D,
             self.model.U,
-            rule=lambda model, d, u: sum(model.x[d, arc] for arc in model.out_arcs[u])
-            - sum(model.x[d, arc] for arc in model.inc_arcs[u])
-            == model.ind_u_origin[u, d] - model.y[model.serv_number[d], u],
-        )
-        self.model.resources_constraint = pyo.Constraint(
-            self.model.U,
-            rule=lambda model, u: sum(
-                [model.y[s, u] * model.resources[s] for s in model.S]
-            )
-            <= model.node_resources[u],
-        )
-        self.model.capacity_constraint = pyo.Constraint(
-            self.model.A,
-            rule=lambda model, a: sum([model.P[d, a] for d in model.D])
-            <= model.arc_capacity[a],
-        )
-        self.model.latency_arc_1 = pyo.Constraint(
-            self.model.D,
-            rule=lambda model, d: sum(model.L[d, ap] for ap in model.A)
-            <= model.latencies[d],
-        )
-        self.model.latency_arc_2 = pyo.Constraint(
-            self.model.D,
-            self.model.A,
-            rule=lambda model, d, a: model.L[d, a]
-            <= model.alpha[a] * sum(model.P[dp, a] for dp in model.D) + model.beta[a],
-        )
-        self.model.latency_arc_3 = pyo.Constraint(
-            self.model.D,
-            self.model.A,
-            rule=lambda model, d, a: model.L[d, a]
-            >= model.alpha[a] * sum(model.P[dp, a] for dp in model.D)
-            + model.beta[a]
-            - model.N * (1 - model.x[d, a]),
-        )
-        self.model.latency_arc_4 = pyo.Constraint(
-            self.model.D,
-            self.model.A,
-            rule=lambda model, d, a: model.L[d, a] <= model.N * model.x[d, a],
-        )
-
-        self.model.power_1 = pyo.Constraint(
-            self.model.D,
-            self.model.A,
-            rule=lambda model, d, a: model.P[d, a] <= model.p[d],
-        )
-        self.model.power_2 = pyo.Constraint(
-            self.model.D,
-            self.model.A,
-            rule=lambda model, d, a: model.P[d, a]
-            >= model.p[d] - model.M * (1 - model.x[d, a]),
-        )
-        self.model.power_3 = pyo.Constraint(
-            self.model.D,
-            self.model.A,
-            rule=lambda model, d, a: model.P[d, a] <= model.M * model.x[d, a],
+            self.model.S,
+            self.model.x,
         )
 
     def _build_objective(self):
@@ -280,5 +214,15 @@ class Solver(GenericSolver):
         opt = pyo.SolverFactory("gurobi")
         opt.solve(self.model)
 
+        self._set_arc_model_solution(
+            self.model.x,
+            self.model.y,
+            self.model.p,
+            self.D,
+            self.A,
+            self.S,
+            self.U,
+        )
         self.runtime = time.time() - start_time
-        self.score = pyo.value(self.model.obj)
+        self.score = float(np.sum(self.q_var))
+        self.build_time = 0.0

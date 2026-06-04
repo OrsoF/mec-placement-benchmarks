@@ -89,7 +89,8 @@ def get_solver_list():
             )
             solver_module = module_path.replace(os.sep, ".")
             current_solver = importlib.import_module(solver_module)
-            solver_list.append(current_solver.Solver)
+            if hasattr(current_solver, "Solver"):
+                solver_list.append(current_solver.Solver)
     return solver_list
 
 
@@ -242,7 +243,7 @@ def solve(
 
     if check_solution:
         instance._set_arc_solution(
-            solver.x_variable, solver.y_variable, solver.q_variable
+            solver.x_var, solver.y_var, solver.q_var
         )
         instance.check_current_solution()
     return instance, solver
