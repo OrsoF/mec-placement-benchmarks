@@ -1,6 +1,6 @@
 """PPO reinforcement-learning solver with best-state reset reuse."""
 
-from rl.base_solver import PPOOptionsSolver
+from solvers.rl.base_solver import PPOOptionsSolver
 
 
 class Solver(PPOOptionsSolver):

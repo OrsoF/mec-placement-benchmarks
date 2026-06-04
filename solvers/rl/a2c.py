@@ -1,6 +1,6 @@
 """A2C reinforcement-learning solver."""
 
-from rl.base_solver import A2CSolver
+from solvers.rl.base_solver import A2CSolver
 
 
 class Solver(A2CSolver):

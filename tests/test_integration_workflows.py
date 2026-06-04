@@ -8,7 +8,7 @@ def test_rl_solver_can_train_for_one_timestep(small_tree_instance: ProblemInstan
     """Verify a minimal SB3 training loop can run on SPPEnv."""
     pytest.importorskip("stable_baselines3")
 
-    from rl.base_solver import Solver as RLSolver
+    from solvers.rl.base_solver import Solver as RLSolver
 
     from rl.spp_env import SPPEnv
     from stable_baselines3 import A2C

@@ -1,6 +1,6 @@
 """PPO reinforcement-learning solver."""
 
-from rl.base_solver import PPOSolver
+from solvers.rl.base_solver import PPOSolver
 
 
 class Solver(PPOSolver):

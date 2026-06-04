@@ -42,6 +42,8 @@ def test_primary_gym_environment_lives_in_rl_package():
     root_dir = Path(__file__).resolve().parents[1]
 
     assert (root_dir / "rl" / "spp_env.py").exists()
+    assert not (root_dir / "rl" / "base_solver.py").exists()
+    assert (root_dir / "solvers" / "rl" / "base_solver.py").exists()
     assert not (root_dir / "utils").exists()
     assert not (root_dir / "archive" / "legacy" / "gym_instance_2.py").exists()
 
