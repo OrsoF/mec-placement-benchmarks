@@ -49,6 +49,7 @@ SOLVER_MODULES = {
     "ppo_options": "solvers.rl.ppo_options",
     "heuristic": "solvers.heuristic.heuristic",
     "heuristicprecise": "solvers.heuristic.heuristicprecise",
+    "fast_heuristic": "solvers.heuristic.fast_heuristic",
     "discrete": "solvers.evolutionary.discrete",
     "cma": "solvers.evolutionary.cma",
 }

@@ -9,6 +9,7 @@ from instances.builder import create_tree_problem_instance
 SOLVERS = [
     ("heuristic", "solvers.heuristic.heuristic"),
     ("heuristicprecise", "solvers.heuristic.heuristicprecise"),
+    ("fast_heuristic", "solvers.heuristic.fast_heuristic"),
     ("ilp_arc", "solvers.exact.ilp_arc"),
     ("ilp_arc_95_latency", "solvers.exact.ilp_arc_95_latency"),
     ("ilp_arc_heuristic_placement", "solvers.exact.ilp_arc_heuristic_placement"),

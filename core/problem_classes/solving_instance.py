@@ -44,12 +44,7 @@ class SolvingInstance:
         return True
 
     def test_solution(self, placement, routing, quantities) -> bool:
-        try:
-            x, y, q = self.solution_to_arc_variables(placement, routing, quantities)
-            validate_arc_solution(self.problem_instance, x, y, q)
-        except (AssertionError, IndexError, ValueError, nx.NetworkXException):
-            return False
-        return True
+        return self.test_compact_solution(placement, routing, quantities)
 
     def basic_placement_and_routing(self) -> tuple:
         return basic_solution(self.problem_instance, self.graph)
@@ -93,6 +88,67 @@ class SolvingInstance:
             routing,
             quantities,
         )
+
+    def path_edge_indices(self, source: int, destination: int, index: int) -> np.ndarray:
+        path = self.compute_nth_shortest_path(source, destination, index)
+        arc_index = self.problem_instance.network_graph.arc_index_dictionary
+        return np.fromiter(
+            (arc_index[(path[i], path[i + 1])] for i in range(len(path) - 1)),
+            dtype=int,
+            count=max(0, len(path) - 1),
+        )
+
+    def compact_path_indices(self, placement, routing) -> list[np.ndarray]:
+        problem = self.problem_instance
+        return [
+            self.path_edge_indices(
+                problem.origins[d],
+                int(placement[problem.demand_to_service[d]]),
+                int(routing[d]),
+            )
+            for d in range(problem.total_number_of_demands)
+        ]
+
+    def compact_loads(self, placement, routing, quantities):
+        problem = self.problem_instance
+        paths = self.compact_path_indices(placement, routing)
+        q = np.asarray(quantities, dtype=float)
+        edge_load = np.zeros(problem.network_graph.nx_graph.number_of_edges())
+        for d, idx in enumerate(paths):
+            edge_load[idx] += q[d]
+
+        node_load = np.bincount(
+            np.asarray(placement, dtype=int),
+            weights=np.asarray(problem.needed_resources, dtype=float),
+            minlength=problem.network_graph.nx_graph.number_of_nodes(),
+        )
+        return paths, edge_load, node_load
+
+    def test_compact_solution(self, placement, routing, quantities) -> bool:
+        problem = self.problem_instance
+        graph = problem.network_graph.nx_graph
+        try:
+            validate_compact_shapes(problem, graph, placement, routing, quantities)
+            q = np.asarray(quantities, dtype=float)
+            if np.any(q < np.asarray(problem.min_flows, dtype=float)):
+                return False
+            if np.any(q > np.asarray(problem.max_flows, dtype=float)):
+                return False
+
+            paths, edge_load, node_load = self.compact_loads(placement, routing, q)
+            if np.any(node_load > np.asarray(problem.network_graph.available_resources, dtype=float)):
+                return False
+            if np.any(edge_load > np.asarray(problem.network_graph.capacities, dtype=float)):
+                return False
+
+            alpha = np.asarray(problem.network_graph.alphas, dtype=float)
+            beta = np.asarray(problem.network_graph.betas, dtype=float)
+            for d, idx in enumerate(paths):
+                if beta[idx].sum() + q[d] * alpha[idx].sum() > problem.latencies[d]:
+                    return False
+        except (AssertionError, IndexError, ValueError, KeyError, nx.NetworkXException):
+            return False
+        return True
 
     def _validate_solution_vectors(self, placement, routing, quantities) -> None:
         validate_compact_shapes(self.problem_instance, self.graph, placement, routing, quantities)

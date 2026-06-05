@@ -59,10 +59,10 @@ def greedy_quantity_lift(problem, checker, rng, placement, routing, quantities, 
         d = int(rng.integers(D))
         if q[d] >= problem.max_flows[d]:
             continue
-        q_new = q.copy()
-        q_new[d] += min(increment, problem.max_flows[d] - q[d])
-        if checker.test_solution(placement, routing, q_new):
-            q = q_new
+        delta = min(increment, problem.max_flows[d] - q[d])
+        q[d] += delta
+        if not checker.test_solution(placement, routing, q):
+            q[d] -= delta
     return placement, routing, q
 
 
