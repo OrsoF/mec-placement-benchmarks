@@ -113,12 +113,15 @@ class Solver(GenericSolver):
     ) -> float:
         graph = self.sol_ins.graph.copy()
         graph = self.sol_ins.initialize_graph_attributes(graph)
-        graph = self.sol_ins.update_graph_attributes(
-            graph,
-            placement,
-            routing,
-            quantities,
-        )
+        try:
+            graph = self.sol_ins.update_graph_attributes(
+                graph,
+                placement,
+                routing,
+                quantities,
+            )
+        except (IndexError, KeyError, ValueError):
+            return sum(self.problem_instance.max_flows) + 1.0
 
         capacity = sum(
             max(0.0, -graph.edges[e]["remaining_capacity"]) for e in graph.edges

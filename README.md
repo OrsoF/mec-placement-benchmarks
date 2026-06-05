@@ -4,9 +4,9 @@ Research code for **Faster Latency-Constrained Service Placement in Edge
 Computing with Deep Reinforcement Learning**, IFIP Networking 2025.
 
 The repository implements the Service Placement Problem (SPP) experiments from
-the paper: exact arc ILP, a structure-aware heuristic, and PPO-based
-reinforcement learning on synthetic edge/cloud topologies. It is a research
-workbench, not a packaged library.
+the paper: exact arc ILP, structure-aware heuristics, CMA-ES, PPO-based
+reinforcement learning, and a two-agent hierarchical PPO variant on synthetic
+edge/cloud topologies. It is a research workbench, not a packaged library.
 
 ## Setup
 
@@ -21,14 +21,16 @@ Gurobi license visible to Pyomo.
 
 ## Main Experiments
 
-The two top-level scripts reproduce the tree and star benchmark sweeps. Each
-script appends rows to `artifacts/data/*.csv` and writes objective/runtime plots
-under `artifacts/figures/`.
+`exp.py` reproduces the tree and star benchmark sweeps. It appends rows to
+`artifacts/data/*.csv` and writes objective/runtime plots under
+`artifacts/figures/`.
 
 ```bash
-python exp_tree.py --solvers ilp_arc heuristic PPO --start-users 20 --stop-users 410 --step-users 10
-python exp_star.py --solvers ilp_arc heuristic PPO --groups 4 --start-users 15 --stop-users 125 --step-users 5
+python exp.py --instance tree --solvers ilp_arc heuristic fast_heuristic cma PPO HRL --start-users 20 --stop-users 410 --step-users 10
+python exp.py --instance star --solvers ilp_arc heuristic fast_heuristic cma PPO HRL --groups 4 --start-users 15 --stop-users 125 --step-users 5
 ```
+
+`exp_tree.py` and `exp_star.py` remain compatibility wrappers around `exp.py`.
 
 `exp_tree.py` builds instances with `create_tree_problem_instance(n_users,
 neighbors)`: users are connected locally, then to one wireless access point and
@@ -40,7 +42,8 @@ one wireless access point, and all groups share the cloud.
 
 Common options:
 
-- `--solvers`: subset of `ilp_arc`, `heuristic`, `PPO`.
+- `--instance`: `tree` or `star`.
+- `--solvers`: subset of `ilp_arc`, `heuristic`, `fast_heuristic`, `cma`, `PPO`, `HRL`.
 - `--neighbors`: local user-neighborhood parameter.
 - `--ilp-time-limit`: Gurobi time limit for `ilp_arc`.
 - `--output`: CSV path.
