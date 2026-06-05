@@ -1,6 +1,9 @@
 # Edge Computing Service Placement
 
-Research code for the service placement problem in edge-computing networks. The
+Research code for the service placement problem in edge-computing networks.
+This repository contains the code used to produce the experimental graphs for
+the IFIP Networking article `ifip_forghieri.pdf`, "Faster Latency Constrained
+Service Placement in Edge Computing with Deep Reinforcement Learning". The
 project builds graph-based benchmark instances, represents service demands and
 network constraints in compact Python objects, and compares exact optimization,
 LP relaxation, heuristic, evolutionary, and reinforcement-learning solvers.
@@ -30,10 +33,10 @@ to be read and modified directly.
 |-- data/topologies/        # GML topologies used by instance builders
 |-- artifacts/              # Saved CSVs, figures, trained agents, generated data
 |-- archive/legacy/         # Older scripts and notebooks kept for reference
-|-- tests/                  # Unit, smoke, and optional integration tests
-|-- run_experiments.py      # Batch experiment driver
+|-- exp_tree.py             # Tree benchmark driver and plots
+|-- exp_star.py             # Star benchmark driver and plots
+|-- ifip_forghieri.pdf      # Article associated with the generated graphs
 |-- requirements.txt        # Python dependency list
-|-- main.tex                # LaTeX result/table fragment
 `-- README.md
 ```
 
@@ -150,14 +153,16 @@ Optional dependencies have external requirements:
   builds.
 - CMA-ES workflows require `cma`.
 
-## Experiments and Artifacts
+## Article Experiments and Artifacts
 
-`run_experiments.py` is intended to append dated CSV rows under
-`artifacts/data/` for selected instance sizes and solvers:
+The top-level experiment scripts append CSV rows under `artifacts/data/` and
+generate the objective/runtime figures used for article-style comparisons.
+They benchmark the exact ILP arc formulation, the use-case heuristic, and PPO
+on increasing graph sizes.
 
 ```bash
-python run_experiments.py --instance tree --solvers heuristic --start-users 10 --stop-users 30 --step-users 10
-python run_experiments.py --instance parallel --solvers heuristic PPO --groups 4
+python exp_tree.py --solvers ilp_arc heuristic PPO --start-users 20 --stop-users 410 --step-users 10
+python exp_star.py --solvers ilp_arc heuristic PPO --groups 4 --start-users 15 --stop-users 125 --step-users 5
 ```
 
 The result schema is:
@@ -165,6 +170,17 @@ The result schema is:
 ```text
 instance,solver,users,neighbors,groups,score,runtime,buildtime
 ```
+
+Each script now produces two figures from its output CSV:
+
+- `artifacts/figures/tree/tree_objective_vs_graph_size.pdf`
+- `artifacts/figures/tree/tree_runtime_vs_graph_size.pdf`
+- `artifacts/figures/star/star_objective_vs_graph_size.pdf`
+- `artifacts/figures/star/star_runtime_vs_graph_size.pdf`
+
+Use `--figures-dir` to redirect these plots and `--no-plots` to only append
+CSV rows. Failed solver runs are kept in the CSV with blank objective values;
+the runtime plot still includes their elapsed time.
 
 Generated and archived outputs are kept in `artifacts/`:
 
@@ -174,6 +190,46 @@ Generated and archived outputs are kept in `artifacts/`:
 
 `plotting/result_plots.py` contains plotting helpers for instance solutions and
 aggregate comparisons.
+
+The article formulates the Service Placement Problem as joint service placement,
+flow selection, and routing under node-resource, edge-capacity, and latency
+constraints. It compares a linearized ILP, a structure-aware heuristic, and deep
+RL. The reported conclusion is that exact ILP solving does not scale cleanly to
+larger or dynamic orchestration instances, while RL can reuse pre-training and
+adapt quickly, with lower solution quality than the optimum but much shorter
+online runtime.
+
+## Hierarchical RL Directions
+
+The current RL environment exposes the full orchestration action as a single
+decision process. A stronger hierarchical approach should use the natural
+three-part structure already present in the heuristic and formulation:
+
+- High-level placement policy: choose service-to-node placements using graph,
+  residual resources, demand origins, and cloud/edge/user layer features. This
+  policy acts less frequently and defines the feasible subproblem for lower
+  levels.
+- Routing option policy: given a placement, choose candidate paths or next-hop
+  options for each demand from a cached k-shortest-path or latency-feasible path
+  set. This reduces the action space relative to per-edge routing decisions.
+- Flow-control policy: assign or adjust `q` on the selected routes using
+  residual edge capacity and latency slack. This can be trained as a fast local
+  repair/improvement policy around a feasible baseline.
+- Feasibility-first options: make each subpolicy terminate with a feasible
+  partial solution whenever possible, using the cloud placement and minimum QoS
+  as the fallback option. Penalize only real constraint violations after local
+  repair, rather than making the top-level policy learn all feasibility details.
+- Warm-start hybrid solving: use the hierarchical policy to generate
+  `(placement, routing, quantities)` warm starts for `ilp_arc` or the precise
+  heuristic, then let the exact/local solver repair or certify the solution
+  within a short time budget.
+- Transfer across graph sizes: pre-train placement/routing options on small
+  tree and star instances, freeze or slowly update the option encoders, and
+  fine-tune only the high-level scheduler on larger or dynamic instances.
+- Graph-aware observations: replace flat observations with node/edge embeddings
+  from a small message-passing network or handcrafted aggregate features
+  grouped by user, WAP/edge, and cloud layers. Keep the action heads tied to
+  feasible node/path sets to avoid dimension growth from invalid actions.
 
 ## Tests
 

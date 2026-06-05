@@ -8,6 +8,12 @@ import os
 import time
 from pathlib import Path
 
+import matplotlib
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import pandas as pd
+
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 from instances.builder import create_tree_problem_instance
@@ -39,6 +45,12 @@ def parse_args():
         type=Path,
         default=Path("artifacts") / "data" / "exp_tree.csv",
     )
+    parser.add_argument(
+        "--figures-dir",
+        type=Path,
+        default=Path("artifacts") / "figures" / "tree",
+    )
+    parser.add_argument("--no-plots", action="store_true")
     return parser.parse_args()
 
 
@@ -109,6 +121,35 @@ def run_solver(name: str, problem, ilp_time_limit: float):
     return solver
 
 
+def plot_results(csv_path: Path, figures_dir: Path, neighbors: int):
+    df = pd.read_csv(csv_path)
+    df = df[(df["instance"] == "tree") & (df["neighbors"] == neighbors)].copy()
+    if df.empty:
+        return
+
+    figures_dir.mkdir(parents=True, exist_ok=True)
+    df["score"] = pd.to_numeric(df["score"], errors="coerce")
+    df["runtime"] = pd.to_numeric(df["runtime"], errors="coerce")
+    df = df.groupby(["solver", "users"], as_index=False)[["score", "runtime"]].mean()
+    df = df.sort_values(["solver", "users"])
+
+    for metric, ylabel, filename in (
+        ("score", "objective", "tree_objective_vs_graph_size.pdf"),
+        ("runtime", "solving time (s)", "tree_runtime_vs_graph_size.pdf"),
+    ):
+        fig, ax = plt.subplots(figsize=(6.0, 3.8))
+        for solver, g in df.dropna(subset=[metric]).groupby("solver"):
+            ax.plot(g["users"], g[metric], marker="o", linewidth=1.6, label=solver)
+
+        ax.set_xlabel("graph size (number of users)")
+        ax.set_ylabel(ylabel)
+        ax.grid(True, alpha=0.25)
+        ax.legend(frameon=False)
+        fig.tight_layout()
+        fig.savefig(figures_dir / filename, bbox_inches="tight")
+        plt.close(fig)
+
+
 def main():
     args = parse_args()
     ensure_csv(args.output)
@@ -136,6 +177,9 @@ def main():
                 f"tree users={users} solver={name} "
                 f"{msg}"
             )
+
+    if not args.no_plots:
+        plot_results(args.output, args.figures_dir, args.neighbors)
 
 
 if __name__ == "__main__":
