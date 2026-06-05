@@ -1,0 +1,101 @@
+\documentclass[12pt,a4paper]{article}
+
+\usepackage{latexsym}
+\usepackage{amstext,amssymb,amsthm,amsmath,amsfonts}
+\usepackage{graphicx}
+\usepackage{fullpage}
+\usepackage{t1enc}
+\usepackage{verbatim}
+\usepackage[utf8]{inputenc}
+\usepackage[french]{babel}
+\usepackage{hyperref}
+
+\title{Questions autour du prolongement de l'article orange}
+
+\begin{document}
+
+\maketitle
+
+\section*{Simulations}
+
+\begin{enumerate}
+    \item Orso a-t-il accès à des serveurs de calcul  ou faut-il en ouvrir au lip6 (Alexis Guigal a lui eu accès à Cplex sur le cluster du lip6) ?
+    \item Est-il possible de faire des simulations courtes pour tester les hypothèses ?
+    \item pour lisser les courbes faut-il le faire sur plusieurs instances ?\\
+          Je me disais que tu avais une base d'instances pour le cas dynamique et donc on pourrait faire le travail sur ces instances pour mesurer l'efficacité en statique et réinitialiser l'apprentissage pour refaire une étude du cas dynamique (qu'il faudrait appeler différemment)
+    \item Avoir des données parlante pour l'aspect industriel
+\end{enumerate}
+
+
+\section*{Code}
+
+\begin{enumerate}
+    \item (\textsf{RL Hierarchique}). \textbf{La plus importante} Comment coder une politique qui applique 3 types d'actions à des fréquences différentes (avec un reward shapping neutre). \\
+          Par exemple on aurait une action $a_1$ qui serait à presque toutes les itérations, une action $a_2$ qui serait appliquée toutes les $n_2$ itérations et une action $a_3$ qui serait appliquée toute les $n_3$ iétrations (avec $n_2 < n_3$).\\
+          Cela permet de proposer une approche hierarchique
+    \item (\textsf{CMAES}) Est-il pertinent d’adapter la politique CMA-ES à un modèle d’action entières ? \\
+          Il y a une question Rapport coût bénéfice (si jamais cela demande du temps) étant entendu qu'on met CMA-ES actuel au moins dans la version journal (mais il faudrait dire une relaxation de CMA-ES).\\
+          La aussi que signifierai faire un cas dynamique pour CMAES ??
+    \item (\textsf{PL}) Pour le cas dynamique et l'approche PL étudier la possibilité de faire un warm start à partir d'une solution (potentiellement non réalisable) optimale d'une autre instance lors du calcul de la solution d'une nouvelle instance ? \\
+          \textbf{est-ce une bonne idée ?} si non alors c'est aussi une faiblesse de la PL
+\end{enumerate}
+
+
+\section*{Questions scientifiques}
+
+\begin{enumerate}
+    \item[]   [Reward Shapping]  Le reward shaping a-t-il une influence et laquelle
+          \begin{itemize}
+              \item Pour mesurer son effet on pourrait lancer une simulation courte en pénalisant les actions identiquement.
+              \item Comment améliorer l'optimality gap avec le reward shapping
+              \item biblio sur reward shapping et OC pour le RL ?
+          \end{itemize}
+    \item[] [Optimality Gap] Comment améliorer l'optimality gap ?
+          \begin{itemize}
+              \item Est-ce que faire de l'hyperparamétrisation est intéressant. \textbf{d'après Orso non}. Si oui sur quel paramètre si non pourquoi.
+          \end{itemize}
+    \item[] [Transfert Learning] a étudier un peu pour justifier notre approche dynamique
+\end{enumerate}
+
+
+\section*{Publication dans un journal}
+
+\subsection*{Dans quel journal}
+
+\begin{itemize}
+    \item Network (qui a un apsect très PL), Computer Communication, Transaction on networking
+    \item que conseille orange ? que conseille Sara Alouf
+    \item Quel journal accepte du PL et du RL
+\end{itemize}
+
+A noter qu'avec la PL on a du contenu théorique et pratique avec le RL. Industriel il faudrait raffiner les instances avec des données industrielles (Demander à Yannick)
+
+\subsection*{Quel angle ?}
+
+L'aspect dynamique (nom à changer) avec un traitement de plusieurs instances à traiter successivement semble prometteur d’après Nancy et à intéressé les reviewer.
+
+Dans ce cas il faut donner plus de chances à la PL si c'ets possible
+
+Il faut aussi insister sur l'aspect hierarchique
+
+
+\subsection*{Quel contenu supplémentaire ?}
+
+\begin{itemize}
+    \item  PL détaillée ?
+    \item Approche chemin ?
+\end{itemize}
+
+\section*{Bibliographie}
+
+Quelques propositions d'articles
+\begin{itemize}
+    \item Solution hierarchique de Orange Pologne
+    \item Comparaison RL, PL pour notre biblio
+    \item Transfert learning pour donner un angle scientifique à la deuxième partie
+    \item Si je regarde\\
+          \url{https://opendl.ifip-tc6.org/db/conf/networking/networking2025/1571127664.pdf} \\
+          il y a le même niveau de maths (voire plus) mais  ils ont bien vendu l'aspect réseau réel
+\end{itemize}
+
+\end{document}
