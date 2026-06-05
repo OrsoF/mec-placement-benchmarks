@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+from core.problem_classes.problem_instance import ProblemInstance
+
 import numpy as np
 
 
@@ -23,7 +25,7 @@ class ProblemArrays:
     node_resources: list
 
 
-def problem_arrays(problem) -> ProblemArrays:
+def problem_arrays(problem: ProblemInstance) -> ProblemArrays:
     graph = problem.network_graph.nx_graph
     return ProblemArrays(
         S=problem.number_of_service,
