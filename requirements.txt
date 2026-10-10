@@ -1,12 +1,2 @@
-numpy
-networkx
-pandas
-matplotlib
-pyomo
-gurobipy
-stable_baselines3
-gymnasium
-torch
-cma
-tqdm
-pytest
+# Install the package and all research dependencies from pyproject.toml.
+-e .[benchmarks,exact,gurobi,evolutionary,rl,test]

@@ -1,11 +1,11 @@
 import pandas as pd
 import seaborn as sns
 import numpy as np
-from instances.builder import make_tree_instance
-from solvers.exact.ilp_arc import Solver as ilp_arc_Solver
-from solvers.relaxations.lp_arc import Solver as lp_arc_Solver
-from solvers.exact.ilp_path import Solver as ilp_path_Solver
-from solvers.relaxations.lp_path_strong_latency import Solver as lp_path_strong_latency_Solver
+from mecbench.instances.synthetic import make_tree_instance
+from mecbench.solvers.exact.ilp_arc import Solver as ilp_arc_Solver
+from mecbench.solvers.relaxations.lp_arc import Solver as lp_arc_Solver
+from mecbench.solvers.exact.ilp_path import Solver as ilp_path_Solver
+from mecbench.solvers.relaxations.lp_path_latency_tightened import Solver as lp_path_strong_latency_Solver
 
 import matplotlib.pyplot as plt
 import os
@@ -21,7 +21,7 @@ instances = {nb: make_tree_instance(nb, 1) for nb in le_range}
 results = []
 
 
-solvers = {
+mecbench.solvers = {
     "ILP": ilp_arc_Solver,
     "Relaxation": lp_arc_Solver,
     # "ILP-Path": ilp_path_Solver,
@@ -31,7 +31,7 @@ solvers = {
 
 for num_users, instance in instances.items():
     print(num_users)
-    for sol_name, Solver in solvers.items():
+    for sol_name, Solver in mecbench.solvers.items():
         print(sol_name)
         sol = Solver(instance)
         sol.run()

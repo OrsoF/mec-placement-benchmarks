@@ -2,23 +2,23 @@ import os
 import pandas as pd
 import argparse
 from datetime import datetime
-from instances.builder import make_star_instance, make_tree_instance
-from data_io.experiment_io import solve
-from data_io.pickle_io import pickle_load, pickle_save
-from core.generic_solver import GenericSolver
-from solvers.exact.ilp_arc import Solver as Solver_ILP_arc
-from solvers.exact.ilp_arc_95 import Solver as Solver_ILP_arc_95
-from solvers.exact.ilp_path import Solver as Solver_ILP_path
-from solvers.heuristic.heuristic import Solver as Heuristic
-from solvers.evolutionary.cma import Solver as Cma
-from solvers.rl.a2c import Solver as A2c
-from solvers.rl.ppo import Solver as Ppo
-from solvers.exact.ilp_arc_heuristic_warmstart import Solver as Solver_ILP_arc_hws
-from solvers.exact.ilp_arc_heuristic_placement import (
+from mecbench.instances.synthetic import make_star_instance, make_tree_instance
+from mecbench.benchmarks.io import solve
+from mecbench.benchmarks.pickle_io import pickle_load, pickle_save
+from mecbench.solvers.base import GenericSolver
+from mecbench.solvers.exact.ilp_arc import Solver as Solver_ILP_arc
+from mecbench.solvers.exact.ilp_arc_95_latency import Solver as Solver_ILP_arc_95
+from mecbench.solvers.exact.ilp_path import Solver as Solver_ILP_path
+from mecbench.solvers.heuristics.heuristic import Solver as Heuristic
+from mecbench.solvers.evolutionary.cma import Solver as Cma
+from mecbench.solvers.rl.a2c import Solver as A2c
+from mecbench.solvers.rl.ppo import Solver as Ppo
+from mecbench.solvers.exact.ilp_arc_heuristic_warmstart import Solver as Solver_ILP_arc_hws
+from mecbench.solvers.exact.ilp_arc_heuristic_placement import (
     Solver as Solver_ILP_arc_heuristic_placement,
 )
-from solvers.exact.ilp_arc_rl_warmstart import Solver as Solver_ILP_arc_rl_warm_start
-from solvers.rl.ppo_options import Solver as Ppo_options
+from mecbench.solvers.exact.ilp_arc_rl_warmstart import Solver as Solver_ILP_arc_rl_warm_start
+from mecbench.solvers.rl.ppo_options import Solver as Ppo_options
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 argparser = argparse.ArgumentParser(description="Run the tree instance")
@@ -45,7 +45,7 @@ if not os.path.exists(CSV_PATH):
     )
     df.to_csv(CSV_PATH, index=False)
 
-solvers = {
+mecbench.solvers = {
     "ilp_arc": Solver_ILP_arc,
     "ilp_arc_95": Solver_ILP_arc_95,
     "ilp_arc_heuristic_placement": Solver_ILP_arc_heuristic_placement,
@@ -98,7 +98,7 @@ def experience(users: int):
 
     total_user_count = users if instance == "tree" else users * groups
 
-    for solver_name, solver in solvers.items():
+    for solver_name, solver in mecbench.solvers.items():
 
         solver: GenericSolver = solver(problem_instance)
 

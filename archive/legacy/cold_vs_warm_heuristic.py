@@ -1,5 +1,5 @@
-from instances.builder import make_tree_instance
-from data_io.experiment_io import solve
+from mecbench.instances.synthetic import make_tree_instance
+from mecbench.benchmarks.io import solve
 
 users = 12
 neighbors = 3

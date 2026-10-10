@@ -1,4 +1,4 @@
-from data_io.experiment_io import (
+from mecbench.benchmarks.io import (
     reset,
     get_instance_list,
     get_solver_list,
@@ -7,8 +7,8 @@ from data_io.experiment_io import (
     folder_management,
 )
 import numpy as np
-from core.problem_classes.problem_instance import ProblemInstance
-from core.generic_solver import GenericSolver
+from mecbench.domain.problem import ProblemInstance
+from mecbench.solvers.base import GenericSolver
 import multiprocessing
 
 
@@ -25,7 +25,7 @@ folder_management()
 # Create a list of available instance
 instance_list = get_instance_list()
 
-# Create a list of available solvers
+# Create a list of available mecbench.solvers
 all_solvers = get_solver_list()
 
 experience_number = experience_index()

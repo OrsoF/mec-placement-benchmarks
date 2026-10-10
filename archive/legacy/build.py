@@ -1,5 +1,5 @@
-from data_io.experiment_io import folder_management
-from instances.builder import make_tree_instance
+from mecbench.benchmarks.io import folder_management
+from mecbench.instances.synthetic import make_tree_instance
 
 folder_management()
 
@@ -7,7 +7,7 @@ folder_management()
 # GML batch builders were removed from the simplified instances package.
 
 # Create big custom instances (1000 nodes or more)
-# Large instances are now created directly with instances.builder.make_large_instance.
+# Large instances are now created directly with mecbench.instances.synthetic.make_large_instance.
 
 # Create simple tree instance
 make_tree_instance()

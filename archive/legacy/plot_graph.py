@@ -1,4 +1,4 @@
-from instances.builder import make_star_instance, make_tree_instance
+from mecbench.instances.synthetic import make_star_instance, make_tree_instance
 import argparse
 import matplotlib.pyplot as plt
 import networkx as nx

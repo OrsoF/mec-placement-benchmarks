@@ -6,31 +6,38 @@ Computing with Deep Reinforcement Learning**, IFIP Networking 2025.
 The repository implements the Service Placement Problem (SPP) experiments from
 the paper: exact arc ILP, structure-aware heuristics, CMA-ES, PPO-based
 reinforcement learning, and a two-agent hierarchical PPO variant on synthetic
-edge/cloud topologies. It is a research workbench, not a packaged library.
+edge/cloud topologies. The code is available as the installable `mecbench` Python package.
 
 ## Setup
 
 ```bash
 python -m venv .venv
 .venv\Scripts\activate
-pip install -r requirements.txt
+python -m pip install -e ".[benchmarks,exact,test]"
 ```
 
 On Linux/macOS, use `source .venv/bin/activate`. Exact solvers require a working
-Gurobi license visible to Pyomo.
+Gurobi license visible to Pyomo; install the `gurobi` extra for its Python binding.
+Optional extras: `benchmarks`, `exact`, `gurobi`, `evolutionary`,
+`environments`, `rl`, and `test`. `requirements.txt` installs all of them.
+The base package needs only NumPy and NetworkX.
+
+Run tests with `python -m pytest` and build a wheel with `python -m build`.
 
 ## Main Experiments
 
-`exp.py` reproduces the tree and star benchmark sweeps. It appends rows to
+`mecbench` reproduces the tree and star benchmark sweeps. It appends rows to
 `artifacts/data/*.csv` and writes objective/runtime plots under
 `artifacts/figures/`.
 
 ```bash
-python exp.py --instance tree --solvers ilp_arc heuristic fast_heuristic cma PPO HRL --start-users 20 --stop-users 410 --step-users 10
-python exp.py --instance star --solvers ilp_arc heuristic fast_heuristic cma PPO HRL --groups 4 --start-users 15 --stop-users 125 --step-users 5
+mecbench --instance tree --solvers ilp_arc heuristic fast_heuristic cma PPO HRL --start-users 20 --stop-users 410 --step-users 10
+mecbench --instance star --solvers ilp_arc heuristic fast_heuristic cma PPO HRL --groups 4 --start-users 15 --stop-users 125 --step-users 5
 ```
 
-`exp_tree.py` and `exp_star.py` remain compatibility wrappers around `exp.py`.
+`python -m mecbench` invokes the same CLI. The historical commands are now
+`examples/exp.py`, `examples/exp_tree.py`, and `examples/exp_star.py`; install
+the package before running them.
 
 `exp_tree.py` builds instances with `create_tree_problem_instance(n_users,
 neighbors)`: users are connected locally, then to one wireless access point and
@@ -66,25 +73,45 @@ Default figures:
 ## Code Structure
 
 ```text
-core/          Problem classes, graph utilities, and solver base contract
-instances/     Tree, star, GML, and larger synthetic instance builders
-solvers/       Exact, relaxation, heuristic, evolutionary, and RL solvers
-rl/            Gymnasium SPP environment and RL support code
-data_io/       Pickle and experiment-result I/O
-plotting/      Plot helpers for aggregate results and solutions
-experiments/   Small exploratory scripts
-data/          Input topologies
-artifacts/     Generated CSVs, figures, instances, and trained agents
-archive/       Legacy scripts and notebooks kept for reference
+src/mecbench/domain/        Problem objects, solutions, reference validator
+src/mecbench/instances/     Synthetic builders and topology loading
+src/mecbench/solvers/       Base contract, heuristics, exact, evolutionary, RL
+src/mecbench/environments/  Gymnasium environments and RL support code
+src/mecbench/benchmarks/    Runner, metrics, reporting, result I/O
+src/mecbench/cli.py         Command-line entry point
+
+tests/unit/                Constraint and variable-domain tests
+tests/integration/         Builders, component integration, package and CLI
+tests/regression/          Shared-load regressions and MILP comparison
+examples/                  Executable research examples
+docs/                      Architecture, migration notes, research document
+data/                      Input topologies
+artifacts/                 Generated results, figures, and trained agents
+archive/                   Historical scripts and notebooks
 ```
 
 Solver modules expose a `Solver` class with the usual output fields after
 `run()`: `x_var`, `y_var`, `q_var`, `score`, `runtime`, and, when available,
 `build_time`.
 
+Feasibility checks use `mecbench.domain.validation.validate_arc_solution(problem, x, y, q)`.
+It raises `SolutionValidationError` (`ValueError`) for invalid dimensions,
+non-finite values, nonbinary routing/placement, demand bounds, placement,
+resources, capacities, flow conservation, or latency. Quantities may be
+continuous, as in the arc MILP. Each arc's latency uses its total traffic
+`beta[a] + alpha[a] * sum(x[d, a] * q[d] for d in demands)`. The default absolute
+tolerance is `1e-6`. Compact solutions are converted to arc variables before
+the same checks; fractional placement and path indices are rejected.
+
+Run the reference tests with `python -m pytest tests/unit tests/integration tests/regression`.
+They include shared-arc counterexamples and an exhaustive comparison against
+the Pyomo arc constraints without requiring Gurobi. Those comparison tests
+require Pyomo and are skipped if it is unavailable. Balanced routing cycles
+are allowed by flow conservation, matching the arc MILP.
+
 ## Research TODO
 
-Main improvement axes extracted from `suiteOrange.tex`:
+Main improvement axes extracted from `docs/suiteorange.tex`:
 
 - Stabilize the simulation protocol: run short smoke sweeps before long
   campaigns, repeat experiments on several instances to smooth curves, and
@@ -116,3 +143,21 @@ Main improvement axes extracted from `suiteOrange.tex`:
 - Expand the bibliography and positioning: compare RL, ILP/LP, hierarchical
   network optimization, transfer learning, and industrial edge-placement papers
   to clarify the journal contribution.
+
+## Docker
+
+```bash
+docker build -t mecbench .
+docker run --rm mecbench --help
+docker run --rm -v "${PWD}/artifacts:/app/artifacts" mecbench --instance tree --solvers fast_heuristic --start-users 2 --stop-users 3 --neighbors 0 --no-plots
+```
+
+The default image includes benchmark/reporting dependencies. To include exact
+solvers, build with `--build-arg MECBENCH_EXTRAS=benchmarks,exact,gurobi`; configure
+your Gurobi license in the container. RL and evolutionary extras are available
+through the same build argument.
+
+See [architecture and migration](docs/architecture.md) for the import mapping.
+This migration changes pickle class paths; regenerate historical instance
+pickles before loading them with the new namespace. The project is licensed
+under [MIT](LICENSE).

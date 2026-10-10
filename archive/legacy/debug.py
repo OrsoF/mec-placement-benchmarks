@@ -1,6 +1,6 @@
-from rl.spp_env import SPPEnv
-from instances.builder import make_star_instance
-from data_io.experiment_io import solve
+from mecbench.environments.spp_env import SPPEnv
+from mecbench.instances.synthetic import make_star_instance
+from mecbench.benchmarks.io import solve
 import os
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"

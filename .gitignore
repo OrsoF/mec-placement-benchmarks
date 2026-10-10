@@ -162,3 +162,4 @@ cython_debug/
 *.pkl
 outcmaes/*
 results.png
+.test-tmp/

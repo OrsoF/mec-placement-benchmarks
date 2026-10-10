@@ -3,22 +3,22 @@ import pandas as pd
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
-from instances.builder import make_star_instance
-from data_io.experiment_io import solve
-from data_io.pickle_io import pickle_load, pickle_save
-from core.generic_solver import GenericSolver
+from mecbench.instances.synthetic import make_star_instance
+from mecbench.benchmarks.io import solve
+from mecbench.benchmarks.pickle_io import pickle_load, pickle_save
+from mecbench.solvers.base import GenericSolver
 
-from solvers.exact.ilp_arc import Solver as Solver_ILP_arc
-from solvers.exact.ilp_path import Solver as Solver_ILP_path
-from solvers.heuristic.heuristic import Solver as Heuristic
-from solvers.evolutionary.cma import Solver as Cma
-from solvers.rl.a2c import Solver as A2c
-from solvers.rl.ppo import Solver as Ppo
-from solvers.exact.ilp_arc_95 import Solver as Solver_ILP_arc_95
-from solvers.exact.ilp_arc_heuristic_warmstart import Solver as Solver_ILP_arc_hws
+from mecbench.solvers.exact.ilp_arc import Solver as Solver_ILP_arc
+from mecbench.solvers.exact.ilp_path import Solver as Solver_ILP_path
+from mecbench.solvers.heuristics.heuristic import Solver as Heuristic
+from mecbench.solvers.evolutionary.cma import Solver as Cma
+from mecbench.solvers.rl.a2c import Solver as A2c
+from mecbench.solvers.rl.ppo import Solver as Ppo
+from mecbench.solvers.exact.ilp_arc_95_latency import Solver as Solver_ILP_arc_95
+from mecbench.solvers.exact.ilp_arc_heuristic_warmstart import Solver as Solver_ILP_arc_hws
 
 CSV_PATH = "results_03_02_25.csv"
-solvers = {
+mecbench.solvers = {
     # "ilp_arc": Solver_ILP_arc,
     # "ilp_path": Solver_ILP_path,
     # "heuristic": Heuristic,
@@ -67,7 +67,7 @@ def experience(users: int):
         number_of_groups=groups,
     )
 
-    for solver_name, solver in solvers.items():
+    for solver_name, solver in mecbench.solvers.items():
         print(solver_name)
         solver: GenericSolver = solver(problem_instance)
         try:

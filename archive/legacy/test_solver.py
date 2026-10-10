@@ -1,4 +1,4 @@
-from instances.builder import make_star_instance
+from mecbench.instances.synthetic import make_star_instance
 
 number_of_groups = 5
 users_per_group = 10
@@ -11,7 +11,7 @@ instance = make_star_instance(
     neighbors_connection,
 )
 
-from solvers.evolutionary.cma import Solver
+from mecbench.solvers.evolutionary.cma import Solver
 import numpy as np
 
 solver = Solver(instance)
