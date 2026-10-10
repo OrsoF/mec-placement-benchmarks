@@ -8,10 +8,11 @@ class Solver(GenericSolver):
         super().__init__(problem_instance)
         self.solver_name = "ILP_arc_heuristic_warmstart"
 
-    def run(self):
+    def run(self, options: dict | None = None):
         solver = ILPArcSolver(self.problem_instance)
-        solver.run(heuristic_solution=True)
+        solver.run(heuristic_solution=True, options=options)
         self._set_output_variables(solver.x_var, solver.y_var, solver.q_var)
+        self.termination_condition = solver.termination_condition
         self.score = solver.score
         self.runtime = solver.runtime
         self.build_time = solver.build_time

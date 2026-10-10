@@ -13,7 +13,7 @@ edge/cloud topologies. The code is available as the installable `mecbench` Pytho
 ```bash
 python -m venv .venv
 .venv\Scripts\activate
-python -m pip install -e ".[benchmarks,exact,test]"
+python -m pip install -e .
 ```
 
 On Linux/macOS, use `source .venv/bin/activate`. Exact solvers require a working
@@ -22,7 +22,25 @@ Optional extras: `benchmarks`, `exact`, `gurobi`, `evolutionary`,
 `environments`, `rl`, and `test`. `requirements.txt` installs all of them.
 The base package needs only NumPy and NetworkX.
 
-Run tests with `python -m pytest` and build a wheel with `python -m build`.
+Install `.[test]` to run tests with `python -m pytest` and build a wheel with
+`python -m build`.
+
+## Quickstart
+
+```python
+from mecbench import make_tree_instance, solve, validate
+
+problem = make_tree_instance(n_users=20, seed=42)
+result = solve(problem, solver="fast_heuristic", seed=42)
+report = validate(problem, result.solution)
+print(result.objective, report.feasible)  # 140.0 True
+```
+
+Run `python examples/quickstart.py` or `mecbench --seed 42` after installation.
+The CLI defaults to one tree instance, the fast heuristic and CSV output.
+`solve` validates every candidate, returns its status and detailed violations,
+and leaves the objective empty for invalid candidates. See [the API guide](docs/api.md)
+for solver options, optional installations, reproducibility and error handling.
 
 ## Main Experiments
 
@@ -31,8 +49,8 @@ Run tests with `python -m pytest` and build a wheel with `python -m build`.
 `artifacts/figures/`.
 
 ```bash
-mecbench --instance tree --solvers ilp_arc heuristic fast_heuristic cma PPO HRL --start-users 20 --stop-users 410 --step-users 10
-mecbench --instance star --solvers ilp_arc heuristic fast_heuristic cma PPO HRL --groups 4 --start-users 15 --stop-users 125 --step-users 5
+mecbench --instance tree --solvers ilp_arc heuristic fast_heuristic cma ppo hrl --seed 42 --start-users 20 --stop-users 410 --step-users 10 --plots
+mecbench --instance star --solvers ilp_arc heuristic fast_heuristic cma ppo hrl --seed 42 --groups 4 --start-users 15 --stop-users 125 --step-users 5 --plots
 ```
 
 `python -m mecbench` invokes the same CLI. The historical commands are now
@@ -50,18 +68,23 @@ one wireless access point, and all groups share the cloud.
 Common options:
 
 - `--instance`: `tree` or `star`.
-- `--solvers`: subset of `ilp_arc`, `heuristic`, `fast_heuristic`, `cma`, `PPO`, `HRL`.
+- `--solvers`: registered names; common choices are `ilp_arc`, `heuristic`, `fast_heuristic`, `cma`, `ppo`, `hrl`. Use `--help` for all names.
+- `--seed`: search seed, recorded in CSV (default 0).
 - `--neighbors`: local user-neighborhood parameter.
 - `--ilp-time-limit`: Gurobi time limit for `ilp_arc`.
 - `--output`: CSV path.
 - `--figures-dir`: output directory for plots.
-- `--no-plots`: append CSV rows without regenerating figures.
+- `--plots`: generate figures (requires the `benchmarks` extra).
+- `--no-plots`: append CSV rows without figures (default).
 
 CSV schema:
 
 ```text
-instance,solver,users,neighbors,groups,score,runtime,buildtime
+instance,solver,users,neighbors,groups,score,runtime,buildtime,status,feasible,seed,error
 ```
+
+An invalid candidate has an empty score and its violations in `error`. Existing
+CSV files with an older header require a new `--output` path.
 
 Default figures:
 

@@ -1,9 +1,10 @@
-"""Solver-independent feasibility checks for binary arc/placement solutions.
+"""Reference feasibility checks, independent of solver implementations.
 
-The physical constraints match the arc MILP: x and y are binary, while q
-may be continuous. Flow conservation permits balanced circulations, just as
-the formulation does; no additional simple-path constraint is imposed.
+Binary routing/placement and continuous quantities match the arc MILP.
+Flow conservation permits balanced circulations, as does the formulation.
 """
+from dataclasses import dataclass
+from numbers import Real
 
 import numpy as np
 
@@ -12,74 +13,130 @@ class SolutionValidationError(ValueError):
     """A solution violates its dimensions, variable domains, or constraints."""
 
 
-def _array(values, shape, name):
-    try:
-        result = np.asarray(values, dtype=float)
-    except (TypeError, ValueError) as error:
-        raise SolutionValidationError(f"{name} must be a numeric array.") from error
-    if result.shape != shape:
-        raise SolutionValidationError(f"{name} shape must be {shape}, got {result.shape}.")
-    if not np.all(np.isfinite(result)):
-        raise SolutionValidationError(f"{name} must contain only finite values.")
-    return result
+@dataclass(frozen=True)
+class Violation:
+    """A constraint violation with zero-based entity indices and measured values."""
+
+    constraint: str
+    message: str
+    observed: float | tuple | None = None
+    limit: float | tuple | None = None
+    demand: int | None = None
+    service: int | None = None
+    node: int | None = None
+    arc: int | None = None
+    variable: str | None = None
 
 
-def _binary(values, name, atol):
-    rounded = np.rint(values)
-    if np.any(np.abs(values - rounded) > atol) or np.any(
-        (rounded < 0) | (rounded > 1)
-    ):
-        raise SolutionValidationError(f"{name} must be binary within tolerance {atol}.")
-    return rounded
+@dataclass(frozen=True)
+class ValidationReport:
+    violations: tuple[Violation, ...] = ()
+
+    @property
+    def feasible(self) -> bool:
+        return not self.violations
+
+    def raise_if_infeasible(self) -> None:
+        if self.violations:
+            raise SolutionValidationError(self.violations[0].message)
 
 
-def validate_arc_solution(problem, x, y, q, *, atol=1e-6) -> None:
-    """Raise SolutionValidationError on the first feasibility violation.
+def validate(problem, solution, *, atol=1e-6) -> ValidationReport:
+    """Report all violations; malformed arrays stop dependent physical checks.
 
-    Arc and node columns use the instance's arc_list and node indices.
-    Binary solver noise is rounded within ``atol``; inequalities use the
-    same absolute tolerance. Relaxed x/y solutions are deliberately rejected.
-    Latency is x @ (beta + alpha * (x.T @ q)), including shared arc traffic.
-    This function does not mutate the instance or input arrays.
+    ``solution`` exposes x, y and q arrays (normally a ``Solution``). ``None``
+    represents absence of a candidate. This never changes the problem or arrays.
     """
-    if not np.isfinite(atol) or atol < 0:
+    _check_tolerance(atol)
+    if solution is None:
+        return ValidationReport((Violation("no_solution", "No solution available."),))
+    if not all(hasattr(solution, name) for name in ("x", "y", "q")):
+        raise TypeError("solution must expose x, y and q arrays, or be None.")
+    return _validate_arrays(problem, solution.x, solution.y, solution.q, atol=atol)
+
+
+def _check_tolerance(atol):
+    if not isinstance(atol, Real) or not np.isfinite(atol) or atol < 0:
         raise ValueError("atol must be finite and non-negative.")
+
+
+def _validate_arrays(problem, x, y, q, *, atol=1e-6) -> ValidationReport:
+    _check_tolerance(atol)
     network = problem.network_graph
-    graph = network.nx_graph
     demands = problem.total_number_of_demands
     services = problem.number_of_service
-    nodes = graph.number_of_nodes()
-    arcs = graph.number_of_edges()
-    x = _binary(_array(x, (demands, arcs), "x"), "x", atol)
-    y = _binary(_array(y, (services, nodes), "y"), "y", atol)
-    q = _array(q, (demands,), "q")
+    nodes = network.nx_graph.number_of_nodes()
+    arcs = network.nx_graph.number_of_edges()
+    violations = []
+    arrays = {}
+    for name, values, shape in (
+        ("x", x, (demands, arcs)), ("y", y, (services, nodes)), ("q", q, (demands,)),
+    ):
+        try:
+            values = np.asarray(values, dtype=float)
+        except (TypeError, ValueError):
+            violations.append(Violation("numeric", f"{name} must be a numeric array.", variable=name))
+            continue
+        if values.shape != shape:
+            violations.append(Violation(
+                "dimensions", f"{name} shape must be {shape}, got {values.shape}.",
+                values.shape, shape, variable=name,
+            ))
+        elif not np.all(np.isfinite(values)):
+            violations.append(Violation("finite", f"{name} must contain only finite values.", variable=name))
+        else:
+            arrays[name] = values
+    if violations:
+        return ValidationReport(tuple(violations))
+    x, y, q = (arrays[name] for name in ("x", "y", "q"))
+    for name, values in (("x", x), ("y", y)):
+        rounded = np.rint(values)
+        if np.any(np.abs(values - rounded) > atol) or np.any((rounded < 0) | (rounded > 1)):
+            violations.append(Violation("binary", f"{name} must be binary within tolerance {atol}.", variable=name))
+        arrays[name] = rounded
+    if violations:
+        return ValidationReport(tuple(violations))
+    x, y = arrays["x"], arrays["y"]
 
-    if np.any(y.sum(axis=1) != 1):
-        raise SolutionValidationError("Each service must be placed on exactly one node.")
-    if np.any(q < -atol) or np.any(q < np.asarray(problem.min_flows) - atol):
-        raise SolutionValidationError("Demand quantity below minimum flow.")
-    if np.any(q > np.asarray(problem.max_flows) + atol):
-        raise SolutionValidationError("Demand quantity above maximum flow.")
+    def record(mask, constraint, message, observed, limit, entity):
+        for index in np.flatnonzero(mask):
+            i = int(index)
+            violations.append(Violation(
+                constraint, message, float(observed[i]), float(limit[i]), **{entity: i},
+            ))
 
+    placements = y.sum(axis=1)
+    record(placements != 1, "placement", "Each service must be placed on exactly one node.",
+           placements, np.ones(services), "service")
+    minimum = np.maximum(0, np.asarray(problem.min_flows))
+    maximum = np.asarray(problem.max_flows)
+    record(q < minimum - atol, "minimum_flow", "Demand quantity below minimum flow.", q, minimum, "demand")
+    record(q > maximum + atol, "maximum_flow", "Demand quantity above maximum flow.", q, maximum, "demand")
     node_load = y.T @ np.asarray(problem.needed_resources, dtype=float)
-    if np.any(node_load > np.asarray(network.available_resources) + atol):
-        raise SolutionValidationError("Node resources exceeded.")
+    resources = np.asarray(network.available_resources)
+    record(node_load > resources + atol, "resources", "Node resources exceeded.", node_load, resources, "node")
     edge_load = x.T @ q
-    if np.any(edge_load > np.asarray(network.capacities) + atol):
-        raise SolutionValidationError("Arc capacity exceeded.")
+    capacities = np.asarray(network.capacities)
+    record(edge_load > capacities + atol, "capacity", "Arc capacity exceeded.", edge_load, capacities, "arc")
 
-    # Sum outgoing minus incoming routing indicators at every node. This
-    # also checks empty routes and routes when origin equals placement.
     balance = np.zeros((demands, nodes))
     for a, (source, destination) in enumerate(network.arc_list):
         balance[:, source] += x[:, a]
         balance[:, destination] -= x[:, a]
     expected = -y[np.asarray(problem.demand_to_service, dtype=int)].copy()
     expected[np.arange(demands), np.asarray(problem.origins, dtype=int)] += 1
-    if np.any(np.abs(balance - expected) > atol):
-        raise SolutionValidationError("Flow conservation violated.")
+    for d, node in np.argwhere(np.abs(balance - expected) > atol):
+        violations.append(Violation("conservation", "Flow conservation violated.",
+                                    float(balance[d, node]), float(expected[d, node]), demand=int(d), node=int(node)))
 
     arc_latency = np.asarray(network.betas) + np.asarray(network.alphas) * edge_load
     demand_latency = x @ arc_latency
-    if np.any(demand_latency > np.asarray(problem.latencies) + atol):
-        raise SolutionValidationError("Demand latency exceeded under total arc load.")
+    limits = np.asarray(problem.latencies)
+    record(demand_latency > limits + atol, "latency", "Demand latency exceeded under total arc load.",
+           demand_latency, limits, "demand")
+    return ValidationReport(tuple(violations))
+
+
+def validate_arc_solution(problem, x, y, q, *, atol=1e-6) -> None:
+    """Strict compatibility entry point using the same checks as ``validate``."""
+    _validate_arrays(problem, x, y, q, atol=atol).raise_if_infeasible()

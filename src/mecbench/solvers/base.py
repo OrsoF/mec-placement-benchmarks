@@ -56,7 +56,7 @@ class GenericSolver:
     def _value(x) -> float:
         value = getattr(x, "value", x)
         if value is None:
-            return 0.0
+            return float("nan")
         return float(value)
 
     def _set_output_variables(self, x_var, y_var, q_var) -> None:
@@ -68,6 +68,10 @@ class GenericSolver:
         self.x_variable = self.x_var
         self.y_variable = self.y_var
         self.q_variable = self.q_var
+
+    def _record_solver_result(self, result):
+        """Keep structured termination information before extracting variables."""
+        self.termination_condition = str(result.solver.termination_condition)
 
     def _set_problem_baseline_solution(self) -> None:
         self._set_output_variables(

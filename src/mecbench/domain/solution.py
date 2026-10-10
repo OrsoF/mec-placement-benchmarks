@@ -2,9 +2,29 @@
 
 import numpy as np
 import networkx as nx
+from dataclasses import dataclass
 from mecbench.domain.graph_utils import path_node_to_path_tuple
 from mecbench.domain.validation import validate_arc_solution
 from mecbench.domain.problem import ProblemInstance
+
+
+@dataclass(frozen=True, eq=False)
+class Solution:
+    """Owned, read-only arc routing, service placement and demand quantities.
+
+    Columns follow ``problem.network_graph.arc_list`` and integer node indices.
+    Construction copies the arrays; feasibility is checked by ``validate``.
+    """
+
+    x: np.ndarray
+    y: np.ndarray
+    q: np.ndarray
+
+    def __post_init__(self):
+        for name in ("x", "y", "q"):
+            values = np.array(getattr(self, name), dtype=float, copy=True)
+            values.setflags(write=False)
+            object.__setattr__(self, name, values)
 
 
 def to_int_array(x) -> np.ndarray:

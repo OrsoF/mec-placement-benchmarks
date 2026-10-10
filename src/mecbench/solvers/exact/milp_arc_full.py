@@ -240,6 +240,7 @@ class Solver(GenericSolver):
         self,
         thread_limit: int = 1,
         initial_value=None,
+        options: dict | None = None,
     ):
         self._model_parameters()
         self._build_model()
@@ -255,7 +256,9 @@ class Solver(GenericSolver):
         opt = pyo.SolverFactory("gurobi")
         opt.options["threads"] = 1
         opt.options['Heuristics'] = 0
+        opt.options.update(options or {})
         solver_result = opt.solve(self.model)
+        self._record_solver_result(solver_result)
 
         (
             self.runtime,

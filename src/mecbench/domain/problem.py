@@ -303,7 +303,8 @@ class ProblemInstance:
             for _ in range(demand_count)
         ]
 
-        self.validate_instance()
+        # A baseline placement is a candidate, not a proof of instance feasibility.
+        self._initialize_baseline()
 
     def validate_components(self) -> None:
         assert isinstance(self.network_graph, NetworkGraph)
@@ -367,6 +368,11 @@ class ProblemInstance:
         validate_arc_solution(self, self.x_variable, self.y_variable, self.q_variable)
 
     def validate_instance(self):
+        """Check the historical baseline, without claiming global infeasibility."""
+        self._initialize_baseline()
+        self.check_current_solution()
+
+    def _initialize_baseline(self):
         placement_node = int(np.argmax(self.network_graph.available_resources))
         graph = self.network_graph.nx_graph
 
@@ -382,7 +388,6 @@ class ProblemInstance:
         q = np.asarray(self.min_flows)
 
         self._set_arc_solution(x, y, q)
-        self.check_current_solution()
 
 
 class ToyInstance(ProblemInstance):

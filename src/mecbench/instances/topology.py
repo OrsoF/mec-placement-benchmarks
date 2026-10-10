@@ -93,7 +93,8 @@ def build_star_graph(
                     continue
 
                 j = (i + delta) % users_per_group
-
+                if j == i:
+                    continue
                 graph.add_edge(users[i], users[j])
 
         # Users <-> WAP

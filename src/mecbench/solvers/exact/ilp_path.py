@@ -174,6 +174,7 @@ class Solver(GenericSolver):
 
     def run(
         self,
+        options: dict | None = None,
     ):
         start_time = time.time()
 
@@ -188,21 +189,11 @@ class Solver(GenericSolver):
         opt = pyo.SolverFactory("gurobi")
         opt.options["Heuristics"] = 0
         opt.options["MemLimit"] = 8
+        opt.options.update(options or {})
 
-        try:
-            solver_result = opt.solve(self.model)
-            (
-                solver_runtime,
-                lower_bound,
-                _,
-                self.solving_status,
-            ) = get_result_informations(solver_result)
-            self.score = float(lower_bound)
-        except:
-            self._set_problem_baseline_solution()
-            self.runtime = time.time() - start_time
-            self.build_time = 0.0
-            return self
+        solver_result = opt.solve(self.model)
+        self._record_solver_result(solver_result)
+        (solver_runtime, _, _, self.solving_status) = get_result_informations(solver_result)
 
         self._set_path_model_solution(
             self.model.l,

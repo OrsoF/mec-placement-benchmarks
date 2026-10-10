@@ -246,17 +246,17 @@ class Solver(GenericSolver):
         for service in range(self.problem_instance.number_of_service):
             self.model.y[service, cloud_server].fix(1)
 
-    def set_heuristic_solution(self):
-        heuristic_solver = Heursolv(self.problem_instance)
+    def set_heuristic_solution(self, seed=0):
+        heuristic_solver = Heursolv(self.problem_instance, seed=seed)
         heuristic_solver.run()
         self._set_initial_value(
             (heuristic_solver.x_var, heuristic_solver.y_var, heuristic_solver.q_var)
         )
 
-    def set_rl_solution(self):
+    def set_rl_solution(self, seed=0):
         from mecbench.solvers.rl.ppo import Solver as RlPPO
 
-        solver = RlPPO(self.problem_instance)
+        solver = RlPPO(self.problem_instance, seed=seed)
         solver.run()
 
         best_state = solver.env.best_state_record[0]
@@ -289,10 +289,10 @@ class Solver(GenericSolver):
             self.set_heuristic_placement()
 
         if heuristic_solution:
-            self.set_heuristic_solution()
+            self.set_heuristic_solution(seed=(options or {}).get("Seed", 0))
 
         if rl_solution:
-            self.set_rl_solution()
+            self.set_rl_solution(seed=(options or {}).get("Seed", 0))
 
         opt = configure_gurobi(
             pyo.SolverFactory("gurobi"),
@@ -300,6 +300,7 @@ class Solver(GenericSolver):
         )
 
         solver_result = opt.solve(self.model)
+        self._record_solver_result(solver_result)
         solver_runtime = get_result_informations(solver_result)[0]
 
         self.x_var = np.array(

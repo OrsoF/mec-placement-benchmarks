@@ -173,6 +173,7 @@ class Solver(GenericSolver):
 
     def run(
         self,
+        options: dict | None = None,
     ):
         start_time = time.time()
 
@@ -185,7 +186,9 @@ class Solver(GenericSolver):
         self._build_objective()
 
         opt = pyo.SolverFactory("gurobi")
-        opt.solve(self.model)
+        opt.options.update(options or {})
+        solver_result = opt.solve(self.model)
+        self._record_solver_result(solver_result)
 
         self._set_path_model_solution(
             self.model.l,

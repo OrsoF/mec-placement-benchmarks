@@ -198,27 +198,11 @@ class Solver(GenericSolver):
         else:
             assert False, "Not implemented yet."
 
-        try:
-            solver_result = opt.solve(self.model)
-            (
-                self.runtime,
-                self.lower_bound,
-                self.upper_bound,
-                self.solving_status,
-            ) = get_result_informations(solver_result)
-            self._set_arc_model_solution(
-                self.model.x,
-                self.model.y,
-                self.model.p,
-                self.D,
-                self.A,
-                self.S,
-                self.U,
-            )
-            self.score = objective_value(self.q_var)
-            self.build_time = 0.0
-
-        except ValueError:
-            self.runtime, self.lower_bound, self.upper_bound = solving_time_limit, 0, 0
-            self._set_problem_baseline_solution()
-            self.build_time = 0.0
+        solver_result = opt.solve(self.model)
+        self._record_solver_result(solver_result)
+        (self.runtime, self.lower_bound, self.upper_bound, self.solving_status) = get_result_informations(solver_result)
+        self._set_arc_model_solution(
+            self.model.x, self.model.y, self.model.p, self.D, self.A, self.S, self.U,
+        )
+        self.score = objective_value(self.q_var)
+        self.build_time = 0.0

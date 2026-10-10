@@ -14,7 +14,7 @@ import pytest
 
 from mecbench.benchmarks import runner
 from mecbench.cli import main
-from mecbench.domain.validation import SolutionValidationError
+from mecbench import SolveStatus
 from mecbench.instances.synthetic import create_tree_problem_instance
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -105,14 +105,18 @@ def test_cli_rejects_invalid_step_before_creating_output(tmp_path):
 
 
 def test_benchmark_runner_rejects_infeasible_solver_output(monkeypatch):
+    from mecbench import api
+
     problem = create_tree_problem_instance(2, 0)
     candidate = SimpleNamespace(
         run=lambda: None, x_var=problem.x_variable, y_var=problem.y_variable,
         q_var=[flow + 1000 for flow in problem.max_flows],
     )
-    monkeypatch.setattr(runner, "make_solver", lambda *args: candidate)
-    with pytest.raises(SolutionValidationError):
-        runner.run_solver("heuristic", problem, 1)
+    monkeypatch.setattr(api, "make_solver", lambda *args, **kwargs: candidate)
+    result = runner.run_solver("heuristic", problem, 1)
+    assert result.status == SolveStatus.INVALID_SOLUTION
+    assert not result.validation.feasible
+    assert result.objective is None
 
 
 def test_failed_benchmark_returns_nonzero_status_and_records_failure(tmp_path, monkeypatch):

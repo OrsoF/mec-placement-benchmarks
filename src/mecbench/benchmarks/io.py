@@ -13,47 +13,8 @@ INSTANCES_PATH = os.path.join(ARTIFACTS_PATH, "instances")
 RESULTS_PATH = os.path.join(ARTIFACTS_PATH, "data")
 SOLVER_PATH = str(Path(__file__).resolve().parents[1] / "solvers")
 CURRENT_FOLDER = os.getcwd()
-SOLVER_FILE_ALIASES = {
-    "ILP_arc": "ilp_arc",
-    "ILP_arc_95": "ilp_arc_95_latency",
-    "ILP_path": "ilp_path",
-    "MILP_arc": "milp_arc",
-    "MILP_path": "milp_path",
-    "milp_arc_exact": "milp_arc_full",
-    "ILP_arc_heuristic_placement": "ilp_arc_heuristic_placement",
-    "ILP_arc_heuristic_warmstart": "ilp_arc_heuristic_warmstart",
-    "ILP_arc_rl_warmstart": "ilp_arc_rl_warmstart",
-    "LP_arc": "lp_arc",
-    "LP_path": "lp_path",
-    "LP_path_strong_latency": "lp_path_latency_tightened",
-    "rl_A2C": "a2c",
-    "rl_PPO": "ppo",
-    "rl_PPO_options": "ppo_options",
-    "base_heuristic": "heuristic",
-    "rl_base": "a2c",
-}
-SOLVER_MODULES = {
-    "ilp_arc": "mecbench.solvers.exact.ilp_arc",
-    "ilp_arc_95_latency": "mecbench.solvers.exact.ilp_arc_95_latency",
-    "ilp_path": "mecbench.solvers.exact.ilp_path",
-    "milp_arc": "mecbench.solvers.exact.milp_arc",
-    "milp_path": "mecbench.solvers.exact.milp_path",
-    "milp_arc_full": "mecbench.solvers.exact.milp_arc_full",
-    "ilp_arc_heuristic_placement": "mecbench.solvers.exact.ilp_arc_heuristic_placement",
-    "ilp_arc_heuristic_warmstart": "mecbench.solvers.exact.ilp_arc_heuristic_warmstart",
-    "ilp_arc_rl_warmstart": "mecbench.solvers.exact.ilp_arc_rl_warmstart",
-    "lp_arc": "mecbench.solvers.relaxations.lp_arc",
-    "lp_path": "mecbench.solvers.relaxations.lp_path",
-    "lp_path_latency_tightened": "mecbench.solvers.relaxations.lp_path_latency_tightened",
-    "a2c": "mecbench.solvers.rl.a2c",
-    "ppo": "mecbench.solvers.rl.ppo",
-    "ppo_options": "mecbench.solvers.rl.ppo_options",
-    "heuristic": "mecbench.solvers.heuristics.heuristic",
-    "heuristicprecise": "mecbench.solvers.heuristics.heuristicprecise",
-    "fast_heuristic": "mecbench.solvers.heuristics.fast_heuristic",
-    "discrete": "mecbench.solvers.evolutionary.discrete",
-    "cma": "mecbench.solvers.evolutionary.cma",
-}
+from mecbench.solvers.registry import SOLVER_FILE_ALIASES, SOLVER_MODULES
+
 
 
 def pickle_save(object_instance: object, file_name: str):

@@ -8,10 +8,11 @@ class Solver(GenericSolver):
         super().__init__(problem_instance)
         self.solver_name = "ILP_arc_95_latency"
 
-    def run(self):
+    def run(self, options: dict | None = None):
         solver = ILPArcSolver(self.problem_instance)
-        solver.run(options={"MIPGap": 0.05})
+        solver.run(options={"MIPGap": 0.05, **(options or {})})
         self._set_output_variables(solver.x_var, solver.y_var, solver.q_var)
+        self.termination_condition = solver.termination_condition
         self.score = solver.score
         self.runtime = solver.runtime
         self.build_time = solver.build_time

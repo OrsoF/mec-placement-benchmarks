@@ -41,10 +41,22 @@ class Solver(GenericSolver):
 
         import cma
 
+        rng = np.random.default_rng(self.seed)
+        lower, upper = self._bounds()
+        free = np.flatnonzero(np.asarray(lower) != np.asarray(upper))
+
+        def expand(candidate):
+            value = x0.copy()
+            value[free] = candidate
+            return value
+
         opts = {
-            "bounds": self._bounds(),
+            "bounds": [np.asarray(bound)[free].tolist() for bound in (lower, upper)],
             "maxiter": self.max_iter,
-            "seed": self.seed,
+            # CMA treats seed=0 as time-based randomness. Supply a local sampler
+            # so every public seed is reproducible without changing NumPy globals.
+            "seed": np.nan,
+            "randn": lambda *shape: rng.standard_normal(shape),
             "verbose": 0 if self.verbose else -9,
             "verb_disp": 1 if self.verbose else 0,
             "verb_log": 1 if self.verbose else 0,
@@ -52,13 +64,14 @@ class Solver(GenericSolver):
         if self.max_evals is not None:
             opts["maxfevals"] = self.max_evals
 
-        es = cma.CMAEvolutionStrategy(x0, self.sigma, opts)
-        while not es.stop():
-            solutions = es.ask()
-            es.tell(solutions, [self.objective(x) for x in solutions])
-            if self.verbose:
-                es.logger.add()
-                es.disp()
+        if free.size:
+            es = cma.CMAEvolutionStrategy(x0[free], self.sigma, opts)
+            while not es.stop():
+                solutions = es.ask()
+                es.tell(solutions, [self.objective(expand(x)) for x in solutions])
+                if self.verbose:
+                    es.logger.add()
+                    es.disp()
 
         if self.best_solution is None:
             raise RuntimeError("CMA-ES did not find a feasible solution.")
@@ -150,7 +163,7 @@ class Solver(GenericSolver):
         elif method == "heuristic":
             from mecbench.solvers.heuristics.heuristic import Solver as HeuristicSolver
 
-            sol = HeuristicSolver(self.problem_instance)
+            sol = HeuristicSolver(self.problem_instance, seed=self.seed)
             sol.run()
             placement, routing, quantities = sol.placement, sol.routing, sol.quantities
         else:

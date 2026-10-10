@@ -195,31 +195,14 @@ class Solver(GenericSolver):
             opt.options["threads"] = thread_limit
         else:
             assert False, "Not implemented yet."
+        opt.options.update(options or {})
 
-        try:
-            solver_result = opt.solve(self.model)
-            (
-                self.runtime,
-                self.lower_bound,
-                self.upper_bound,
-                self.solving_status,
-            ) = get_result_informations(solver_result)
-            self._set_path_model_solution(
-                self.model.l,
-                self.model.y,
-                self.model.p,
-                self.all_shortest_paths,
-                self.D_path_number,
-                self.arc_dic,
-                self.D,
-                self.A,
-                self.S,
-                self.U,
-            )
-            self.score = float(np.sum(self.q_var))
-            self.build_time = 0.0
-
-        except ValueError:
-            self.runtime, self.lower_bound, self.upper_bound = solving_time_limit, 0, 0
-            self._set_problem_baseline_solution()
-            self.build_time = 0.0
+        solver_result = opt.solve(self.model)
+        self._record_solver_result(solver_result)
+        (self.runtime, self.lower_bound, self.upper_bound, self.solving_status) = get_result_informations(solver_result)
+        self._set_path_model_solution(
+            self.model.l, self.model.y, self.model.p, self.all_shortest_paths,
+            self.D_path_number, self.arc_dic, self.D, self.A, self.S, self.U,
+        )
+        self.score = float(np.sum(self.q_var))
+        self.build_time = 0.0

@@ -26,6 +26,12 @@ adapter. All feasibility decisions use `domain.validation`; its exception is
 `SolutionValidationError`, a `ValueError`. Flow conservation and shared arc
 latency follow the arc MILP, including its allowance of balanced circulations.
 
+The public facade in `api.py` exports instance builders and `solve`. Results
+carry a copied `Solution`, a `ValidationReport`, termination status and objective
+recomputed from validated quantities. `solvers.registry` provides the shared
+lazy registry, including historical aliases. The CLI and benchmark runner use
+this facade. See [the API guide](api.md) for the public contracts.
+
 Instance construction, environments, and solvers depend on the domain.
 Benchmark orchestration depends on those components, validates solver outputs,
 and records results through `metrics`. Reporting is imported only when plots
