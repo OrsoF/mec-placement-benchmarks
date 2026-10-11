@@ -1,4 +1,5 @@
 """Run after installing mec-placement-benchmarks; no optional extras needed."""
+
 from mecbench import make_tree_instance, solve, validate
 
 

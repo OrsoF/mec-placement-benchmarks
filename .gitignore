@@ -163,3 +163,4 @@ cython_debug/
 outcmaes/*
 results.png
 .test-tmp/
+.ruff_cache/

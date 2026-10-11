@@ -1,10 +1,9 @@
-from itertools import product
-import numpy as np
 import pytest
-from mecbench.domain.validation import SolutionValidationError, validate_arc_solution
-from mecbench.domain.solution import SolvingInstance, validate_arc_solution as legacy_validate_arc_solution
-from mecbench.solvers.heuristics.fast_heuristic import Solver as FastHeuristic
-from tests.helpers import make_problem, route_solution
+
+from mecbench.domain.solution import SolvingInstance
+from mecbench.domain.validation import SolutionValidationError
+from tests.helpers import make_problem
+
 
 def test_rl_state_feasibility_uses_reference_validator(shared_arc):
     from mecbench.environments.path_cache import ShortestPathCache
@@ -18,12 +17,8 @@ def test_rl_state_feasibility_uses_reference_validator(shared_arc):
     assert not is_feasible_state(problem, checker, cache, [1, 0, 0, 2, 2])
 
 
-
 def test_problem_instance_current_solution_uses_reference_validator():
-    from mecbench.domain.problem import Demand
-    from mecbench.domain.problem import ProblemInstance
-    from mecbench.domain.problem import Service
-    from mecbench.domain.problem import ServicePackage
+    from mecbench.domain.problem import Demand, ProblemInstance, Service, ServicePackage
 
     network = make_problem().network_graph
     service = Service([Demand(0, 1, 10, 3), Demand(0, 1, 10, 3)], network, 2)

@@ -2,10 +2,10 @@ import time
 
 import numpy as np
 
-from mecbench.solvers.base import GenericSolver
 from mecbench.domain.problem import ProblemInstance
-from mecbench.domain.solution import SolvingInstance
-from mecbench.domain.solution import clip_solution, greedy_quantity_lift, repair_solution
+from mecbench.solvers.base import GenericSolver
+from mecbench.solvers.search import clip_solution, greedy_quantity_lift, repair_solution
+from mecbench.solvers.workspace import SolvingInstance
 
 
 class Solver(GenericSolver):
@@ -70,18 +70,14 @@ class Solver(GenericSolver):
                 break
 
         self.placement, self.routing, self.quantities = best
-        self.x_var, self.y_var, self.q_var = (
-            self.solving_instance.solution_to_arc_variables(*best)
-        )
+        self.x_var, self.y_var, self.q_var = self.solving_instance.solution_to_arc_variables(*best)
         self.score = best_score
         self.runtime = time.time() - start
         self.build_time = 0.0
         return self
 
     def _initial_solution(self) -> tuple[list[int], list[int], list[int]]:
-        placement, routing, quantities = (
-            self.solving_instance.basic_placement_and_routing()
-        )
+        placement, routing, quantities = self.solving_instance.basic_placement_and_routing()
         return self._maximize_quantities(placement, routing, quantities)
 
     def _mutate(

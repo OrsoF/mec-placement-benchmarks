@@ -1,9 +1,13 @@
 """Command-line entry point for MEC placement benchmarks."""
-from pathlib import Path
+
 import argparse
 import math
 import sys
-from mecbench.benchmarks.runner import INSTANCES, SOLVERS, make_solver, run_benchmarks
+from pathlib import Path
+
+from mecbench.benchmarks.runner import INSTANCES, SOLVERS, run_benchmarks
+from mecbench.solvers.registry import make_solver as make_solver
+
 
 def positive_int(value):
     number = int(value)
@@ -24,6 +28,8 @@ def positive_float(value):
     if not math.isfinite(number) or number <= 0:
         raise argparse.ArgumentTypeError("must be finite and positive")
     return number
+
+
 def parse_args(argv: list[str] | None = None):
     parser = argparse.ArgumentParser(description="Run SPP benchmark experiments.")
     parser.add_argument("--instance", choices=INSTANCES, default="tree")
@@ -39,12 +45,13 @@ def parse_args(argv: list[str] | None = None):
     parser.add_argument("--figures-dir", type=Path)
     plots = parser.add_mutually_exclusive_group()
     plots.add_argument("--no-plots", action="store_true", default=True)
-    plots.add_argument("--plots", action="store_false", dest="no_plots", help="requires the benchmarks extra")
+    plots.add_argument(
+        "--plots", action="store_false", dest="no_plots", help="requires the benchmarks extra"
+    )
     args = set_instance_defaults(parser.parse_args(argv))
     if args.stop_users <= args.start_users:
         parser.error("--stop-users must be greater than --start-users (exclusive upper bound)")
     return args
-
 
 
 def set_instance_defaults(args):
@@ -59,7 +66,6 @@ def set_instance_defaults(args):
     if args.figures_dir is None:
         args.figures_dir = Path("artifacts") / "figures" / args.instance
     return args
-
 
 
 def main(argv=None):

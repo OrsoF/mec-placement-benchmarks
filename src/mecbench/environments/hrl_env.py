@@ -1,8 +1,12 @@
 import numpy as np
 from gymnasium.spaces import MultiDiscrete
 
-from mecbench.domain.solution import make_state, split_state
-from mecbench.environments.hrl_reward import normalized_delta, placement_routing_score, served_quantity
+from mecbench.domain.conversions import make_state, split_state
+from mecbench.environments.hrl_reward import (
+    normalized_delta,
+    placement_routing_score,
+    served_quantity,
+)
 from mecbench.environments.options import move_service, reroute_demand, shift_quantity
 from mecbench.environments.spp_env import SPPEnv
 
@@ -115,9 +119,7 @@ class FlowSetupEnv(SPPEnv):
         dq = (int(quantity_action) - 1) * self.quantity_increment
         old_state = self.state.copy()
         old_score = served_quantity(self.problem_instance, old_state)
-        candidate = self._canonical_state(
-            shift_quantity(self.problem_instance, old_state, d, dq)
-        )
+        candidate = self._canonical_state(shift_quantity(self.problem_instance, old_state, d, dq))
 
         feasible = self._is_feasible_state(candidate)
         self.state = candidate if feasible else old_state

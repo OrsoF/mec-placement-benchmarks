@@ -1,21 +1,23 @@
-from mecbench.solvers.base import GenericSolver
-from mecbench.solvers.model_utils import configure_gurobi, objective_value, problem_arrays
-from mecbench.domain.problem import Service
-from mecbench.domain.problem import ProblemInstance
-from mecbench.domain.graph_utils import get_encoded_incoming_arc, get_encoded_outgoing_arc
-from mecbench.benchmarks.metrics import get_result_informations
-from mecbench.solvers.arc_formulation import add_arc_constraints
-import pyomo.environ as pyo
 import time
+
 import networkx as nx
 import numpy as np
+import pyomo.environ as pyo
 
+from mecbench.benchmarks.metrics import get_result_informations
+from mecbench.domain.graph_utils import get_encoded_incoming_arc, get_encoded_outgoing_arc
+from mecbench.domain.problem import ProblemInstance
+from mecbench.domain.services import Service
+from mecbench.solvers.arc_formulation import add_arc_constraints
+from mecbench.solvers.base import GenericSolver
+from mecbench.solvers.exact.extraction import arc_model_arrays
 from mecbench.solvers.heuristics.heuristic import Solver as Heursolv
+from mecbench.solvers.model_utils import configure_gurobi, objective_value, problem_arrays
 
 
 class Solver(GenericSolver):
     def __init__(self, problem_instance: ProblemInstance):
-        self.problem_instance = problem_instance
+        super().__init__(problem_instance)
         self.services: list[Service] = self.problem_instance.service_package.services
         self.G: nx.DiGraph = self.problem_instance.network_graph.nx_graph
         self.solver_name = "ILP_arc"
@@ -50,12 +52,8 @@ class Solver(GenericSolver):
         self.model = pyo.ConcreteModel()
 
     def _build_sets(self):
-        self.model.total_number_of_demands = pyo.Set(
-            initialize=range(self.total_number_of_demands)
-        )
-        self.model.number_of_services = pyo.Set(
-            initialize=range(self.number_of_services)
-        )
+        self.model.total_number_of_demands = pyo.Set(initialize=range(self.total_number_of_demands))
+        self.model.number_of_services = pyo.Set(initialize=range(self.number_of_services))
         self.model.node_number = pyo.Set(initialize=range(self.node_number))
         self.model.arc_number = pyo.Set(initialize=range(self.arc_number))
 
@@ -68,9 +66,7 @@ class Solver(GenericSolver):
             self.model.number_of_services, self.model.node_number, within=pyo.Binary
         )
 
-        self.model.p = pyo.Var(
-            self.model.total_number_of_demands, within=pyo.NonNegativeIntegers
-        )
+        self.model.p = pyo.Var(self.model.total_number_of_demands, within=pyo.NonNegativeIntegers)
 
         self.model.P = pyo.Var(
             self.model.total_number_of_demands,
@@ -87,41 +83,31 @@ class Solver(GenericSolver):
     def _build_params(self):
         self.model.origins = pyo.Param(
             self.model.total_number_of_demands,
-            initialize={
-                d: self.origins[d] for d in range(self.total_number_of_demands)
-            },
+            initialize={d: self.origins[d] for d in range(self.total_number_of_demands)},
             mutable=False,
             within=pyo.NonNegativeIntegers,
         )
         self.model.Pdmin = pyo.Param(
             self.model.total_number_of_demands,
-            initialize={
-                d: self.min_flows[d] for d in range(self.total_number_of_demands)
-            },
+            initialize={d: self.min_flows[d] for d in range(self.total_number_of_demands)},
             mutable=False,
             within=pyo.NonNegativeIntegers,
         )
         self.model.Pdmax = pyo.Param(
             self.model.total_number_of_demands,
-            initialize={
-                d: self.max_flows[d] for d in range(self.total_number_of_demands)
-            },
+            initialize={d: self.max_flows[d] for d in range(self.total_number_of_demands)},
             mutable=False,
             within=pyo.NonNegativeIntegers,
         )
         self.model.latencies = pyo.Param(
             self.model.total_number_of_demands,
-            initialize={
-                d: self.latencies[d] for d in range(self.total_number_of_demands)
-            },
+            initialize={d: self.latencies[d] for d in range(self.total_number_of_demands)},
             mutable=False,
             within=pyo.NonNegativeReals,
         )
         self.model.resources = pyo.Param(
             self.model.number_of_services,
-            initialize={
-                s: self.needed_resources[s] for s in range(self.number_of_services)
-            },
+            initialize={s: self.needed_resources[s] for s in range(self.number_of_services)},
             mutable=False,
             within=pyo.NonNegativeIntegers,
         )
@@ -190,9 +176,7 @@ class Solver(GenericSolver):
 
         self.model.arc_capacity = pyo.Param(
             self.model.arc_number,
-            initialize={
-                a: self.G.edges[edge]["capacity"] for a, edge in enumerate(self.G.edges)
-            },
+            initialize={a: self.G.edges[edge]["capacity"] for a, edge in enumerate(self.G.edges)},
             mutable=False,
             within=pyo.NonNegativeIntegers,
         )
@@ -218,9 +202,7 @@ class Solver(GenericSolver):
         )
 
     def _build_objective(self):
-        self.model.obj = pyo.Objective(
-            sense=pyo.maximize, rule=lambda model: sum(model.p.values())
-        )
+        self.model.obj = pyo.Objective(sense=pyo.maximize, rule=lambda model: sum(model.p.values()))
 
     def _set_initial_value(self, initial_value: tuple):
         x_var, y_var, q_var = initial_value
@@ -232,14 +214,10 @@ class Solver(GenericSolver):
                 ]
         for service_index in range(self.number_of_services):
             for node_index in range(self.node_number):
-                self.model.y[service_index, node_index].value = y_var[
-                    service_index, node_index
-                ]
+                self.model.y[service_index, node_index].value = y_var[service_index, node_index]
 
     def set_heuristic_placement(self):
-        cloud_server = np.argmax(
-            self.problem_instance.network_graph.available_resources
-        )
+        cloud_server = np.argmax(self.problem_instance.network_graph.available_resources)
 
         print(cloud_server)
 
@@ -300,33 +278,25 @@ class Solver(GenericSolver):
         )
 
         solver_result = opt.solve(self.model)
-        self._record_solver_result(solver_result)
+        self.termination_condition = str(solver_result.solver.termination_condition)
         solver_runtime = get_result_informations(solver_result)[0]
 
-        self.x_var = np.array(
-            [
-                [
-                    self.model.demand_arc_transit[i, j].value
-                    for j in range(self.arc_number)
-                ]
-                for i in range(self.total_number_of_demands)
-            ]
+        self._set_output_variables(
+            *arc_model_arrays(
+                self.model.demand_arc_transit,
+                self.model.y,
+                self.model.p,
+                self.total_number_of_demands,
+                self.arc_number,
+                self.number_of_services,
+                self.node_number,
+            )
         )
-        self.y_var = np.array(
-            [
-                [self.model.y[i, j].value for j in range(self.node_number)]
-                for i in range(self.number_of_services)
-            ]
-        )
-        self.q_var = np.array(
-            [self.model.p[dd].value for dd in range(self.total_number_of_demands)]
-        )
-        self._set_output_variables(self.x_var, self.y_var, self.q_var)
 
         try:
             self.score = objective_value(self.q_var)
-        except:
+        except (TypeError, ValueError):
             self.score = 0
-            
+
         self.runtime = time.time() - start_time
         self.build_time = self.runtime - float(solver_runtime)

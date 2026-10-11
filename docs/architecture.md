@@ -21,10 +21,30 @@ there is no need to add the repository root to `sys.path`.
 | `exp.py` | `mecbench.cli`, `mecbench.benchmarks.runner` |
 
 The domain defines demands, networks, services, packages, and problems.
-`domain.solution` handles compact/arc conversion and the `SolvingInstance`
-adapter. All feasibility decisions use `domain.validation`; its exception is
+`domain.network` owns graph data, `domain.services` owns demands and services,
+and `domain.problem` assembles a problem. `domain.solution.Solution` owns copied,
+read-only arrays. Pure compact/arc conversion lives in `domain.conversions`;
+load calculations live in `domain.loads`.
+
+`solvers.workspace.SolverWorkspace` owns a mutable graph, candidate state, path
+cache, and independent random generator. Candidate search lives in `solvers.search`,
+graph updates in `solvers.graph_state`, baseline construction in
+`solvers.initialization`, and indexed optimizer extraction in
+`solvers.exact.extraction`. Workspaces store their results without changing the
+problem's historical solution state. `GenericSolver` initializes outputs through
+an ordinary constructor; subclasses explicitly call `super().__init__`.
+
+All feasibility decisions use `domain.validation`; its exception is
 `SolutionValidationError`, a `ValueError`. Flow conservation and shared arc
 latency follow the arc MILP, including its allowance of balanced circulations.
+
+Historical imports from `domain.problem` and `domain.solution` remain available
+as reexports. `SolvingInstance` aliases `SolverWorkspace`. Historical mutable
+`ProblemInstance.x_variable`, `y_variable`, `q_variable`, `_set_arc_solution`, and
+`validate_instance` live in `compat.problem_state`; they initialize a baseline
+only on first access. `validate_instance` checks that particular baseline and
+does not prove that the problem is infeasible. New code should use `solve` and
+`validate`, and import helpers from their canonical modules.
 
 The public facade in `api.py` exports instance builders and `solve`. Results
 carry a copied `Solution`, a `ValidationReport`, termination status and objective
@@ -39,8 +59,11 @@ are requested. CLI imports do not require Pyomo, Gurobi, or RL packages.
 
 Tests are organized by purpose: constraint tests in `unit`, component and CLI
 tests in `integration`, and shared-load counterexamples plus comparison with
-actual Pyomo MILP constraints in `regression`. The CI runs the suite on Windows
-and Linux with Python 3.10 and 3.12, builds distributions, and checks Docker.
+actual Pyomo MILP constraints in `regression`. The CI runs minimal and optional
+dependency profiles on Windows and Linux with Python 3.10 and 3.12, runs a
+separate RL profile, builds distributions, and checks Docker. Ruff covers active
+Python sources, tests, and examples; strict mypy coverage grows from an explicit
+list of public contracts and adapters. See [development](development.md).
 
 `examples/` contains the previous executable scripts. `data/`, `artifacts/`,
 and `archive/` retain input topologies, experiment outputs, and historical work.

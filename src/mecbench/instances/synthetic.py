@@ -1,8 +1,18 @@
 """Synthetic tree, star, and hierarchical service placement instances."""
+
 from pathlib import Path
+
 import networkx as nx
 import numpy as np
+
 from mecbench.domain.problem import ProblemInstance
+from mecbench.instances.services import (
+    build_large_service_package,
+    build_star_service_package,
+    build_tree_service_package,
+)
+
+# Preserve the builder's public GML constructor as a re-export.
 from mecbench.instances.topology import (
     _make_network_graph,
     build_graph_from_gml,
@@ -10,15 +20,13 @@ from mecbench.instances.topology import (
     build_star_graph,
     build_tree_graph,
 )
-from mecbench.instances.services import build_tree_service_package, build_star_service_package, build_large_service_package
-# Preserve the builder's public GML constructor as a re-export.
-from mecbench.instances.topology import create_gml_problem_instance
+from mecbench.instances.topology import create_gml_problem_instance as create_gml_problem_instance
+
 
 def create_tree_problem_instance(
     n_users: int,
     neighbors: int = 1,
 ) -> ProblemInstance:
-
     graph = build_tree_graph(
         n_users=n_users,
         neighbors=neighbors,
@@ -26,8 +34,8 @@ def create_tree_problem_instance(
 
     node_resources = (
         [10] * n_users
-        + [50]      # wap
-        + [1000]    # cloud
+        + [50]  # wap
+        + [1000]  # cloud
     )
 
     edge_capacities = [max(50, n_users)] * graph.number_of_edges()
@@ -55,13 +63,11 @@ def create_tree_problem_instance(
     )
 
 
-
 def create_star_problem_instance(
     n_groups: int,
     users_per_group: int,
     neighbors: int = 1,
 ) -> ProblemInstance:
-
     graph = build_star_graph(
         n_groups=n_groups,
         users_per_group=users_per_group,
@@ -71,11 +77,7 @@ def create_star_problem_instance(
     n_users = n_groups * users_per_group
     n_waps = n_groups
 
-    node_resources = (
-        [1] * n_users
-        + [users_per_group] * n_waps
-        + [n_users]
-    )
+    node_resources = [1] * n_users + [users_per_group] * n_waps + [n_users]
 
     edge_capacities = [users_per_group] * graph.number_of_edges()
 
@@ -87,9 +89,7 @@ def create_star_problem_instance(
         beta=3.0,
     )
 
-    instance_name = (
-        f"star_{n_groups}_{users_per_group}_{neighbors}"
-    )
+    instance_name = f"star_{n_groups}_{users_per_group}_{neighbors}"
 
     service_package = build_star_service_package(
         network_graph=network_graph,
@@ -105,7 +105,6 @@ def create_star_problem_instance(
     )
 
 
-
 def create_large_problem_instance(
     base_graph: nx.Graph,
     n_services: int,
@@ -114,7 +113,6 @@ def create_large_problem_instance(
     users_per_edge: int = 2,
     rng: np.random.Generator | None = None,
 ) -> ProblemInstance:
-
     rng = rng or np.random.default_rng(0)
 
     graph = build_large_graph(
@@ -127,7 +125,6 @@ def create_large_problem_instance(
     node_resources = []
 
     for node in graph.nodes:
-
         layer = graph.nodes[node].get("layer")
 
         if layer == "edge":
@@ -142,7 +139,6 @@ def create_large_problem_instance(
     edge_capacities = []
 
     for u, v in graph.edges:
-
         u_is_core = graph.nodes[u].get("layer") is None
         v_is_core = graph.nodes[v].get("layer") is None
 
@@ -163,9 +159,7 @@ def create_large_problem_instance(
         beta=5.0,
     )
 
-    instance_name = (
-        f"large_{n_services}_{demands_per_service}"
-    )
+    instance_name = f"large_{n_services}_{demands_per_service}"
 
     service_package = build_large_service_package(
         network_graph=network_graph,
@@ -182,7 +176,6 @@ def create_large_problem_instance(
     )
 
 
-
 def make_tree_instance(
     number_of_users: int,
     neighbors_connection: int = 1,
@@ -191,7 +184,6 @@ def make_tree_instance(
         n_users=number_of_users,
         neighbors=neighbors_connection,
     )
-
 
 
 def make_star_instance(
@@ -204,7 +196,6 @@ def make_star_instance(
         users_per_group=users_per_group,
         neighbors=neighbors_connection,
     )
-
 
 
 def make_large_instance(

@@ -5,17 +5,18 @@ import csv
 import importlib
 import importlib.util
 import os
-from pathlib import Path
 import subprocess
 import sys
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
+from mecbench import SolveStatus
 from mecbench.benchmarks import runner
 from mecbench.cli import main
-from mecbench import SolveStatus
 from mecbench.instances.synthetic import create_tree_problem_instance
+from tests.optional import module_requirements
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "src"
@@ -25,18 +26,20 @@ MODULES = sorted(
 )
 
 
-@pytest.mark.parametrize("module", MODULES)
+@pytest.mark.parametrize(
+    "module",
+    [
+        pytest.param(
+            module,
+            marks=[
+                pytest.mark.requires(*module_requirements(module)),
+                *([pytest.mark.rl] if module.startswith("mecbench.solvers.rl.") else []),
+            ],
+        )
+        for module in MODULES
+    ],
+)
 def test_public_modules_import(module):
-    if module.startswith("mecbench.solvers.rl."):
-        pytest.importorskip("stable_baselines3")
-    if module.startswith(("mecbench.solvers.exact.", "mecbench.solvers.relaxations.")) or module in {
-        "mecbench.solvers.arc_formulation", "mecbench.solvers.path_formulation"
-    }:
-        pytest.importorskip("pyomo")
-    if module == "mecbench.solvers.evolutionary.cma":
-        pytest.importorskip("cma")
-    if module in {"mecbench.environments.spp_env", "mecbench.environments.hrl_env"}:
-        pytest.importorskip("gymnasium")
     importlib.import_module(module)
 
 
@@ -56,10 +59,16 @@ def test_local_imports_and_dynamic_registry_paths_exist():
                     assert importlib.util.find_spec(module) is not None, (path, module)
                 else:
                     assert module.split(".")[0] not in {
-                        "core", "instances", "solvers", "rl", "data_io", "plotting"
+                        "core",
+                        "instances",
+                        "solvers",
+                        "rl",
+                        "data_io",
+                        "plotting",
                     }, (path, module)
 
 
+@pytest.mark.requires("pandas", "tqdm")
 def test_solver_aliases_and_package_directory():
     from mecbench.benchmarks.io import SOLVER_FILE_ALIASES, SOLVER_MODULES, SOLVER_PATH
 
@@ -71,8 +80,12 @@ def run_cli(tmp_path, *args):
     environment = os.environ.copy()
     environment["PYTHONPATH"] = str(SOURCE) + os.pathsep + environment.get("PYTHONPATH", "")
     return subprocess.run(
-        [sys.executable, "-m", "mecbench", *args], cwd=tmp_path,
-        env=environment, capture_output=True, text=True, timeout=60,
+        [sys.executable, "-m", "mecbench", *args],
+        cwd=tmp_path,
+        env=environment,
+        capture_output=True,
+        text=True,
+        timeout=60,
     )
 
 
@@ -86,8 +99,20 @@ def test_cli_help_outside_repository(tmp_path):
 @pytest.mark.parametrize("instance,expected_users", [("tree", "2"), ("star", "4")])
 def test_cli_creates_benchmark_results_outside_repository(tmp_path, instance, expected_users):
     result = run_cli(
-        tmp_path, "--instance", instance, "--groups", "2", "--solvers", "fast_heuristic",
-        "--start-users", "2", "--stop-users", "3", "--neighbors", "0", "--no-plots",
+        tmp_path,
+        "--instance",
+        instance,
+        "--groups",
+        "2",
+        "--solvers",
+        "fast_heuristic",
+        "--start-users",
+        "2",
+        "--stop-users",
+        "3",
+        "--neighbors",
+        "0",
+        "--no-plots",
     )
     assert result.returncode == 0, (result.stdout, result.stderr)
     with (tmp_path / "artifacts/data" / f"exp_{instance}.csv").open(newline="") as handle:
@@ -109,7 +134,9 @@ def test_benchmark_runner_rejects_infeasible_solver_output(monkeypatch):
 
     problem = create_tree_problem_instance(2, 0)
     candidate = SimpleNamespace(
-        run=lambda: None, x_var=problem.x_variable, y_var=problem.y_variable,
+        run=lambda: None,
+        x_var=problem.x_variable,
+        y_var=problem.y_variable,
         q_var=[flow + 1000 for flow in problem.max_flows],
     )
     monkeypatch.setattr(api, "make_solver", lambda *args, **kwargs: candidate)
@@ -125,10 +152,24 @@ def test_failed_benchmark_returns_nonzero_status_and_records_failure(tmp_path, m
 
     monkeypatch.setattr(runner, "run_solver", fail)
     output = tmp_path / "failed.csv"
-    assert main([
-        "--solvers", "fast_heuristic", "--start-users", "2", "--stop-users", "3",
-        "--neighbors", "0", "--no-plots", "--output", str(output),
-    ]) == 1
+    assert (
+        main(
+            [
+                "--solvers",
+                "fast_heuristic",
+                "--start-users",
+                "2",
+                "--stop-users",
+                "3",
+                "--neighbors",
+                "0",
+                "--no-plots",
+                "--output",
+                str(output),
+            ]
+        )
+        == 1
+    )
     with output.open(newline="") as handle:
         row = next(csv.DictReader(handle))
     assert row["score"] == ""

@@ -1,23 +1,24 @@
-from mecbench.solvers.base import GenericSolver
-from mecbench.solvers.model_utils import objective_value, problem_arrays
-from mecbench.domain.problem import Service
-from mecbench.domain.problem import ProblemInstance
+import time
+
+import networkx as nx
+import pyomo.environ as pyo
+
 from mecbench.benchmarks.metrics import get_result_informations
+from mecbench.domain.problem import ProblemInstance
+from mecbench.domain.services import Service
+from mecbench.solvers.base import GenericSolver
+from mecbench.solvers.exact.extraction import path_model_arrays
+from mecbench.solvers.model_utils import objective_value, problem_arrays
 from mecbench.solvers.path_formulation import (
     add_path_constraints,
     add_path_params,
     enumerate_candidate_paths,
 )
 
-import pyomo.environ as pyo
-import networkx as nx
-import numpy as np
-import time
-
 
 class Solver(GenericSolver):
     def __init__(self, problem_instance: ProblemInstance, maximum_path_number: int = 3):
-        self.problem_instance = problem_instance
+        super().__init__(problem_instance)
         self.services: list[Service] = self.problem_instance.service_package.services
         self.G: nx.DiGraph = self.problem_instance.network_graph.nx_graph
         self.maximum_path_number = maximum_path_number
@@ -72,9 +73,7 @@ class Solver(GenericSolver):
         self.model.y = pyo.Var(self.model.S, self.model.U, within=pyo.Binary)
         self.model.p = pyo.Var(self.model.D, within=pyo.NonNegativeIntegers)
         self.model.P = pyo.Var(self.model.C, within=pyo.NonNegativeIntegers)
-        self.model.L = pyo.Var(
-            self.model.C, self.model.A, within=pyo.NonNegativeIntegers
-        )
+        self.model.L = pyo.Var(self.model.C, self.model.A, within=pyo.NonNegativeIntegers)
 
         self.model.nul = pyo.Var(range(1), within=pyo.Binary)
         self.model.nul[0].fix(0)  # type: ignore
@@ -112,9 +111,7 @@ class Solver(GenericSolver):
         )
         self.model.node_resources = pyo.Param(
             self.model.U,
-            initialize={
-                u: self.G.nodes[u]["available_resources"] for u in range(self.node_nb)
-            },
+            initialize={u: self.G.nodes[u]["available_resources"] for u in range(self.node_nb)},
             mutable=False,
             within=pyo.NonNegativeIntegers,
         )
@@ -133,9 +130,7 @@ class Solver(GenericSolver):
 
         self.model.arc_capacity = pyo.Param(
             self.model.A,
-            initialize={
-                a: self.G.edges[edge]["capacity"] for a, edge in enumerate(self.G.edges)
-            },
+            initialize={a: self.G.edges[edge]["capacity"] for a, edge in enumerate(self.G.edges)},
             mutable=False,
             within=pyo.NonNegativeIntegers,
         )
@@ -168,9 +163,7 @@ class Solver(GenericSolver):
         add_path_constraints(self.model, self.m, self.n)
 
     def _build_objective(self):
-        self.model.obj = pyo.Objective(
-            sense=pyo.maximize, rule=lambda model: sum(model.p.values())
-        )
+        self.model.obj = pyo.Objective(sense=pyo.maximize, rule=lambda model: sum(model.p.values()))
 
     def run(
         self,
@@ -192,20 +185,22 @@ class Solver(GenericSolver):
         opt.options.update(options or {})
 
         solver_result = opt.solve(self.model)
-        self._record_solver_result(solver_result)
+        self.termination_condition = str(solver_result.solver.termination_condition)
         (solver_runtime, _, _, self.solving_status) = get_result_informations(solver_result)
 
-        self._set_path_model_solution(
-            self.model.l,
-            self.model.y,
-            self.model.p,
-            self.all_shortest_paths,
-            self.D_path_number,
-            self.arc_dic,
-            self.demand_nb,
-            self.edge_nb,
-            self.service_nb,
-            self.node_nb,
+        self._set_output_variables(
+            *path_model_arrays(
+                self.model.l,
+                self.model.y,
+                self.model.p,
+                self.all_shortest_paths,
+                self.D_path_number,
+                self.arc_dic,
+                self.demand_nb,
+                self.edge_nb,
+                self.service_nb,
+                self.node_nb,
+            )
         )
         self.score = objective_value(self.q_var)
         self.runtime = time.time() - start_time

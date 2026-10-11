@@ -15,6 +15,7 @@ RESULT_COLUMNS = (
     "error",
 )
 
+
 def result_row(args, name: str, users: int, groups: int, solver) -> dict:
     return {
         "instance": args.instance,
@@ -30,7 +31,6 @@ def result_row(args, name: str, users: int, groups: int, solver) -> dict:
         "seed": solver.seed,
         "error": "; ".join(v.message for v in solver.validation.violations),
     }
-
 
 
 def failed_row(args, name: str, users: int, groups: int, runtime: float, error: str = "") -> dict:
@@ -50,9 +50,9 @@ def failed_row(args, name: str, users: int, groups: int, runtime: float, error: 
     }
 
 
-
 def get_result_informations(solver_result: str) -> list:
     if hasattr(solver_result, "solver"):
+
         def numeric(value):
             try:
                 return float(value)
@@ -73,7 +73,6 @@ def get_result_informations(solver_result: str) -> list:
     return results
 
 
-
 def get_info_from_results(result_type: str, info_string: str):
     """
     Get information about results from Pyomo result info string.
@@ -82,4 +81,4 @@ def get_info_from_results(result_type: str, info_string: str):
     start = text.lower().find(info_string.lower())
     if start < 0:
         raise ValueError(f"Missing solver result field: {info_string}")
-    return text[start + len(info_string):].splitlines()[0].strip()
+    return text[start + len(info_string) :].splitlines()[0].strip()

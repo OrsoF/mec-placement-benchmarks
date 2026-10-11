@@ -4,10 +4,9 @@ import time
 
 from stable_baselines3 import A2C, PPO
 
-from mecbench.solvers.base import GenericSolver
 from mecbench.domain.problem import ProblemInstance
 from mecbench.environments.spp_env import SPPEnv
-
+from mecbench.solvers.base import GenericSolver
 
 MODEL_CLASSES = {
     "A2C": A2C,
@@ -129,7 +128,9 @@ class PPOSolver(Solver):
         """Initialize the default PPO RL solver."""
         problem_instance = problem[0] if isinstance(problem, list) else problem
         max_step = 1000 + problem_instance.number_of_service * 10 if max_step is None else max_step
-        train_step = 10000 + problem_instance.number_of_service * 20 if train_step is None else train_step
+        train_step = (
+            10000 + problem_instance.number_of_service * 20 if train_step is None else train_step
+        )
         super().__init__(
             problem=problem,
             max_step=max_step,

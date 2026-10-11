@@ -2,8 +2,7 @@
 
 import sys
 
-from mecbench.cli import SOLVERS, main, make_solver
-
+from mecbench.cli import main
 
 if __name__ == "__main__":
     raise SystemExit(main(["--instance", "tree", *sys.argv[1:]]))

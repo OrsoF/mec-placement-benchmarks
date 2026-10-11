@@ -1,0 +1,77 @@
+# Development checks
+
+Run commands from the repository root with Python 3.10 or later.
+
+## Minimal tests
+
+```bash
+python -m pip install -e ".[test]"
+python -m pytest
+python -m build
+```
+
+This profile installs NumPy, NetworkX, pytest, and the build frontend. Optional
+tests declare their dependencies with `@pytest.mark.requires("pyomo")`, for
+example. A genuinely absent module produces an explicit skip. A dependency
+that is installed but cannot import produces a failure, including when its
+transitive dependency is missing. Test collection does not require every extra.
+
+## Optional dependency coverage
+
+```bash
+python -m pip install -e ".[benchmarks,exact,environments,evolutionary,test]"
+python -m pytest -m "not rl" --require-extras
+```
+
+`--require-extras` turns missing declared dependencies into failures. CI runs
+both this profile and the minimal profile on Linux and Windows, with Python
+3.10 and 3.12. Pyomo model comparisons do not require a Gurobi license.
+
+The separate Linux RL job installs CPU PyTorch and all required extras, then
+executes the full suite:
+
+```bash
+python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+python -m pip install -e ".[benchmarks,exact,evolutionary,rl,test]"
+python -m pytest --require-extras
+```
+
+Mark tests requiring Stable-Baselines3 with both `requires("stable_baselines3")`
+and `rl`, so the non-RL profile can exclude them deliberately. Import smoke
+tests use the declarations in `tests/optional.py`; update these when adding a
+module that imports an optional dependency.
+
+## Static checks
+
+```bash
+python -m pip install -e ".[dev]"
+python -m ruff check src tests examples
+python -m ruff format --check src tests examples
+python -m mypy
+```
+
+Ruff checks imports, syntax, unused names, modernization, and common mistakes.
+Formatting is checked separately. Historical files under `archive/` are outside
+this active-code scope. To apply formatting locally, use `python -m ruff format
+src tests examples`. Tool versions are pinned in the `dev` extra for repeatable CI.
+
+Typing is strict within the explicit `tool.mypy.files` list in `pyproject.toml`:
+the public API and errors, solution and validation contracts, solver base and
+registry, optimizer extraction, baseline builder, and legacy state adapter.
+`domain.contracts` and `solvers.contracts` define typed array aliases and
+protocols for these boundaries. Other algorithm and environment modules remain
+outside strict coverage; add them to this list as their annotations mature.
+Following their imports silently allows this incremental approach without
+globally suppressing errors in checked files. NetworkX's missing external stubs
+have a named override. Dynamic solver options and indexed optimizer objects use
+`Any` at the adapter boundary. The distribution includes `mecbench/py.typed`.
+
+## Adding a solver
+
+Subclass `GenericSolver` and call `super().__init__(problem)` explicitly.
+Implement `run`, populate outputs through `_set_output_variables`, and record
+metrics and termination information. Register the module in `solvers.registry`.
+Keep mutable candidate state in a `SolverWorkspace`; treat input problems as
+shared data. Convert indexed optimizer outputs with the extraction helpers.
+The public facade copies outputs into `Solution`, validates them, and recomputes
+the objective. Constructor contract tests cover every registered backend.

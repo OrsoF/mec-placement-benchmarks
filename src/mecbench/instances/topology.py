@@ -1,9 +1,12 @@
 """Topology builders and GML instance loading."""
 
 from pathlib import Path
+
 import networkx as nx
 import numpy as np
-from mecbench.domain.problem import NetworkGraph, ProblemInstance
+
+from mecbench.domain.network import NetworkGraph
+from mecbench.domain.problem import ProblemInstance
 from mecbench.instances.services import build_gml_service_package
 
 
@@ -78,17 +81,12 @@ def build_star_graph(
     graph.add_nodes_from(range(n_users + n_groups + 1))
 
     for group_idx in range(n_groups):
-
-        users = [
-            group_idx * users_per_group + user_idx
-            for user_idx in range(users_per_group)
-        ]
+        users = [group_idx * users_per_group + user_idx for user_idx in range(users_per_group)]
         wap = waps[group_idx]
 
         # Circular local neighborhood
         for i in range(users_per_group):
             for delta in range(-neighbors, neighbors + 1):
-
                 if delta == 0:
                     continue
 
@@ -127,9 +125,9 @@ def build_large_graph(
 
     Topology:
         core nodes
-            â†“
+            ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬Å“
         edge servers
-            â†“
+            ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬Å“
         users
     """
     rng = rng or np.random.default_rng(0)
@@ -144,9 +142,7 @@ def build_large_graph(
     # ----- Edge layer -----
 
     for core in core_nodes:
-
-        for edge_idx in range(edge_per_core):
-
+        for _edge_idx in range(edge_per_core):
             edge_node = graph.number_of_nodes()
 
             graph.add_node(edge_node, layer="edge")
@@ -157,9 +153,7 @@ def build_large_graph(
     # ----- User layer -----
 
     for edge_node in edge_nodes:
-
-        for user_idx in range(users_per_edge):
-
+        for _user_idx in range(users_per_edge):
             user_node = graph.number_of_nodes()
 
             graph.add_node(user_node, layer="user")
@@ -174,7 +168,6 @@ def _constant_edge_list(
     graph: nx.Graph,
     value: float,
 ) -> list[float]:
-
     return [value] * graph.number_of_edges()
 
 
@@ -185,7 +178,6 @@ def _make_network_graph(
     alpha: float,
     beta: float,
 ) -> NetworkGraph:
-
     return NetworkGraph(
         base_graph=graph,
         node_resources=node_resources,
@@ -203,20 +195,13 @@ def create_gml_problem_instance(
     default_edge_capacity: float = 1e3,
     rng: np.random.Generator | None = None,
 ) -> ProblemInstance:
-
     rng = rng or np.random.default_rng(0)
 
     graph = build_graph_from_gml(gml_path)
 
-    node_resources = (
-        [default_node_resources]
-        * graph.number_of_nodes()
-    )
+    node_resources = [default_node_resources] * graph.number_of_nodes()
 
-    edge_capacities = (
-        [default_edge_capacity]
-        * graph.number_of_edges()
-    )
+    edge_capacities = [default_edge_capacity] * graph.number_of_edges()
 
     network_graph = _make_network_graph(
         graph=graph,
@@ -228,9 +213,7 @@ def create_gml_problem_instance(
 
     graph_name = Path(gml_path).stem
 
-    instance_name = (
-        f"gml_{graph_name}_{n_services}_{demands_per_service}"
-    )
+    instance_name = f"gml_{graph_name}_{n_services}_{demands_per_service}"
 
     service_package = build_gml_service_package(
         network_graph=network_graph,

@@ -1,6 +1,6 @@
 import numpy as np
 
-from mecbench.domain.solution import make_state, split_state, to_int_array
+from mecbench.domain.conversions import make_state, split_state, to_int_array
 
 
 def move_service(problem, s, k: int, v: int) -> np.ndarray:

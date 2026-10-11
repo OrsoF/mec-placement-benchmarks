@@ -1,4 +1,5 @@
 """Diagnostics exposed to API users use the same reference checks."""
+
 from types import SimpleNamespace
 
 import numpy as np
@@ -15,7 +16,8 @@ def test_shared_traffic_latency_report_explains_counterexample():
     report = validate(problem, solution)
     assert not report.feasible
     assert [(v.constraint, v.demand, v.observed, v.limit) for v in report.violations] == [
-        ("latency", 0, 4, 3), ("latency", 1, 4, 3),
+        ("latency", 0, 4, 3),
+        ("latency", 1, 4, 3),
     ]
     with pytest.raises(SolutionValidationError, match="latency"):
         report.raise_if_infeasible()

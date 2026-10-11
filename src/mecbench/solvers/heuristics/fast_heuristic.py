@@ -3,9 +3,9 @@ import time
 import networkx as nx
 import numpy as np
 
-from mecbench.solvers.base import GenericSolver
 from mecbench.domain.problem import ProblemInstance
-from mecbench.domain.solution import SolvingInstance
+from mecbench.solvers.base import GenericSolver
+from mecbench.solvers.workspace import SolvingInstance
 
 
 class Solver(GenericSolver):
@@ -124,8 +124,7 @@ class Solver(GenericSolver):
                 if rem[v] < self.res[s]:
                     continue
                 dist = sum(
-                    self.qmax[j] * self._dist[int(self.orig[j])].get(int(v), self.n)
-                    for j in d
+                    self.qmax[j] * self._dist[int(self.orig[j])].get(int(v), self.n) for j in d
                 )
                 score = dist - 1e-6 * rem[v]
                 if score < best_score:
@@ -194,7 +193,8 @@ class Solver(GenericSolver):
                 affected = latency_sensitivity[:, d] > 0
                 lat_room = (
                     np.min(latency_slack[affected] / latency_sensitivity[affected, d])
-                    if np.any(affected) else np.inf
+                    if np.any(affected)
+                    else np.inf
                 )
                 room[d] = max(0.0, min(flow_room, cap_room, lat_room))
 
@@ -223,7 +223,9 @@ class Solver(GenericSolver):
 
         for s in self.rng.permutation(self.S)[: min(self.S, 8)]:
             old = p[s]
-            nodes = self.rng.permutation(self._service_nodes[s])[: min(len(self._service_nodes[s]), 6)]
+            nodes = self.rng.permutation(self._service_nodes[s])[
+                : min(len(self._service_nodes[s]), 6)
+            ]
             for v in nodes:
                 if v == old:
                     continue

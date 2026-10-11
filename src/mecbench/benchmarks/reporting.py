@@ -44,9 +44,7 @@ def plot_instance_solution(
     node_colors = _node_colors(problem_instance, y)
     node_sizes = _node_sizes(graph, y)
     edge_widths = _edge_widths(graph, x, q)
-    edge_colors = [
-        USED_EDGE_COLOR if width > 0.5 else UNUSED_EDGE_COLOR for width in edge_widths
-    ]
+    edge_colors = [USED_EDGE_COLOR if width > 0.5 else UNUSED_EDGE_COLOR for width in edge_widths]
     resource_usage = _node_resource_usage(problem_instance, y)
     capacity_usage = _edge_capacity_usage(problem_instance, x, q)
 
@@ -365,6 +363,7 @@ def _large_instance_shells(graph: nx.Graph) -> list[range] | None:
 
 def plot_results(args):
     import pandas as pd
+
     df = pd.read_csv(args.output)
     mask = (df["instance"] == args.instance) & (df["neighbors"] == args.neighbors)
     if args.instance == "star":

@@ -1,18 +1,19 @@
-from mecbench.solvers.base import GenericSolver
-from mecbench.domain.problem import Service
-from mecbench.domain.problem import ProblemInstance
-from mecbench.domain.graph_utils import get_encoded_incoming_arc, get_encoded_outgoing_arc
-from mecbench.benchmarks.metrics import get_result_informations
-from mecbench.solvers.arc_formulation import add_arc_constraints
-import pyomo.environ as pyo
-import time
 import networkx as nx
 import numpy as np
+import pyomo.environ as pyo
+
+from mecbench.benchmarks.metrics import get_result_informations
+from mecbench.domain.graph_utils import get_encoded_incoming_arc, get_encoded_outgoing_arc
+from mecbench.domain.problem import ProblemInstance
+from mecbench.domain.services import Service
+from mecbench.solvers.arc_formulation import add_arc_constraints
+from mecbench.solvers.base import GenericSolver
+from mecbench.solvers.exact.extraction import arc_model_arrays
 
 
 class Solver(GenericSolver):
     def __init__(self, problem_instance: ProblemInstance):
-        self.problem_instance = problem_instance
+        super().__init__(problem_instance)
         self.services: list[Service] = self.problem_instance.service_package.services
         self.G: nx.DiGraph = self.problem_instance.network_graph.nx_graph
         self.solver_name = "ILP_arc"
@@ -50,27 +51,21 @@ class Solver(GenericSolver):
         self.model = pyo.ConcreteModel()
 
     def _build_sets(self):
-        self.model.total_number_of_demands = pyo.Set(
-            initialize=range(self.total_number_of_demands)
-        )
-        self.model.number_of_services = pyo.Set(
-            initialize=range(self.number_of_services)
-        )
+        self.model.total_number_of_demands = pyo.Set(initialize=range(self.total_number_of_demands))
+        self.model.number_of_services = pyo.Set(initialize=range(self.number_of_services))
         self.model.node_number = pyo.Set(initialize=range(self.node_number))
         self.model.arc_number = pyo.Set(initialize=range(self.arc_number))
 
     def _build_variables(self):
         self.model.demand_arc_transit = pyo.Var(
             self.model.total_number_of_demands, self.model.arc_number, within=pyo.Binary
-        ) # x
+        )  # x
 
         self.model.y = pyo.Var(
             self.model.number_of_services, self.model.node_number, within=pyo.UnitInterval
         )
 
-        self.model.p = pyo.Var(
-            self.model.total_number_of_demands, within=pyo.NonNegativeReals
-        )
+        self.model.p = pyo.Var(self.model.total_number_of_demands, within=pyo.NonNegativeReals)
 
         self.model.P = pyo.Var(
             self.model.total_number_of_demands,
@@ -87,41 +82,31 @@ class Solver(GenericSolver):
     def _build_params(self):
         self.model.origins = pyo.Param(
             self.model.total_number_of_demands,
-            initialize={
-                d: self.origins[d] for d in range(self.total_number_of_demands)
-            },
+            initialize={d: self.origins[d] for d in range(self.total_number_of_demands)},
             mutable=False,
             within=pyo.NonNegativeIntegers,
         )
         self.model.Pdmin = pyo.Param(
             self.model.total_number_of_demands,
-            initialize={
-                d: self.min_flows[d] for d in range(self.total_number_of_demands)
-            },
+            initialize={d: self.min_flows[d] for d in range(self.total_number_of_demands)},
             mutable=False,
             within=pyo.NonNegativeIntegers,
         )
         self.model.Pdmax = pyo.Param(
             self.model.total_number_of_demands,
-            initialize={
-                d: self.max_flows[d] for d in range(self.total_number_of_demands)
-            },
+            initialize={d: self.max_flows[d] for d in range(self.total_number_of_demands)},
             mutable=False,
             within=pyo.NonNegativeIntegers,
         )
         self.model.latencies = pyo.Param(
             self.model.total_number_of_demands,
-            initialize={
-                d: self.latencies[d] for d in range(self.total_number_of_demands)
-            },
+            initialize={d: self.latencies[d] for d in range(self.total_number_of_demands)},
             mutable=False,
             within=pyo.NonNegativeReals,
         )
         self.model.resources = pyo.Param(
             self.model.number_of_services,
-            initialize={
-                s: self.available_resources[s] for s in range(self.number_of_services)
-            },
+            initialize={s: self.available_resources[s] for s in range(self.number_of_services)},
             mutable=False,
             within=pyo.NonNegativeIntegers,
         )
@@ -190,9 +175,7 @@ class Solver(GenericSolver):
 
         self.model.arc_capacity = pyo.Param(
             self.model.arc_number,
-            initialize={
-                a: self.G.edges[edge]["capacity"] for a, edge in enumerate(self.G.edges)
-            },
+            initialize={a: self.G.edges[edge]["capacity"] for a, edge in enumerate(self.G.edges)},
             mutable=False,
             within=pyo.NonNegativeIntegers,
         )
@@ -218,18 +201,16 @@ class Solver(GenericSolver):
         )
 
     def _build_objective(self):
-        self.model.obj = pyo.Objective(
-            sense=pyo.maximize, rule=lambda model: sum(model.p.values())
-        )
+        self.model.obj = pyo.Objective(sense=pyo.maximize, rule=lambda model: sum(model.p.values()))
 
     def _set_initial_value(self, initial_value: tuple):
         x_variable, y_variable, q_variable = initial_value
         for demand_index in range(self.total_number_of_demands):
             self.model.p[demand_index].Start = q_variable[demand_index]
             for arc_index in range(self.arc_number):
-                self.model.demand_arc_transit[demand_index, arc_index].Start = (
-                    x_variable[demand_index, arc_index]
-                )
+                self.model.demand_arc_transit[demand_index, arc_index].Start = x_variable[
+                    demand_index, arc_index
+                ]
         for service_index in range(self.number_of_services):
             for node_index in range(self.node_number):
                 self.model.y[service_index, node_index].Start = y_variable[
@@ -255,10 +236,10 @@ class Solver(GenericSolver):
 
         opt = pyo.SolverFactory("gurobi")
         opt.options["threads"] = 1
-        opt.options['Heuristics'] = 0
+        opt.options["Heuristics"] = 0
         opt.options.update(options or {})
         solver_result = opt.solve(self.model)
-        self._record_solver_result(solver_result)
+        self.termination_condition = str(solver_result.solver.termination_condition)
 
         (
             self.runtime,
@@ -267,14 +248,16 @@ class Solver(GenericSolver):
             self.solving_status,
         ) = get_result_informations(solver_result)
 
-        self._set_arc_model_solution(
-            self.model.demand_arc_transit,
-            self.model.y,
-            self.model.p,
-            self.total_number_of_demands,
-            self.arc_number,
-            self.number_of_services,
-            self.node_number,
+        self._set_output_variables(
+            *arc_model_arrays(
+                self.model.demand_arc_transit,
+                self.model.y,
+                self.model.p,
+                self.total_number_of_demands,
+                self.arc_number,
+                self.number_of_services,
+                self.node_number,
+            )
         )
         self.score = float(np.sum(self.q_var))
         self.build_time = 0.0

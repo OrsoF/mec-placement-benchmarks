@@ -1,17 +1,25 @@
 """Public API, reproducibility, lazy dependencies and solver result semantics."""
-from pathlib import Path
+
 import subprocess
 import sys
+from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np
 import pytest
 
 from mecbench import (
-    MissingSolverDependencyError, SolveStatus, SolverExecutionError, UnknownSolverError,
-    list_solvers, make_star_instance, make_tree_instance, solve, validate,
+    MissingSolverDependencyError,
+    SolverExecutionError,
+    SolveStatus,
+    UnknownSolverError,
+    api,
+    list_solvers,
+    make_star_instance,
+    make_tree_instance,
+    solve,
+    validate,
 )
-from mecbench import api
 from mecbench.solvers import registry
 
 
@@ -27,7 +35,9 @@ def test_user_quickstart_and_repeatability():
     assert result.solver == "fast_heuristic" and result.seed == 42
     assert result.runtime >= result.build_time >= 0
     for name in ("x", "y", "q"):
-        np.testing.assert_array_equal(getattr(result.solution, name), getattr(repeated.solution, name))
+        np.testing.assert_array_equal(
+            getattr(result.solution, name), getattr(repeated.solution, name)
+        )
     np.testing.assert_array_equal(before, problem.q_variable)
 
 
@@ -44,7 +54,9 @@ def test_star_single_user_group_has_no_self_loops():
 
     problem = make_star_instance(n_groups=2, users_per_group=1, neighbors=3, seed=42)
     assert all(u != v for u, v in problem.network_graph.arc_list)
-    candidate = Solution(*route_solution(problem, [[0, 2], [4, 2], [1, 3], [4, 3]], [2, 3], [1] * 4))
+    candidate = Solution(
+        *route_solution(problem, [[0, 2], [4, 2], [1, 3], [4, 3]], [2, 3], [1] * 4)
+    )
     assert validate(problem, candidate).feasible
 
 
@@ -52,13 +64,15 @@ def test_bad_baseline_does_not_prevent_a_feasible_instance_from_being_solved():
     from mecbench import Solution
 
     problem = make_tree_instance(1, neighbors=0)
-    assert not validate(problem, Solution(problem.x_variable, problem.y_variable, problem.q_variable)).feasible
+    assert not validate(
+        problem, Solution(problem.x_variable, problem.y_variable, problem.q_variable)
+    ).feasible
     assert solve(problem, seed=42).validation.feasible
 
 
 @pytest.mark.parametrize("seed", [0, 42])
+@pytest.mark.requires("cma")
 def test_cma_reproducibility_including_zero_seed(seed):
-    pytest.importorskip("cma")
     options = {"max_iter": 2, "max_pcc": 1}
     before = np.random.get_state()
     first = solve(make_tree_instance(2, 0), solver="cma", seed=seed, solver_options=options)
@@ -71,10 +85,19 @@ def test_cma_reproducibility_including_zero_seed(seed):
     np.testing.assert_array_equal(before[1], after[1])
 
 
-@pytest.mark.parametrize("kwargs", [
-    {"n_users": 0}, {"n_users": -1}, {"n_users": True}, {"n_users": 1.5},
-    {"neighbors": -1}, {"neighbors": 0.5}, {"seed": -1}, {"seed": True},
-])
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"n_users": 0},
+        {"n_users": -1},
+        {"n_users": True},
+        {"n_users": 1.5},
+        {"neighbors": -1},
+        {"neighbors": 0.5},
+        {"seed": -1},
+        {"seed": True},
+    ],
+)
 def test_tree_builder_parameters_fail_clearly(kwargs):
     with pytest.raises(ValueError, match="must be an integer"):
         make_tree_instance(**kwargs)
@@ -113,7 +136,9 @@ def test_missing_optional_import_has_installation_command(monkeypatch):
         raise ModuleNotFoundError("No module named 'pyomo'", name="pyomo")
 
     monkeypatch.setattr(registry.importlib, "import_module", missing)
-    with pytest.raises(MissingSolverDependencyError, match=r"pip install 'mec-placement-benchmarks\[exact\]'"):
+    with pytest.raises(
+        MissingSolverDependencyError, match=r"pip install 'mec-placement-benchmarks\[exact\]'"
+    ):
         solve(make_tree_instance(2), solver="ilp_arc")
 
 
@@ -128,10 +153,13 @@ def test_missing_dependency_during_run_is_also_actionable(monkeypatch):
 
 def candidate_backend(problem, termination=None, quantities=None):
     return SimpleNamespace(
-        run=lambda **kwargs: None, termination_condition=termination,
-        x_var=problem.x_variable, y_var=problem.y_variable,
+        run=lambda **kwargs: None,
+        termination_condition=termination,
+        x_var=problem.x_variable,
+        y_var=problem.y_variable,
         q_var=problem.q_variable if quantities is None else quantities,
-        score=999999, build_time=0,
+        score=999999,
+        build_time=0,
     )
 
 
@@ -152,17 +180,22 @@ def test_objective_is_recomputed_from_validated_quantities(monkeypatch):
     assert result.objective == float(np.sum(problem.q_variable))
 
 
-@pytest.mark.parametrize("termination,with_candidate,status", [
-    ("optimal", True, SolveStatus.OPTIMAL),
-    ("maxTimeLimit", True, SolveStatus.TIME_LIMIT),
-    ("maxTimeLimit", False, SolveStatus.TIME_LIMIT),
-    ("infeasible", True, SolveStatus.INFEASIBLE),
-    ("unbounded", True, SolveStatus.UNBOUNDED),
-    ("infeasibleOrUnbounded", False, SolveStatus.NO_SOLUTION),
-    ("optimal", False, SolveStatus.NO_SOLUTION),
-    (None, False, SolveStatus.NO_SOLUTION),
-])
-def test_exact_termination_and_incumbent_semantics(monkeypatch, termination, with_candidate, status):
+@pytest.mark.parametrize(
+    "termination,with_candidate,status",
+    [
+        ("optimal", True, SolveStatus.OPTIMAL),
+        ("maxTimeLimit", True, SolveStatus.TIME_LIMIT),
+        ("maxTimeLimit", False, SolveStatus.TIME_LIMIT),
+        ("infeasible", True, SolveStatus.INFEASIBLE),
+        ("unbounded", True, SolveStatus.UNBOUNDED),
+        ("infeasibleOrUnbounded", False, SolveStatus.NO_SOLUTION),
+        ("optimal", False, SolveStatus.NO_SOLUTION),
+        (None, False, SolveStatus.NO_SOLUTION),
+    ],
+)
+def test_exact_termination_and_incumbent_semantics(
+    monkeypatch, termination, with_candidate, status
+):
     problem = make_tree_instance(2)
     backend = candidate_backend(problem, termination)
     kwargs_received = {}
@@ -193,11 +226,14 @@ def test_license_failure_is_not_disguised_as_a_candidate(monkeypatch):
         solve(make_tree_instance(2), solver="ilp_arc")
 
 
-@pytest.mark.parametrize("termination,incumbent", [("optimal", True), ("infeasible", False), ("maxTimeLimit", False)])
+@pytest.mark.parametrize(
+    "termination,incumbent", [("optimal", True), ("infeasible", False), ("maxTimeLimit", False)]
+)
+@pytest.mark.requires("pyomo")
 def test_real_arc_adapter_records_structured_termination(monkeypatch, termination, incumbent):
-    pytest.importorskip("pyomo")
-    import mecbench.solvers.exact.ilp_arc as module
     from pyomo.opt import SolverResults, TerminationCondition
+
+    import mecbench.solvers.exact.ilp_arc as module
 
     problem = make_tree_instance(2)
 
@@ -224,9 +260,11 @@ def test_real_arc_adapter_records_structured_termination(monkeypatch, terminatio
     assert (result.solution is not None) == incumbent
 
 
-@pytest.mark.parametrize("name", [name for name, spec in registry.REGISTRY.items() if spec.mathematical])
+@pytest.mark.parametrize(
+    "name", [name for name, spec in registry.REGISTRY.items() if spec.mathematical]
+)
+@pytest.mark.requires("pyomo")
 def test_mathematical_adapters_accept_optimizer_options(name):
-    pytest.importorskip("pyomo")
     import importlib
     import inspect
 
@@ -235,15 +273,18 @@ def test_mathematical_adapters_accept_optimizer_options(name):
 
 
 @pytest.mark.parametrize("name", ["a2c", "ppo", "ppo_options"])
+@pytest.mark.requires("stable_baselines3")
+@pytest.mark.rl
 def test_rl_seed_and_explicit_training_options_reach_base_solver(monkeypatch, name):
-    pytest.importorskip("stable_baselines3")
     from mecbench.solvers.rl import base_solver
 
     def env(self, problem, max_step, reuse):
         return SimpleNamespace(max_step=max_step)
 
     monkeypatch.setattr(base_solver.Solver, "_make_env", env)
-    monkeypatch.setattr(base_solver.Solver, "_make_model", lambda self: SimpleNamespace(seed=self.seed))
+    monkeypatch.setattr(
+        base_solver.Solver, "_make_model", lambda self: SimpleNamespace(seed=self.seed)
+    )
     backend = registry.make_solver(name, make_tree_instance(2), seed=42, max_step=12, train_step=32)
     assert backend.seed == backend.model.seed == 42
     assert backend.env.max_step == 12 and backend.train_step == 32
@@ -251,7 +292,7 @@ def test_rl_seed_and_explicit_training_options_reach_base_solver(monkeypatch, na
 
 def test_base_api_and_cli_never_import_optional_dependencies(tmp_path):
     source = str(Path(__file__).resolve().parents[2] / "src")
-    code = f'''
+    code = f"""
 import sys
 import importlib.abc
 sys.path.insert(0, {source!r})
@@ -267,8 +308,9 @@ assert validate(p, r.solution).feasible
 from mecbench.cli import main
 assert main(['--start-users', '2', '--stop-users', '3', '--seed', '42']) == 0
 print(r.objective)
-'''
-    result = subprocess.run([sys.executable, "-I", "-c", code], cwd=tmp_path,
-                            capture_output=True, text=True, timeout=60)
+"""
+    result = subprocess.run(
+        [sys.executable, "-I", "-c", code], cwd=tmp_path, capture_output=True, text=True, timeout=60
+    )
     assert result.returncode == 0, (result.stdout, result.stderr)
     assert "140.0" in result.stdout

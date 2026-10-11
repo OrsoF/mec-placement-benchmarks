@@ -10,18 +10,14 @@ def enumerate_candidate_paths(G, origins, limit):
             path
             for target in G.nodes
             for path in islice(
-                nx.algorithms.simple_paths.shortest_simple_paths(
-                    G, origins[d], target
-                ),
+                nx.algorithms.simple_paths.shortest_simple_paths(G, origins[d], target),
                 limit,
             )
         ]
         for d in range(len(origins))
     ]
     paths = [path for demand_paths in paths_by_demand for path in demand_paths]
-    path_to_demand = [
-        d for d, demand_paths in enumerate(paths_by_demand) for _ in demand_paths
-    ]
+    path_to_demand = [d for d, demand_paths in enumerate(paths_by_demand) for _ in demand_paths]
     path_start = [0]
     for demand_paths in paths_by_demand:
         path_start.append(path_start[-1] + len(demand_paths))
@@ -72,10 +68,7 @@ def add_path_params(
     model.all_shortest_paths_arc = pyo.Param(
         model.C,
         initialize={
-            p: [
-                arc_dic[(paths[p][i], paths[p][i + 1])]
-                for i in range(len(paths[p]) - 1)
-            ]
+            p: [arc_dic[(paths[p][i], paths[p][i + 1])] for i in range(len(paths[p]) - 1)]
             for p in model.C
         },
         mutable=False,
@@ -90,20 +83,14 @@ def add_path_params(
     model.ind_destination = pyo.Param(
         model.C,
         model.U,
-        initialize={
-            (p, u): paths[p][-1] == u
-            for p in model.C
-            for u in model.U
-        },
+        initialize={(p, u): paths[p][-1] == u for p in model.C for u in model.U},
     )
 
 
 def add_path_constraints(model, m, n) -> None:
     model.valeurs_p = pyo.Constraint(
         model.D,
-        rule=lambda model, d: pyo.inequality(
-            model.Pdmin[d], model.p[d], model.Pdmax[d]
-        ),
+        rule=lambda model, d: pyo.inequality(model.Pdmin[d], model.p[d], model.Pdmax[d]),
     )
     model.valeurs_P = pyo.Constraint(
         model.C,
@@ -157,15 +144,13 @@ def add_path_constraints(model, m, n) -> None:
     )
     model.flow_rule_3 = pyo.Constraint(
         model.C,
-        rule=lambda model, p: model.P[p]
-        >= model.p[model.D_path[p]] - m * (1 - model.l[p]),
+        rule=lambda model, p: model.P[p] >= model.p[model.D_path[p]] - m * (1 - model.l[p]),
     )
     model.latency_rule_1 = pyo.Constraint(
         model.C,
         model.A,
         rule=lambda model, p, a: model.L[p, a]
-        <= model.alpha[a]
-        * sum(float(model.delta[pp, a]) * model.P[pp] for pp in model.C)
+        <= model.alpha[a] * sum(float(model.delta[pp, a]) * model.P[pp] for pp in model.C)
         + model.beta[a],
     )
     model.latency_rule_2 = pyo.Constraint(
@@ -177,8 +162,7 @@ def add_path_constraints(model, m, n) -> None:
         model.C,
         model.A,
         rule=lambda model, p, a: model.L[p, a]
-        >= model.alpha[a]
-        * sum(float(model.delta[pp, a]) * model.P[pp] for pp in model.C)
+        >= model.alpha[a] * sum(float(model.delta[pp, a]) * model.P[pp] for pp in model.C)
         + model.beta[a]
         - n * (1 - model.l[p]),
     )

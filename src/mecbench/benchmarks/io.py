@@ -1,20 +1,22 @@
-from pathlib import Path
-from mecbench.benchmarks.metrics import get_result_informations, get_info_from_results
 import importlib
 import os
-import pandas as pd
 import pickle as pkl
-import tqdm
-from mecbench.domain.problem import ProblemInstance, ToyInstance
+from pathlib import Path
+
+import pandas as pd
+
+from mecbench.benchmarks.metrics import get_info_from_results as get_info_from_results
+from mecbench.benchmarks.metrics import get_result_informations as get_result_informations
+from mecbench.domain.problem import ProblemInstance
+from mecbench.domain.problem import ToyInstance as ToyInstance
 from mecbench.solvers.base import GenericSolver
+from mecbench.solvers.registry import SOLVER_FILE_ALIASES, SOLVER_MODULES
 
 ARTIFACTS_PATH = os.path.join(os.getcwd(), "artifacts")
 INSTANCES_PATH = os.path.join(ARTIFACTS_PATH, "instances")
 RESULTS_PATH = os.path.join(ARTIFACTS_PATH, "data")
 SOLVER_PATH = str(Path(__file__).resolve().parents[1] / "solvers")
 CURRENT_FOLDER = os.getcwd()
-from mecbench.solvers.registry import SOLVER_FILE_ALIASES, SOLVER_MODULES
-
 
 
 def pickle_save(object_instance: object, file_name: str):
@@ -61,10 +63,7 @@ def get_instance_list() -> list[ProblemInstance]:
 
 
 def get_solver_list():
-    return [
-        importlib.import_module(module_name).Solver
-        for module_name in SOLVER_MODULES.values()
-    ]
+    return [importlib.import_module(module_name).Solver for module_name in SOLVER_MODULES.values()]
 
 
 def experience_index() -> int:
@@ -121,21 +120,13 @@ def reorder_columns(df1, df2):
         raise TypeError("Input arguments must be Pandas DataFrames.")
 
 
-
-
-
-
 def import_instance_from_file(instance_name: str) -> ProblemInstance:
-    instance_name = (
-        instance_name + ".pkl" if not instance_name.endswith(".pkl") else instance_name
-    )
+    instance_name = instance_name + ".pkl" if not instance_name.endswith(".pkl") else instance_name
     instance_path = os.path.join(INSTANCES_PATH, instance_name)
     return pickle_load(instance_path)
 
 
-def import_solver_from_file(
-    solver_name: str, instance: ProblemInstance
-) -> GenericSolver:
+def import_solver_from_file(solver_name: str, instance: ProblemInstance) -> GenericSolver:
     solver_name = SOLVER_FILE_ALIASES.get(solver_name, solver_name)
     solver_name = solver_name[:-3] if solver_name.endswith(".py") else solver_name
     assert solver_name in SOLVER_MODULES, f"Unknown solver: {solver_name}"
@@ -185,15 +176,14 @@ def solve(
         print(f"Runtime : {solver.runtime}")
 
     if check_solution:
-        instance._set_arc_solution(
-            solver.x_var, solver.y_var, solver.q_var
-        )
+        instance._set_arc_solution(solver.x_var, solver.y_var, solver.q_var)
         instance.check_current_solution()
     return instance, solver
 
 
 def print_constraint_variables(model) -> None:
     import pyomo.environ as pyo
+
     num_variables = len([v for v in model.component_data_objects(pyo.Var)])
     print("Number of variables:", num_variables)
 

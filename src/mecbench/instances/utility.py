@@ -1,9 +1,8 @@
 import networkx as nx
 import numpy as np
 
-from mecbench.domain.problem import Demand
-from mecbench.domain.problem import NetworkGraph
-from mecbench.domain.problem import Service
+from mecbench.domain.network import NetworkGraph
+from mecbench.domain.services import Demand, Service
 from mecbench.instances.topology import build_large_graph
 
 
@@ -21,12 +20,19 @@ def three_level_graph(
         rng=rng,
     )
     node_resources = [
-        1e2 if graph.nodes[v].get("layer") == "user"
-        else 1e4 if graph.nodes[v].get("layer") == "edge"
+        1e2
+        if graph.nodes[v].get("layer") == "user"
+        else 1e4
+        if graph.nodes[v].get("layer") == "edge"
         else 1e6
         for v in graph.nodes
     ]
-    edge_capacity = [500 if graph.nodes[u].get("layer") == "user" or graph.nodes[v].get("layer") == "user" else 3000 for u, v in graph.edges]
+    edge_capacity = [
+        500
+        if graph.nodes[u].get("layer") == "user" or graph.nodes[v].get("layer") == "user"
+        else 3000
+        for u, v in graph.edges
+    ]
     network_graph = NetworkGraph(
         base_graph=graph,
         node_resources=node_resources,
@@ -36,7 +42,9 @@ def three_level_graph(
     )
     n_core = base_graph.number_of_nodes()
     user_nodes = [
-        v for v in network_graph.nx_graph.nodes if network_graph.nx_graph.nodes[v].get("layer") == "user"
+        v
+        for v in network_graph.nx_graph.nodes
+        if network_graph.nx_graph.nodes[v].get("layer") == "user"
     ]
     return network_graph, n_core, np.asarray(user_nodes, dtype=int)
 

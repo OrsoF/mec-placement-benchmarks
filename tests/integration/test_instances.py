@@ -13,10 +13,10 @@ from pathlib import Path
 import networkx as nx
 
 from mecbench.instances.synthetic import (
-    create_tree_problem_instance,
-    create_star_problem_instance,
     create_gml_problem_instance,
     create_large_problem_instance,
+    create_star_problem_instance,
+    create_tree_problem_instance,
 )
 
 
@@ -59,7 +59,6 @@ def test_gml_instance():
 
 
 def test_large_instance():
-
     # Small synthetic base graph
     base_graph = nx.cycle_graph(5)
 
@@ -78,7 +77,6 @@ def test_large_instance():
 
 
 def run_all_tests():
-
     test_tree_instance()
     test_star_instance()
     test_gml_instance()

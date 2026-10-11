@@ -2,10 +2,10 @@ import time
 
 import numpy as np
 
-from mecbench.solvers.base import GenericSolver
 from mecbench.domain.problem import ProblemInstance
-from mecbench.domain.solution import SolvingInstance
-from mecbench.domain.solution import clip_solution, repair_solution
+from mecbench.solvers.base import GenericSolver
+from mecbench.solvers.search import clip_solution, repair_solution
+from mecbench.solvers.workspace import SolvingInstance
 
 
 class Solver(GenericSolver):

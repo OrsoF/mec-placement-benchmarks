@@ -1,15 +1,14 @@
-import gymnasium as gym
-import numpy as np
 from collections.abc import Callable
 
+import gymnasium as gym
+import numpy as np
+
 from mecbench.domain.problem import ProblemInstance
-from mecbench.domain.solution import SolvingInstance
 from mecbench.environments.observation import (
     make_action_space,
     make_vector_observation,
     make_vector_observation_space,
 )
-from mecbench.environments.path_cache import ShortestPathCache
 from mecbench.environments.reward import served_quantity_score
 from mecbench.environments.state_codec import (
     clip_state_to_bounds,
@@ -21,6 +20,8 @@ from mecbench.environments.state_codec import (
     to_integer_state,
 )
 from mecbench.solvers.heuristics.heuristicprecise import Solver
+from mecbench.solvers.paths import ShortestPathCache
+from mecbench.solvers.workspace import SolvingInstance
 
 
 class SPPEnv(gym.Env):
@@ -162,9 +163,7 @@ class SPPEnv(gym.Env):
         super().reset(seed=seed)
 
         warm_start_heuristic = (
-            self.warm_start_heuristic
-            if warm_start_heuristic is None
-            else warm_start_heuristic
+            self.warm_start_heuristic if warm_start_heuristic is None else warm_start_heuristic
         )
         if observation_type is not None:
             self._validate_observation_type(observation_type)
@@ -215,6 +214,7 @@ class SPPEnv(gym.Env):
         self, state: np.ndarray | list, selected_service: int, chosen_node: int
     ) -> tuple:
         """Try moving one service, keeping the old state when infeasible."""
+
         def move_service(placement: np.ndarray, _: np.ndarray, __: np.ndarray) -> None:
             """Move the selected service placement inside a candidate state."""
             placement[selected_service] = chosen_node
@@ -225,6 +225,7 @@ class SPPEnv(gym.Env):
         self, state: np.ndarray | list, selected_demand: int, chosen_path_index: int
     ) -> tuple:
         """Try rerouting one demand through the selected path index."""
+
         def reroute_demand(_: np.ndarray, routing: np.ndarray, __: np.ndarray) -> None:
             """Update the selected demand route inside a candidate state."""
             routing[selected_demand] = chosen_path_index

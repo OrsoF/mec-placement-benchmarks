@@ -20,6 +20,7 @@ evolutionary = ["cma>=3.3", "tqdm>=4.64"]
 environments = ["gymnasium>=0.29", "matplotlib>=3.6"]
 rl = ["gymnasium>=0.29", "stable-baselines3>=2.2", "torch>=2", "matplotlib>=3.6"]
 test = ["pytest>=7", "build>=1"]
+dev = ["pytest>=7", "build>=1", "ruff==0.12.0", "mypy==1.17.1"]
 
 [project.scripts]
 mecbench = "mecbench.cli:main"
@@ -28,7 +29,37 @@ mecbench = "mecbench.cli:main"
 where = ["src"]
 include = ["mecbench*"]
 
+[tool.setuptools.package-data]
+mecbench = ["py.typed"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src", "."]
-addopts = "--import-mode=importlib"
+addopts = "--import-mode=importlib --strict-markers"
+markers = ["requires(*modules): optional dependencies required by a test", "rl: requires the reinforcement learning extra"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+include = ["src/**/*.py", "tests/**/*.py", "examples/**/*.py"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.10"
+mypy_path = "src"
+files = [
+  "src/mecbench/api.py", "src/mecbench/errors.py",
+  "src/mecbench/domain/contracts.py", "src/mecbench/domain/solution.py", "src/mecbench/domain/validation.py",
+  "src/mecbench/solvers/contracts.py", "src/mecbench/solvers/base.py", "src/mecbench/solvers/registry.py",
+  "src/mecbench/solvers/exact/extraction.py", "src/mecbench/solvers/initialization.py",
+  "src/mecbench/compat/problem_state.py",
+]
+follow_imports = "silent"
+strict = true
+warn_unused_configs = true
+
+[[tool.mypy.overrides]]
+module = ["networkx"]
+ignore_missing_imports = true

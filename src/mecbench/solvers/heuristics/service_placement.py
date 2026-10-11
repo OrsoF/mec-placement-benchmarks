@@ -1,20 +1,19 @@
 import numpy as np
-from typing import Optional
 
 
 def greedy_service_placement(
     available_resources_in_servers: list[float],
     resources_needed_by_services: list[float],
-    server_priority: Optional[list] = None,
+    server_priority: list | None = None,
 ):
     """
     Associated a list of services with needed_resources to a list of server with available resources following a given priority.
     """
     if server_priority is None:
         server_priority = [1 for _ in range(len(available_resources_in_servers))]
-    assert len(server_priority) == len(
-        available_resources_in_servers
-    ), "The priority factors is not shaped as list[server_number]."
+    assert len(server_priority) == len(available_resources_in_servers), (
+        "The priority factors is not shaped as list[server_number]."
+    )
     assert np.all([priority_value > 0 for priority_value in server_priority])
 
     # Initialize a list to store the allocations
@@ -51,8 +50,8 @@ def greedy_service_placement(
             service_server_association.append(None)
 
     assert None not in service_server_association, "One service has no server."
-    assert len(service_server_association) == len(
-        resources_needed_by_services
-    ), "Allocations should be shaped as the number of service to place."
+    assert len(service_server_association) == len(resources_needed_by_services), (
+        "Allocations should be shaped as the number of service to place."
+    )
 
     return service_server_association

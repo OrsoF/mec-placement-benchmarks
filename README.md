@@ -19,11 +19,16 @@ python -m pip install -e .
 On Linux/macOS, use `source .venv/bin/activate`. Exact solvers require a working
 Gurobi license visible to Pyomo; install the `gurobi` extra for its Python binding.
 Optional extras: `benchmarks`, `exact`, `gurobi`, `evolutionary`,
-`environments`, `rl`, and `test`. `requirements.txt` installs all of them.
+`environments`, `rl`, `test`, and `dev`. `requirements.txt` installs the runtime
+and test extras.
 The base package needs only NumPy and NetworkX.
 
-Install `.[test]` to run tests with `python -m pytest` and build a wheel with
-`python -m build`.
+Install `.[test]` to run tests with `python -m pytest` and build distributions
+with `python -m build`. Tests that need absent optional dependencies are explicitly
+skipped; failures importing an installed dependency fail the suite.
+For development, install `.[dev]`, then run `python -m ruff check src tests examples`,
+`python -m ruff format --check src tests examples`, and `python -m mypy`.
+See [the development guide](docs/development.md) for CI profiles and typing scope.
 
 ## Quickstart
 
@@ -97,6 +102,7 @@ Default figures:
 
 ```text
 src/mecbench/domain/        Problem objects, solutions, reference validator
+src/mecbench/compat/        Historical mutable problem-state adapter
 src/mecbench/instances/     Synthetic builders and topology loading
 src/mecbench/solvers/       Base contract, heuristics, exact, evolutionary, RL
 src/mecbench/environments/  Gymnasium environments and RL support code
@@ -113,9 +119,10 @@ artifacts/                 Generated results, figures, and trained agents
 archive/                   Historical scripts and notebooks
 ```
 
-Solver modules expose a `Solver` class with the usual output fields after
-`run()`: `x_var`, `y_var`, `q_var`, `score`, `runtime`, and, when available,
-`build_time`.
+Solver modules expose a `Solver` class. Their constructors explicitly call
+`GenericSolver.__init__` to initialize `x_var`, `y_var`, `q_var`, `score`,
+`runtime`, `build_time`, and `termination_condition`. Array outputs and metrics
+are populated by `run()`; optimizer-specific extraction lives in the exact adapters.
 
 Feasibility checks use `mecbench.domain.validation.validate_arc_solution(problem, x, y, q)`.
 It raises `SolutionValidationError` (`ValueError`) for invalid dimensions,

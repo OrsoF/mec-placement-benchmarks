@@ -1,7 +1,7 @@
-from mecbench.domain.problem import NetworkGraph
-from networkx.readwrite.gml import read_gml
-from collections import defaultdict
 import networkx as nx
+from networkx.readwrite.gml import read_gml
+
+from mecbench.domain.network import NetworkGraph
 
 
 def make_graph_from_gml(graph_path: str) -> NetworkGraph:
@@ -15,9 +15,7 @@ def make_graph_from_gml(graph_path: str) -> NetworkGraph:
     alphas = [1 / 5.0 for _ in nx_graph.edges] * 2
     betas = [5.0 for _ in nx_graph.edges] * 2
 
-    network_graph: NetworkGraph = NetworkGraph(
-        nx_graph, resources, capacities, alphas, betas
-    )
+    network_graph: NetworkGraph = NetworkGraph(nx_graph, resources, capacities, alphas, betas)
 
     return network_graph
 
@@ -45,20 +43,11 @@ def get_incoming_arc(nx_graph: nx.DiGraph, node) -> list[tuple]:
     return [(neighbor_node, node) for neighbor_node in nx_graph.neighbors(node)]
 
 
-def get_encoded_incoming_arc(
-    nx_graph: nx.DiGraph, arc_dic: dict, node: int
-) -> list[int]:
+def get_encoded_incoming_arc(nx_graph: nx.DiGraph, arc_dic: dict, node: int) -> list[int]:
     """
     Returns all arcs that get into the node "node"
     and encode each arc as an integer take from arc_dic.
     """
-    result = []
-    for elem in get_incoming_arc(nx_graph, node):
-        try:
-            result.append(arc_dic[elem])
-        except AttributeError:
-            assert False
-
     return [arc_dic[elem] for elem in get_incoming_arc(nx_graph, node)]
 
 

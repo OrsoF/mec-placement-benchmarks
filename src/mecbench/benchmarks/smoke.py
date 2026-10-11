@@ -1,10 +1,9 @@
-import inspect
 import importlib
+import inspect
 import io
 from contextlib import redirect_stderr, redirect_stdout
 
 from mecbench.instances.synthetic import create_tree_problem_instance
-
 
 SOLVERS = [
     ("heuristic", "mecbench.solvers.heuristics.heuristic"),

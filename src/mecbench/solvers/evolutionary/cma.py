@@ -2,10 +2,10 @@ import time
 
 import numpy as np
 
-from mecbench.solvers.base import GenericSolver
 from mecbench.domain.graph_utils import path_node_to_path_tuple
 from mecbench.domain.problem import ProblemInstance
-from mecbench.domain.solution import SolvingInstance
+from mecbench.solvers.base import GenericSolver
+from mecbench.solvers.workspace import SolvingInstance
 
 
 class Solver(GenericSolver):
@@ -99,9 +99,7 @@ class Solver(GenericSolver):
 
         flow_cap = sum(self.problem_instance.max_flows) + 1.0
         return (
-            flow_cap
-            + self.violation(placement, routing, quantities)
-            - sum(quantities) / flow_cap
+            flow_cap + self.violation(placement, routing, quantities) - sum(quantities) / flow_cap
         )
 
     def decode(self, value: np.ndarray) -> tuple[list[int], list[int], list[int]]:
@@ -136,12 +134,8 @@ class Solver(GenericSolver):
         except (IndexError, KeyError, ValueError):
             return sum(self.problem_instance.max_flows) + 1.0
 
-        capacity = sum(
-            max(0.0, -graph.edges[e]["remaining_capacity"]) for e in graph.edges
-        )
-        resources = sum(
-            max(0.0, -graph.nodes[v]["remaining_resources"]) for v in graph.nodes
-        )
+        capacity = sum(max(0.0, -graph.edges[e]["remaining_capacity"]) for e in graph.edges)
+        resources = sum(max(0.0, -graph.nodes[v]["remaining_resources"]) for v in graph.nodes)
         latency = 0.0
         for d in range(len(quantities)):
             service = self.problem_instance.demand_to_service[d]
@@ -150,9 +144,7 @@ class Solver(GenericSolver):
                 placement[service],
                 routing[d],
             )
-            delay = sum(
-                graph.edges[e]["latency"] for e in path_node_to_path_tuple(path)
-            )
+            delay = sum(graph.edges[e]["latency"] for e in path_node_to_path_tuple(path))
             latency += max(0.0, delay - self.problem_instance.latencies[d])
 
         return capacity + resources + latency
@@ -178,9 +170,5 @@ class Solver(GenericSolver):
         D = self.problem_instance.total_number_of_demands
         n = self.nx_graph.number_of_nodes()
         lower = [0] * S + [0] * D + list(self.problem_instance.min_flows)
-        upper = (
-            [n - 1] * S
-            + [self.max_pcc - 1] * D
-            + list(self.problem_instance.max_flows)
-        )
+        upper = [n - 1] * S + [self.max_pcc - 1] * D + list(self.problem_instance.max_flows)
         return [lower, upper]

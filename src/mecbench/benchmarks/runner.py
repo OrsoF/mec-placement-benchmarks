@@ -1,14 +1,16 @@
 """Run registered solvers and persist benchmark results."""
+
 import csv
 import time
 from pathlib import Path
+
 from mecbench.api import make_star_instance, make_tree_instance, solve
-from mecbench.benchmarks.metrics import RESULT_COLUMNS, result_row, failed_row
-from mecbench.solvers.registry import list_solvers, make_solver, SOLVER_FILE_ALIASES
+from mecbench.benchmarks.metrics import RESULT_COLUMNS, failed_row, result_row
+from mecbench.solvers.registry import SOLVER_FILE_ALIASES, list_solvers
+from mecbench.solvers.registry import make_solver as make_solver
 
 INSTANCES = ("tree", "star")
 SOLVERS = (*list_solvers(), *SOLVER_FILE_ALIASES)
-
 
 
 def ensure_csv(path: Path):
@@ -17,11 +19,12 @@ def ensure_csv(path: Path):
         with path.open(newline="") as f:
             header = next(csv.reader(f), [])
         if header != list(RESULT_COLUMNS):
-            raise ValueError(f"CSV {path} has an older or incompatible schema. Choose a new --output file.")
+            raise ValueError(
+                f"CSV {path} has an older or incompatible schema. Choose a new --output file."
+            )
         return
     with path.open("w", newline="") as f:
         csv.DictWriter(f, fieldnames=RESULT_COLUMNS).writeheader()
-
 
 
 def append_row(path: Path, row: dict):
@@ -30,10 +33,8 @@ def append_row(path: Path, row: dict):
         csv.DictWriter(f, fieldnames=RESULT_COLUMNS).writerow(row)
 
 
-
 def should_skip(name: str, problem) -> bool:
     return name == "ilp_arc" and problem.number_of_service > 150
-
 
 
 def make_problem(args, size: int):
@@ -44,13 +45,11 @@ def make_problem(args, size: int):
     return problem, args.groups * size, args.groups
 
 
-
 def run_solver(name: str, problem, ilp_time_limit: float, seed: int = 0):
     from mecbench.solvers.registry import REGISTRY, canonical_name
 
     time_limit = ilp_time_limit if REGISTRY[canonical_name(name)].mathematical else None
     return solve(problem, solver=name, seed=seed, time_limit=time_limit)
-
 
 
 def run_benchmarks(args):
@@ -87,6 +86,8 @@ def run_benchmarks(args):
         try:
             from mecbench.benchmarks.reporting import plot_results
         except ModuleNotFoundError as exc:
-            raise ImportError("Plots require: python -m pip install 'mec-placement-benchmarks[benchmarks]'.") from exc
+            raise ImportError(
+                "Plots require: python -m pip install 'mec-placement-benchmarks[benchmarks]'."
+            ) from exc
         plot_results(args)
     return 1 if failures else 0

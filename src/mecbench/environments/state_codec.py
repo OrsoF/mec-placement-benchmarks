@@ -1,18 +1,13 @@
 import networkx as nx
 import numpy as np
 
-from mecbench.domain.problem import NetworkGraph
+from mecbench.domain.conversions import compact_to_arc, split_state, to_int_array
+from mecbench.domain.conversions import make_state as make_state
+from mecbench.domain.network import NetworkGraph
 from mecbench.domain.problem import ProblemInstance
-from mecbench.domain.solution import SolvingInstance
-from mecbench.domain.solution import (
-    basic_state,
-    clip_state,
-    compact_to_arc,
-    make_state,
-    split_state,
-    to_int_array,
-)
-from mecbench.environments.path_cache import ShortestPathCache
+from mecbench.solvers.paths import ShortestPathCache
+from mecbench.solvers.search import basic_state, clip_state
+from mecbench.solvers.workspace import SolvingInstance
 
 
 def to_integer_state(s: np.ndarray | list) -> np.ndarray:

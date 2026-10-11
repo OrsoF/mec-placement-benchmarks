@@ -1,10 +1,13 @@
 from itertools import product
+
 import numpy as np
 import pytest
+
+from mecbench.domain.solution import SolvingInstance
 from mecbench.domain.validation import SolutionValidationError, validate_arc_solution
-from mecbench.domain.solution import SolvingInstance, validate_arc_solution as legacy_validate_arc_solution
 from mecbench.solvers.heuristics.fast_heuristic import Solver as FastHeuristic
 from tests.helpers import make_problem, route_solution
+
 
 def test_shared_load_counterexample_rejected_by_every_entrypoint(shared_arc):
     problem, solution = shared_arc
@@ -16,7 +19,6 @@ def test_shared_load_counterexample_rejected_by_every_entrypoint(shared_arc):
     assert not checker.test_solution([1], [0, 0], [2, 2])
     assert not checker.validate_graph_attributes(checker.graph, [1], [0, 0], [2, 2])
     assert not FastHeuristic(problem)._feasible([1], [0, 0], [2, 2])
-
 
 
 def test_multihop_latency_uses_all_shared_loads_and_beta():
@@ -32,7 +34,6 @@ def test_multihop_latency_uses_all_shared_loads_and_beta():
     validate_arc_solution(problem, *solution)
 
 
-
 def test_balanced_cycle_is_allowed_by_arc_milp():
     problem = make_problem(edges=((0, 1), (2, 3)), nodes=4, demands=1)
     x, y, q = route_solution(problem, [[0, 1]], [1], [1])
@@ -42,7 +43,6 @@ def test_balanced_cycle_is_allowed_by_arc_milp():
     problem.latencies = [2]
     with pytest.raises(SolutionValidationError, match="latency"):
         validate_arc_solution(problem, x, y, q)
-
 
 
 def test_fast_heuristic_lift_respects_other_demands_latency(shared_arc):
@@ -56,13 +56,11 @@ def test_fast_heuristic_lift_respects_other_demands_latency(shared_arc):
     validate_arc_solution(problem, *solver.solving_instance.solution_to_arc_variables(p, r, q))
 
 
-
 def test_remaining_quantity_respects_other_demands_latency(shared_arc):
     problem, _ = shared_arc
     problem.latencies = [3, 100]
     checker = SolvingInstance(problem)
     assert checker._get_remaining_quantity_per_demand([1], [0, 0], [1, 1], 1) == 1
-
 
 
 def test_remaining_quantity_sums_latency_slopes_over_entire_path():
@@ -73,7 +71,6 @@ def test_remaining_quantity_sums_latency_slopes_over_entire_path():
     assert checker._get_remaining_quantity_per_demand([2], [0, 0], [1, 1], 0) == 1
 
 
-
 def test_remaining_quantity_with_zero_latency_slope(shared_arc):
     problem, _ = shared_arc
     problem.network_graph.alphas = [0, 0]
@@ -81,10 +78,10 @@ def test_remaining_quantity_with_zero_latency_slope(shared_arc):
     assert checker._get_remaining_quantity_per_demand([1], [0, 0], [1, 1], 0) == 8
 
 
-
 def arc_milp_model(problem):
     """Build the repository's actual constraints; no optimizer is required."""
-    pyo = pytest.importorskip("pyomo.environ")
+    import pyomo.environ as pyo
+
     from mecbench.solvers.arc_formulation import add_arc_constraints
 
     model = pyo.ConcreteModel()
@@ -111,11 +108,13 @@ def arc_milp_model(problem):
     ]:
         setattr(model, name, pyo.Param(index, initialize=dict(enumerate(values))))
     model.inc_arcs = pyo.Param(
-        model.U, within=pyo.Any,
+        model.U,
+        within=pyo.Any,
         initialize={u: [a for a, (_, v) in enumerate(network.arc_list) if v == u] for u in model.U},
     )
     model.out_arcs = pyo.Param(
-        model.U, within=pyo.Any,
+        model.U,
+        within=pyo.Any,
         initialize={u: [a for a, (v, _) in enumerate(network.arc_list) if v == u] for u in model.U},
     )
     model.ind_u_origin = pyo.Param(
@@ -125,7 +124,6 @@ def arc_milp_model(problem):
     model.N = pyo.Param(initialize=max(problem.latencies))
     add_arc_constraints(model, model.D, model.A, model.U, model.S, model.x)
     return model
-
 
 
 def milp_accepts(model, problem, x, y, q):
@@ -156,7 +154,6 @@ def milp_accepts(model, problem, x, y, q):
     return True
 
 
-
 def validator_accepts(problem, solution):
     try:
         validate_arc_solution(problem, *solution)
@@ -165,7 +162,7 @@ def validator_accepts(problem, solution):
     return True
 
 
-
+@pytest.mark.requires("pyomo")
 def test_validator_agrees_with_arc_milp_on_1024_assignments(shared_arc):
     problem, _ = shared_arc
     problem.latencies = [3, 3]
@@ -175,7 +172,8 @@ def test_validator_agrees_with_arc_milp_on_1024_assignments(shared_arc):
     model = arc_milp_model(problem)
     accepted = rejected = 0
     for routing, placement, quantities in product(
-        product((0, 1), repeat=4), product((0, 1), repeat=2),
+        product((0, 1), repeat=4),
+        product((0, 1), repeat=2),
         product((0, 1.25, 2, 4), repeat=2),
     ):
         solution = np.reshape(routing, (2, 2)), np.reshape(placement, (1, 2)), quantities
@@ -187,8 +185,8 @@ def test_validator_agrees_with_arc_milp_on_1024_assignments(shared_arc):
     assert accepted + rejected == 1024
 
 
-
 @pytest.mark.parametrize("latency,expected", [(2, False), (3, True)])
+@pytest.mark.requires("pyomo")
 def test_cycle_validation_matches_actual_milp_constraints(latency, expected):
     problem = make_problem(edges=((0, 1), (2, 3)), nodes=4, demands=1)
     solution = route_solution(problem, [[0, 1]], [1], [1])

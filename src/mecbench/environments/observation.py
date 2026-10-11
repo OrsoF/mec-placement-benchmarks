@@ -1,13 +1,15 @@
-import numpy as np
-from gymnasium.spaces import Box, MultiDiscrete
-import networkx as nx
 from typing import Any
 
+import networkx as nx
+import numpy as np
+from gymnasium.spaces import Box, MultiDiscrete
+
 from mecbench.domain.graph_utils import path_node_to_path_tuple
+from mecbench.domain.loads import residual_arrays
 from mecbench.domain.problem import ProblemInstance
-from mecbench.domain.solution import apply_residuals_to_graph, residual_arrays
-from mecbench.environments.path_cache import ShortestPathCache
 from mecbench.environments.state_codec import state_to_vectors
+from mecbench.solvers.graph_state import apply_residuals_to_graph
+from mecbench.solvers.paths import ShortestPathCache
 
 
 def make_action_space(
@@ -43,8 +45,7 @@ def make_vector_observation_space(
         default=0.0,
     )
     latency_ratio_high = [
-        node_count * max_edge_latency / max(latency, 1e-9)
-        for latency in problem_instance.latencies
+        node_count * max_edge_latency / max(latency, 1e-9) for latency in problem_instance.latencies
     ]
 
     low_array = np.zeros(
@@ -144,7 +145,7 @@ def apply_state_to_graph(
     state: np.ndarray | list,
 ) -> None:
     """Reset graph attributes, then apply state capacity and resource usage."""
-    from mecbench.domain.solution import compact_to_arc
+    from mecbench.domain.conversions import compact_to_arc
 
     p, r, q = state_to_vectors(problem, state)
     x, y, q = compact_to_arc(problem, graph, path_cache.nth_shortest_path, p, r, q)
@@ -158,9 +159,7 @@ def reset_graph_attributes(graph: nx.Graph) -> None:
         graph.edges[edge]["latency"] = graph.edges[edge]["beta"]
 
     for node in graph.nodes:
-        graph.nodes[node]["remaining_resources"] = graph.nodes[node][
-            "available_resources"
-        ]
+        graph.nodes[node]["remaining_resources"] = graph.nodes[node]["available_resources"]
 
 
 def update_edge_attributes(
@@ -181,9 +180,7 @@ def update_edge_attributes(
 
         for edge in demand_path:
             graph.edges[edge]["remaining_capacity"] -= quantities[demand_index]
-            graph.edges[edge]["latency"] += quantities[demand_index] * graph.edges[edge][
-                "alpha"
-            ]
+            graph.edges[edge]["latency"] += quantities[demand_index] * graph.edges[edge]["alpha"]
 
 
 def update_node_attributes(

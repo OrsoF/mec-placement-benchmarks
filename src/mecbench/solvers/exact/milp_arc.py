@@ -1,20 +1,19 @@
-from mecbench.solvers.base import GenericSolver
-from mecbench.solvers.model_utils import configure_gurobi, objective_value, problem_arrays
-from mecbench.domain.problem import Service
-from mecbench.domain.problem import ProblemInstance
+import networkx as nx
+import pyomo.environ as pyo
+
 from mecbench.benchmarks.metrics import get_result_informations
 from mecbench.domain.graph_utils import get_encoded_incoming_arc, get_encoded_outgoing_arc
+from mecbench.domain.problem import ProblemInstance
+from mecbench.domain.services import Service
 from mecbench.solvers.arc_formulation import add_arc_constraints
-
-import pyomo.environ as pyo
-import time
-import networkx as nx
-import numpy as np
+from mecbench.solvers.base import GenericSolver
+from mecbench.solvers.exact.extraction import arc_model_arrays
+from mecbench.solvers.model_utils import configure_gurobi, objective_value, problem_arrays
 
 
 class Solver(GenericSolver):
     def __init__(self, problem_instance: ProblemInstance):
-        self.problem_instance = problem_instance
+        super().__init__(problem_instance)
         self.services: list[Service] = self.problem_instance.service_package.services
         self.G: nx.DiGraph = self.problem_instance.network_graph.nx_graph
         self.solver_name = "MILP_arc"
@@ -108,8 +107,7 @@ class Solver(GenericSolver):
         self.model.out_arcs = pyo.Param(
             self.model.U,
             initialize={
-                u: get_encoded_outgoing_arc(self.G, self.arc_dic, u)
-                for u in range(self.U)
+                u: get_encoded_outgoing_arc(self.G, self.arc_dic, u) for u in range(self.U)
             },
             mutable=False,
             within=pyo.Any,
@@ -117,8 +115,7 @@ class Solver(GenericSolver):
         self.model.inc_arcs = pyo.Param(
             self.model.U,
             initialize={
-                u: get_encoded_incoming_arc(self.G, self.arc_dic, u)
-                for u in range(self.U)
+                u: get_encoded_incoming_arc(self.G, self.arc_dic, u) for u in range(self.U)
             },
             mutable=False,
             within=pyo.Any,
@@ -137,17 +134,13 @@ class Solver(GenericSolver):
 
         self.model.node_resources = pyo.Param(
             self.model.U,
-            initialize={
-                u: self.G.nodes[u]["available_resources"] for u in range(self.U)
-            },
+            initialize={u: self.G.nodes[u]["available_resources"] for u in range(self.U)},
             mutable=False,
             within=pyo.NonNegativeIntegers,
         )
         self.model.arc_capacity = pyo.Param(
             self.model.A,
-            initialize={
-                a: self.G.edges[edge]["capacity"] for a, edge in enumerate(self.G.edges)
-            },
+            initialize={a: self.G.edges[edge]["capacity"] for a, edge in enumerate(self.G.edges)},
             mutable=False,
             within=pyo.NonNegativeIntegers,
         )
@@ -169,9 +162,7 @@ class Solver(GenericSolver):
         )
 
     def _build_objective(self):
-        self.model.obj = pyo.Objective(
-            sense=pyo.maximize, rule=lambda model: sum(model.p.values())
-        )
+        self.model.obj = pyo.Objective(sense=pyo.maximize, rule=lambda model: sum(model.p.values()))
 
     def run(
         self,
@@ -196,13 +187,23 @@ class Solver(GenericSolver):
                 thread_limit=thread_limit,
             )
         else:
-            assert False, "Not implemented yet."
+            raise NotImplementedError("Only Gurobi is currently supported.")
 
         solver_result = opt.solve(self.model)
-        self._record_solver_result(solver_result)
-        (self.runtime, self.lower_bound, self.upper_bound, self.solving_status) = get_result_informations(solver_result)
-        self._set_arc_model_solution(
-            self.model.x, self.model.y, self.model.p, self.D, self.A, self.S, self.U,
+        self.termination_condition = str(solver_result.solver.termination_condition)
+        (self.runtime, self.lower_bound, self.upper_bound, self.solving_status) = (
+            get_result_informations(solver_result)
+        )
+        self._set_output_variables(
+            *arc_model_arrays(
+                self.model.x,
+                self.model.y,
+                self.model.p,
+                self.D,
+                self.A,
+                self.S,
+                self.U,
+            )
         )
         self.score = objective_value(self.q_var)
         self.build_time = 0.0

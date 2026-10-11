@@ -1,6 +1,6 @@
 import numpy as np
 
-from mecbench.domain.solution import split_state
+from mecbench.domain.conversions import split_state
 
 
 def served_quantity(problem, s) -> float:

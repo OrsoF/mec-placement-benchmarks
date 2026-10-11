@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 
-from mecbench.domain.problem import ProblemInstance
-
 import numpy as np
+
+from mecbench.domain.problem import ProblemInstance
 
 
 @dataclass(frozen=True)

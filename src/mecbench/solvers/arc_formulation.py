@@ -4,9 +4,7 @@ import pyomo.environ as pyo
 def add_arc_constraints(model, D, A, U, S, x) -> None:
     model.valeurs_p = pyo.Constraint(
         D,
-        rule=lambda model, d: pyo.inequality(
-            model.Pdmin[d], model.p[d], model.Pdmax[d]
-        ),
+        rule=lambda model, d: pyo.inequality(model.Pdmin[d], model.p[d], model.Pdmax[d]),
     )
     model.valeurs_P = pyo.Constraint(
         D,
@@ -27,8 +25,7 @@ def add_arc_constraints(model, D, A, U, S, x) -> None:
     )
     model.capacity_constraint = pyo.Constraint(
         A,
-        rule=lambda model, a: sum(model.P[d, a] for d in D)
-        <= model.arc_capacity[a],
+        rule=lambda model, a: sum(model.P[d, a] for d in D) <= model.arc_capacity[a],
     )
     model.latency_arc_1 = pyo.Constraint(
         D,
@@ -61,8 +58,7 @@ def add_arc_constraints(model, D, A, U, S, x) -> None:
     model.power_2 = pyo.Constraint(
         D,
         A,
-        rule=lambda model, d, a: model.P[d, a]
-        >= model.p[d] - model.M * (1 - x[d, a]),
+        rule=lambda model, d, a: model.P[d, a] >= model.p[d] - model.M * (1 - x[d, a]),
     )
     model.power_3 = pyo.Constraint(
         D,

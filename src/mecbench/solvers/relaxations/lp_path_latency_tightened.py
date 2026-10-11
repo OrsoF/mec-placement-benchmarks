@@ -1,12 +1,14 @@
-from mecbench.domain.problem import Service
-from mecbench.domain.problem import ProblemInstance
-from itertools import islice
-from mecbench.solvers.base import GenericSolver
-
 import time
-import pyomo.environ as pyo
+from itertools import islice
+
 import networkx as nx
 import numpy as np
+import pyomo.environ as pyo
+
+from mecbench.domain.problem import ProblemInstance
+from mecbench.domain.services import Service
+from mecbench.solvers.base import GenericSolver
+from mecbench.solvers.exact.extraction import path_model_arrays
 
 
 class Solver(GenericSolver):
@@ -16,7 +18,7 @@ class Solver(GenericSolver):
         maximum_path_number: int = 1,
         eps: float = 0.0001,
     ):
-        self.problem_instance = problem_instance
+        super().__init__(problem_instance)
         self.services: list[Service] = self.problem_instance.service_package.services
         self.G: nx.DiGraph = self.problem_instance.network_graph.nx_graph
         self.limit = maximum_path_number
@@ -25,30 +27,22 @@ class Solver(GenericSolver):
 
     def _model_parameters(self):
         self.S = len(self.services)
-        self.number_of_tasks_per_service = [
-            service.task_number for service in self.services
-        ]
+        self.number_of_tasks_per_service = [service.task_number for service in self.services]
         self.D = sum(self.number_of_tasks_per_service)
         self.E = self.G.number_of_nodes()
         self.A = self.G.number_of_edges()
         self.arc_dic = {elem: i for i, elem in enumerate(self.G.edges)}
         self.arc_list = list(self.G.edges)
-        self.origins = [
-            origin for service in self.services for origin in service.origin_nodes
-        ]
+        self.origins = [origin for service in self.services for origin in service.origin_nodes]
         self.minimum_flows = [
             min_flow for service in self.services for min_flow in service.min_flows
         ]
         self.maximum_flows = [
             max_flow for service in self.services for max_flow in service.max_flows
         ]
-        self.latencies = [
-            latency for service in self.services for latency in service.max_latencies
-        ]
+        self.latencies = [latency for service in self.services for latency in service.max_latencies]
         self.resources = [
-            service.needed_resources
-            for service in self.services
-            for _ in service.task_list
+            service.needed_resources for service in self.services for _ in service.task_list
         ]
         self.alpha = [self.G.edges[edge]["alpha"] for edge in self.G.edges]
         self.beta = [self.G.edges[edge]["beta"] for edge in self.G.edges]
@@ -65,16 +59,12 @@ class Solver(GenericSolver):
             ]
             for d in range(self.D)
         ]
-        self.all_shortest_paths = [
-            elem for path_list in self.shortest_paths for elem in path_list
-        ]
+        self.all_shortest_paths = [elem for path_list in self.shortest_paths for elem in path_list]
         self.C = sum(len(path) for path in self.shortest_paths)
         self.D_path_number = [
             i for i, path_list in enumerate(self.shortest_paths) for _ in path_list
         ]
-        self.D_path = [
-            i for i, path_list in enumerate(self.shortest_paths) for _ in path_list
-        ]
+        self.D_path = [i for i, path_list in enumerate(self.shortest_paths) for _ in path_list]
         self.m = max(self.maximum_flows)
         self.n = max(self.latencies)
 
@@ -95,9 +85,7 @@ class Solver(GenericSolver):
         self.paths = [path[0] for l_path in self.shortest_paths for path in l_path]
         self.P = len(self.paths)
         self.p_to_d = [
-            i
-            for i in range(len(self.shortest_paths))
-            for j in range(len(self.shortest_paths[i]))
+            i for i in range(len(self.shortest_paths)) for j in range(len(self.shortest_paths[i]))
         ]
 
         self.pd = [0] + [
@@ -106,9 +94,7 @@ class Solver(GenericSolver):
         ]
 
         self.maximum_required_flow = max(self.maximum_flows)
-        self.maximum_possible_latency = max(self.alpha) * sum(self.maximum_flows) + max(
-            self.beta
-        )
+        self.maximum_possible_latency = max(self.alpha) * sum(self.maximum_flows) + max(self.beta)
 
     def path_to_demand(self, p):
         return self.p_to_d[p]
@@ -116,10 +102,7 @@ class Solver(GenericSolver):
     def delta(self, c, a):
         return int(
             self.arc_list[a]
-            in [
-                (self.paths[c][i], self.paths[c][i + 1])
-                for i in range(len(self.paths[c]) - 1)
-            ]
+            in [(self.paths[c][i], self.paths[c][i + 1]) for i in range(len(self.paths[c]) - 1)]
         )
 
     def _model_creation(self):
@@ -152,24 +135,20 @@ class Solver(GenericSolver):
         )
         self.model.res = pyo.Constraint(
             self.model.E,
-            rule=lambda model, e: sum(
-                model.y[s, e] * self.resources[s] for s in model.S
-            )
+            rule=lambda model, e: sum(model.y[s, e] * self.resources[s] for s in model.S)
             <= self.G.nodes[e]["available_resources"],
         )
 
         self.model.capa = pyo.Constraint(
             self.model.A,
-            rule=lambda model, a: model.nul[0]
-            + sum(self.delta(p, a) * model.Q[p] for p in model.P)
+            rule=lambda model, a: model.nul[0] + sum(self.delta(p, a) * model.Q[p] for p in model.P)
             <= self.G.edges[self.arc_list[a]]["capacity"],
         )
 
         self.model.lat = pyo.Constraint(
             self.model.P,
             self.model.A,
-            rule=lambda model, p, a: model.L[p, a]
-            <= self.latencies[self.path_to_demand(p)],
+            rule=lambda model, p, a: model.L[p, a] <= self.latencies[self.path_to_demand(p)],
         )
 
         self.model.ind1 = pyo.Constraint(
@@ -184,9 +163,7 @@ class Solver(GenericSolver):
             self.model.S, rule=lambda model, s: sum(model.y[s, e] for e in model.E) >= 1
         )
 
-        self.model.reach_serv = pyo.Constraint(
-            self.model.D, self.model.E, rule=self.reach_serv
-        )
+        self.model.reach_serv = pyo.Constraint(self.model.D, self.model.E, rule=self.reach_serv)
 
         self.model.qual1 = pyo.Constraint(
             self.model.P,
@@ -196,8 +173,7 @@ class Solver(GenericSolver):
         self.model.qual2 = pyo.Constraint(
             self.model.P,
             rule=lambda model, p: model.Q[p]
-            >= model.q[self.path_to_demand(p)]
-            - self.maximum_required_flow * (1 - model.l[p]),
+            >= model.q[self.path_to_demand(p)] - self.maximum_required_flow * (1 - model.l[p]),
         )
 
         self.model.qual3 = pyo.Constraint(
@@ -225,17 +201,14 @@ class Solver(GenericSolver):
         self.model.lat3 = pyo.Constraint(
             self.model.P,
             self.model.A,
-            rule=lambda model, p, a: model.L[p, a]
-            <= self.maximum_possible_latency * model.z[p],
+            rule=lambda model, p, a: model.L[p, a] <= self.maximum_possible_latency * model.z[p],
         )
 
     def gamma(self, p, e):
         return int(self.paths[p][-1] == e)
 
     def _set_objective(self):
-        self.model.obj = pyo.Objective(
-            sense=pyo.maximize, rule=lambda model: sum(model.q.values())
-        )
+        self.model.obj = pyo.Objective(sense=pyo.maximize, rule=lambda model: sum(model.q.values()))
 
     def _set_params(self):
         self.model.serv_number = pyo.Param(
@@ -271,19 +244,21 @@ class Solver(GenericSolver):
         opt = pyo.SolverFactory("gurobi")
         opt.options.update(options or {})
         solver_result = opt.solve(self.model)
-        self._record_solver_result(solver_result)
+        self.termination_condition = str(solver_result.solver.termination_condition)
 
-        self._set_path_model_solution(
-            self.model.l,
-            self.model.y,
-            self.model.q,
-            self.paths,
-            self.p_to_d,
-            self.arc_dic,
-            self.D,
-            self.A,
-            self.S,
-            self.E,
+        self._set_output_variables(
+            *path_model_arrays(
+                self.model.l,
+                self.model.y,
+                self.model.q,
+                self.paths,
+                self.p_to_d,
+                self.arc_dic,
+                self.D,
+                self.A,
+                self.S,
+                self.E,
+            )
         )
         self.runtime = time.time() - start_time
         self.score = float(np.sum(self.q_var))

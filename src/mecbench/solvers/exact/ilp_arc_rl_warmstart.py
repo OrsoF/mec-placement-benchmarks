@@ -1,5 +1,5 @@
-from mecbench.solvers.base import GenericSolver
 from mecbench.domain.problem import ProblemInstance
+from mecbench.solvers.base import GenericSolver
 from mecbench.solvers.exact.ilp_arc import Solver as ILPArcSolver
 
 
