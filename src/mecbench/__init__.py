@@ -3,9 +3,10 @@
 __version__ = "0.1.0"
 
 from mecbench.api import SolveResult, SolveStatus, make_star_instance, make_tree_instance, solve
+from mecbench.domain.conversions import SolutionConversionError, to_arc_solution
 from mecbench.domain.problem import ProblemInstance
 from mecbench.domain.problem_arrays import ProblemArrays
-from mecbench.domain.solution import Solution
+from mecbench.domain.solution import ArcSolution, CompactSolution, Solution
 from mecbench.domain.validation import (
     SolutionValidationError,
     ValidationReport,
@@ -24,6 +25,10 @@ __all__ = [
     "ProblemInstance",
     "ProblemArrays",
     "Solution",
+    "ArcSolution",
+    "CompactSolution",
+    "to_arc_solution",
+    "SolutionConversionError",
     "SolveResult",
     "SolveStatus",
     "ValidationReport",

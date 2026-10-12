@@ -50,17 +50,33 @@ class ValidationReport:
         if self.violations:
             raise SolutionValidationError(self.violations[0].message)
 
+    @classmethod
+    def from_conversion_error(cls, error: SolutionConversionError) -> "ValidationReport":
+        return cls(
+            (
+                Violation(
+                    error.constraint,
+                    str(error),
+                    error.observed,
+                    error.limit,
+                    demand=error.demand,
+                    variable=error.variable,
+                ),
+            )
+        )
+
 
 def validate(
     problem: ProblemData | ProblemArrays,
     solution: SolutionData | CompactSolution | None,
-    *, atol: float = 1e-6,
+    *,
+    atol: float = 1e-6,
     path_resolver: PathResolver | None = None,
 ) -> ValidationReport:
     """Report all violations; malformed arrays stop dependent physical checks.
 
-    ``solution`` exposes x, y and q arrays (normally a ``Solution``). ``None``
-    represents absence of a candidate. This never changes the problem or arrays.
+    Compact candidates require their path resolver; arc candidates expose x, y
+    and q. ``None`` represents absence of a candidate. Inputs are never changed.
     """
     _check_tolerance(atol)
     if solution is None:
@@ -69,10 +85,7 @@ def validate(
         try:
             solution = to_arc_solution(problem, solution, path_resolver=path_resolver)
         except SolutionConversionError as error:
-            return ValidationReport((Violation(
-                error.constraint, str(error), error.observed, error.limit,
-                demand=error.demand, variable=error.variable,
-            ),))
+            return ValidationReport.from_conversion_error(error)
     if not all(hasattr(solution, name) for name in ("x", "y", "q")):
         raise TypeError("solution must be compact, expose x, y and q arrays, or be None.")
     return _validate_arrays(problem, solution.x, solution.y, solution.q, atol=atol)

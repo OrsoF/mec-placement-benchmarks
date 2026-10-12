@@ -3,7 +3,9 @@ from collections.abc import Callable
 import gymnasium as gym
 import numpy as np
 
+from mecbench.domain.conversions import compact_from_state
 from mecbench.domain.problem import ProblemInstance
+from mecbench.domain.solution import CompactSolution
 from mecbench.environments.observation import (
     make_action_space,
     make_vector_observation,
@@ -361,6 +363,9 @@ class SPPEnv(gym.Env):
             self.path_cache,
             state,
         )
+
+    def solution_from_state(self, state: np.ndarray | list) -> CompactSolution:
+        return compact_from_state(self.data, state)
 
     def _state_to_vectors(self, state: list) -> tuple:
         """Split state into service placement, path indices, and quantities."""

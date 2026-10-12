@@ -6,6 +6,7 @@ import numpy as np
 
 from mecbench.domain.graph_utils import path_node_to_path_tuple
 from mecbench.domain.problem import ProblemInstance
+from mecbench.domain.solution import CompactSolution
 from mecbench.utils.solver_base import GenericSolver
 from mecbench.utils.solver_workspace import SolvingInstance
 
@@ -78,10 +79,9 @@ class Solver(GenericSolver):
             raise RuntimeError("CMA-ES did not find a feasible solution.")
 
         self.placement, self.routing, self.quantities = self.best_solution
-        self.x_var, self.y_var, self.q_var = self.sol_ins.solution_to_arc_variables(
-            self.placement,
-            self.routing,
-            self.quantities,
+        self._set_solution(
+            self.best_solution,
+            path_resolver=self.sol_ins.compute_nth_shortest_path,
         )
 
         self.runtime = time.time() - start_time
@@ -91,11 +91,11 @@ class Solver(GenericSolver):
 
     def objective(self, value: np.ndarray):
         placement, routing, quantities = self.decode(value)
-        if self.sol_ins.test_solution(placement, routing, quantities):
+        if self.sol_ins.is_feasible(placement, routing, quantities):
             score = sum(quantities)
             if score > self.best_score:
                 self.best_score = score
-                self.best_solution = (placement, routing, quantities)
+                self.best_solution = CompactSolution(placement, routing, quantities)
             return -score
 
         flow_cap = sum(self.data.max_flows) + 1.0
@@ -126,11 +126,9 @@ class Solver(GenericSolver):
         graph = self.sol_ins.graph.copy()
         graph = self.sol_ins.initialize_graph_attributes(graph)
         try:
-            graph = self.sol_ins.update_graph_attributes(
-                graph,
-                placement,
-                routing,
-                quantities,
+            graph = self.sol_ins.update_graph(
+                CompactSolution(placement, routing, quantities),
+                graph=graph,
             )
         except (IndexError, KeyError, ValueError):
             return sum(self.data.max_flows) + 1.0

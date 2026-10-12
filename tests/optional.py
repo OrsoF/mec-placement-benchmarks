@@ -14,6 +14,7 @@ def module_requirements(module: str) -> tuple[str, ...]:
         return ("stable_baselines3",)
     if module in {
         "mecbench.utils.arc_formulation",
+        "mecbench.utils.arc_pyomo",
         "mecbench.utils.path_formulation",
     } or any(spec.module == module and spec.mathematical for spec in REGISTRY.values()):
         return ("pyomo",)

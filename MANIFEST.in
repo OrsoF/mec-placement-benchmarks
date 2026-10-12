@@ -2,6 +2,7 @@ include LICENSE README.md Dockerfile requirements.txt
 include .github/workflows/ci.yml
 recursive-include src *.py
 recursive-include tests *.py
+recursive-include tests/regression/fixtures *.json
 recursive-include examples *.py
 recursive-include docs *.md *.tex
 recursive-include data *.gml

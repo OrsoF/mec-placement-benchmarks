@@ -28,7 +28,6 @@ class Solver(GenericSolver):
 
         self.solving_instance = SolvingInstance(problem_instance)
 
-        self._path_cache = {}
         self._dist = None
         self._service_nodes = None
 
@@ -71,10 +70,11 @@ class Solver(GenericSolver):
         self.placement = best[0].astype(int).tolist()
         self.routing = best[1].astype(int).tolist()
         self.quantities = best[2].tolist()
-        self.x_var, self.y_var, self.q_var = self.solving_instance.solution_to_arc_variables(
+        self._set_compact_solution(
             self.placement,
             self.routing,
             self.quantities,
+            path_resolver=self.solving_instance.compute_nth_shortest_path,
         )
         self.score = best_score
         self.runtime = time.time() - start
@@ -125,36 +125,8 @@ class Solver(GenericSolver):
             rem[best] -= self.data.service_resources[s]
         return p
 
-    def _path(self, source: int, dest: int, k: int):
-        key = (int(source), int(dest), int(k))
-        if key in self._path_cache:
-            return self._path_cache[key]
-
-        path = self.solving_instance.compute_nth_shortest_path(source, dest, k)
-        idx = np.fromiter(
-            (self.data.arc_index[(path[i], path[i + 1])] for i in range(len(path) - 1)),
-            dtype=int,
-            count=max(0, len(path) - 1),
-        )
-        self._path_cache[key] = idx
-        return idx
-
-    def _paths(self, p, r):
-        paths = []
-        for d in range(self.data.n_demands):
-            paths.append(self._path(self.data.origins[d], p[self.data.demand_to_service[d]], r[d]))
-        return paths
-
-    def _loads(self, p, r, q):
-        paths = self._paths(p, r)
-        edge_load = np.zeros(self.data.n_arcs)
-        for d, idx in enumerate(paths):
-            edge_load[idx] += q[d]
-        node_load = np.bincount(p, weights=self.data.service_resources, minlength=self.data.n_nodes)
-        return paths, edge_load, node_load
-
     def _feasible(self, p, r, q) -> bool:
-        return self.solving_instance.test_compact_solution(p, r, q)
+        return self.solving_instance.is_feasible(p, r, q)
 
     def _lift(self, p, r, q):
         q = np.minimum(np.maximum(q, self.data.min_flows), self.data.max_flows).astype(float)
@@ -163,7 +135,7 @@ class Solver(GenericSolver):
             if not self._feasible(p, r, q):
                 return q
 
-        paths = self._paths(p, r)
+        paths = self.solving_instance.compact_path_indices(p, r)
         incidence = np.zeros((self.data.n_demands, self.data.n_arcs))
         for d, idx in enumerate(paths):
             incidence[d, idx] = 1
@@ -172,7 +144,7 @@ class Solver(GenericSolver):
         latency_sensitivity = (incidence * self.data.latency_slopes) @ incidence.T
 
         while True:
-            paths, edge_load, _ = self._loads(p, r, q)
+            _, edge_load, _ = self.solving_instance.compact_loads(p, r, q, paths=paths)
             latency_slack = self.data.latency_limits - incidence @ (
                 self.data.latency_offsets + self.data.latency_slopes * edge_load
             )

@@ -69,7 +69,9 @@ class Solver(GenericSolver):
                 break
 
         self.placement, self.routing, self.quantities = best
-        self.x_var, self.y_var, self.q_var = self.solving_instance.solution_to_arc_variables(*best)
+        self._set_compact_solution(
+            *best, path_resolver=self.solving_instance.compute_nth_shortest_path
+        )
         self.score = best_score
         self.runtime = time.time() - start
         self.build_time = 0.0

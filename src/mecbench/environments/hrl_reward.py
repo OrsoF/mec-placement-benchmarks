@@ -14,7 +14,7 @@ def placement_routing_score(problem, checker, rng, s, steps: int, increment: int
     p = p.astype(int).tolist()
     r = r.astype(int).tolist()
     q = list(data.min_flows)
-    if not checker.test_solution(p, r, q):
+    if not checker.is_feasible(p, r, q):
         return -1.0
 
     D = data.n_demands
@@ -24,7 +24,7 @@ def placement_routing_score(problem, checker, rng, s, steps: int, increment: int
             continue
         dq = min(increment, data.max_flows[d] - q[d])
         q[d] += dq
-        if not checker.test_solution(p, r, q):
+        if not checker.is_feasible(p, r, q):
             q[d] -= dq
     return float(sum(q))
 

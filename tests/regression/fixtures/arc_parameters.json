@@ -1,0 +1,17 @@
+{
+  "origins": {"domain": "NonNegativeIntegers", "mutable": false, "dimen": 1, "indices": [0, 1, 2, 3], "values": [2, 0, 3, 1]},
+  "Pdmin": {"domain": "NonNegativeIntegers", "mutable": false, "dimen": 1, "indices": [0, 1, 2, 3], "values": [1.0, 2.0, 3.0, 4.0]},
+  "Pdmax": {"domain": "NonNegativeIntegers", "mutable": false, "dimen": 1, "indices": [0, 1, 2, 3], "values": [5.0, 6.0, 7.0, 8.0]},
+  "latencies": {"domain": "NonNegativeReals", "mutable": false, "dimen": 1, "indices": [0, 1, 2, 3], "values": [11.5, 17.0, 23.25, 29.0]},
+  "resources": {"domain": "NonNegativeIntegers", "mutable": false, "dimen": 1, "indices": [0, 1], "values": [2.0, 7.0]},
+  "alpha": {"domain": "NonNegativeReals", "mutable": false, "dimen": 1, "indices": [0, 1, 2, 3, 4, 5], "values": [0.25, 0.5, 0.75, 1.0, 1.25, 1.5]},
+  "beta": {"domain": "NonNegativeReals", "mutable": false, "dimen": 1, "indices": [0, 1, 2, 3, 4, 5], "values": [1.0, 2.0, 0.0, 4.0, 3.0, 5.0]},
+  "serv_number": {"domain": "NonNegativeIntegers", "mutable": false, "dimen": 1, "indices": [0, 1, 2, 3], "values": [1, 0, 1, 0]},
+  "out_arcs": {"domain": "Any", "mutable": false, "dimen": 1, "indices": [0, 1, 2, 3], "values": [[1], [2, 3, 4], [0], [5]]},
+  "inc_arcs": {"domain": "Any", "mutable": false, "dimen": 1, "indices": [0, 1, 2, 3], "values": [[3], [5, 1, 0], [4], [2]]},
+  "ind_u_origin": {"domain": "Binary", "mutable": false, "dimen": 2, "indices": [[0, 0], [0, 1], [0, 2], [0, 3], [1, 0], [1, 1], [1, 2], [1, 3], [2, 0], [2, 1], [2, 2], [2, 3], [3, 0], [3, 1], [3, 2], [3, 3]], "values": [0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 0]},
+  "node_resources": {"domain": "NonNegativeIntegers", "mutable": false, "dimen": 1, "indices": [0, 1, 2, 3], "values": [17.0, 23.0, 31.0, 47.0]},
+  "arc_capacity": {"domain": "NonNegativeIntegers", "mutable": false, "dimen": 1, "indices": [0, 1, 2, 3, 4, 5], "values": [11.0, 13.0, 17.0, 19.0, 23.0, 29.0]},
+  "N": {"domain": "NonNegativeReals", "mutable": false, "dimen": 0, "indices": [null], "values": [29.0]},
+  "M": {"domain": "NonNegativeIntegers", "mutable": false, "dimen": 0, "indices": [null], "values": [8.0]}
+}

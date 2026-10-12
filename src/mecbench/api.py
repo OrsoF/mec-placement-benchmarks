@@ -9,8 +9,9 @@ from typing import Any
 
 import numpy as np
 
+from mecbench.domain.conversions import SolutionConversionError, to_arc_solution
 from mecbench.domain.problem import ProblemInstance
-from mecbench.domain.solution import Solution
+from mecbench.domain.solution import ArcSolution, CompactSolution
 from mecbench.domain.validation import ValidationReport, validate
 from mecbench.errors import SolverExecutionError
 from mecbench.instances.synthetic import create_star_problem_instance, create_tree_problem_instance
@@ -32,7 +33,7 @@ class SolveStatus(str, Enum):
 
 @dataclass(frozen=True)
 class SolveResult:
-    solution: Solution | None
+    solution: ArcSolution | None
     objective: float | None
     status: SolveStatus
     runtime: float
@@ -143,30 +144,47 @@ def solve(
     )
     termination = str(termination) if termination is not None else None
     status = _termination_status(termination)
-    x, y, q = backend.x_var, backend.y_var, backend.q_var
     # An infeasibility proof/unbounded model has no usable incumbent. Some legacy
     # backends supply a baseline in these cases; do not present it as a result.
-    solution = None
-    if (
-        status not in (SolveStatus.INFEASIBLE, SolveStatus.UNBOUNDED)
-        and x is not None
-        and y is not None
-        and q is not None
-    ):
-        try:
-            solution = Solution(x, y, q)
-        except (TypeError, ValueError) as error:
-            raise SolverExecutionError(
-                f"Solver {name!r} produced non-numeric solution arrays: {error}"
-            ) from error
-        if REGISTRY[name].mathematical and not all(
-            np.all(np.isfinite(v)) for v in (solution.x, solution.y, solution.q)
-        ):
-            solution = None
-    report = validate(problem, solution)
+    solution: ArcSolution | None = None
+    candidate: ArcSolution | CompactSolution | None = None
+    report: ValidationReport | None = None
+    if status not in (SolveStatus.INFEASIBLE, SolveStatus.UNBOUNDED):
+        output = getattr(backend, "solution", None)
+        if output is not None:
+            if not isinstance(output, ArcSolution | CompactSolution):
+                raise SolverExecutionError(
+                    f"Solver {name!r} produced an unsupported solution type."
+                )
+            candidate = output
+        else:
+            # Compatibility with external backends that still publish three arrays.
+            x, y, q = backend.x_var, backend.y_var, backend.q_var
+            if x is not None and y is not None and q is not None:
+                try:
+                    candidate = ArcSolution(x, y, q)
+                except (TypeError, ValueError) as error:
+                    raise SolverExecutionError(
+                        f"Solver {name!r} produced non-numeric solution arrays: {error}"
+                    ) from error
+        if candidate is not None:
+            try:
+                solution = to_arc_solution(
+                    problem, candidate, path_resolver=getattr(backend, "path_resolver", None)
+                )
+            except SolutionConversionError as error:
+                report = ValidationReport.from_conversion_error(error)
+            if (
+                solution is not None
+                and REGISTRY[name].mathematical
+                and not all(np.all(np.isfinite(v)) for v in solution)
+            ):
+                solution = candidate = None
+    if report is None:
+        report = validate(problem, solution)
     if report.feasible:
         status = status or SolveStatus.FEASIBLE
-    elif solution is not None:
+    elif candidate is not None:
         status = SolveStatus.INVALID_SOLUTION
     else:
         status = (

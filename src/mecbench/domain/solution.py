@@ -1,7 +1,7 @@
 """Canonical solution data with lazy historical import compatibility."""
 
-from dataclasses import dataclass
 from collections.abc import Iterator
+from dataclasses import dataclass
 from importlib import import_module
 from typing import Any
 
@@ -20,8 +20,12 @@ def _readonly_indices(source: ArrayLike, name: str) -> IntArray:
     values = np.asarray(source)
     if values.dtype.kind not in "biuf" or not np.all(np.isfinite(values)):
         raise ValueError(f"{name} must contain finite integer indices.")
-    if np.any(values != np.rint(values)) or np.any(values < -(2**63)) or np.any(values >= 2**63):
+    if values.dtype.kind == "f" and (
+        np.any(values != np.rint(values)) or np.any(values < -(2**63)) or np.any(values >= 2**63)
+    ):
         raise ValueError(f"{name} must contain int64 indices without rounding.")
+    if values.dtype.kind == "u" and np.any(values > np.iinfo(np.int64).max):
+        raise ValueError(f"{name} must contain int64 indices without overflow.")
     indices = np.asarray(values, dtype=np.int64)
     return np.frombuffer(indices.tobytes(), dtype=np.int64).reshape(indices.shape)
 

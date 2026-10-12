@@ -1,13 +1,14 @@
 """Pure compact/state/arc representation conversions."""
 
-import networkx as nx
-import numpy as np
 from collections.abc import Callable, Sequence
 from numbers import Integral
-from typing import TypeAlias
+from typing import Any, TypeAlias
 
-from mecbench.domain.graph_utils import path_node_to_path_tuple
-from mecbench.domain.contracts import ProblemData
+import networkx as nx
+import numpy as np
+from numpy.typing import ArrayLike, NDArray
+
+from mecbench.domain.contracts import ArcArrays, IntArray, ProblemData
 from mecbench.domain.problem_arrays import ProblemArrays, problem_arrays
 from mecbench.domain.solution import ArcSolution, CompactSolution
 
@@ -44,7 +45,10 @@ def _check_compact_vectors(data: ProblemArrays, solution: CompactSolution) -> No
         if values.shape != (size,):
             raise SolutionConversionError(
                 f"{name} shape must be ({size},), got {values.shape}.",
-                constraint="dimensions", variable=name, observed=values.shape, limit=(size,),
+                constraint="dimensions",
+                variable=name,
+                observed=values.shape,
+                limit=(size,),
             )
         if not np.all(np.isfinite(values)):
             raise SolutionConversionError(
@@ -91,22 +95,46 @@ def to_arc_solution(
                 or path[-1] != destination
                 or len(set(path)) != len(path)
             ):
-                raise ValueError("The resolver must return a simple path with the requested endpoints.")
+                raise ValueError(
+                    "The resolver must return a simple path with the requested endpoints."
+                )
             for arc in zip(path, path[1:], strict=False):
                 x[d, data.arc_index[arc]] = 1.0
         except (IndexError, KeyError, TypeError, ValueError, nx.NetworkXException) as error:
             raise SolutionConversionError(
                 f"Cannot resolve routing[{d}]={index} from {source} to {destination}: {error}",
-                variable="routing", demand=d,
+                variable="routing",
+                demand=d,
             ) from error
     return ArcSolution(x, y, solution.quantities)
 
 
-def to_int_array(x) -> np.ndarray:
-    return np.rint(np.asarray(x, dtype=float)).astype(int)
+def compact_from_state(problem: ProblemData | ProblemArrays, state: ArrayLike) -> CompactSolution:
+    """Snapshot an encoded state without rounding its indices or quantities."""
+    data = problem_arrays(problem)
+    values = np.asarray(state)
+    size = data.n_services + 2 * data.n_demands
+    if values.shape != (size,):
+        raise SolutionConversionError(
+            f"state shape must be ({size},), got {values.shape}.",
+            constraint="dimensions",
+            variable="state",
+            observed=values.shape,
+            limit=(size,),
+        )
+    start = data.n_services
+    return CompactSolution(
+        values[:start], values[start : start + data.n_demands], values[start + data.n_demands :]
+    )
 
 
-def split_state(problem, s) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+def to_int_array(x: ArrayLike) -> IntArray:
+    return np.asarray(np.rint(np.asarray(x, dtype=float)), dtype=np.int64)
+
+
+def split_state(
+    problem: ProblemData | ProblemArrays, s: ArrayLike
+) -> tuple[NDArray[Any], NDArray[Any], NDArray[Any]]:
     data = problem_arrays(problem)
     s = np.asarray(s)
     S = data.n_services
@@ -114,15 +142,28 @@ def split_state(problem, s) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     return s[:S], s[S : S + D], s[S + D : S + 2 * D]
 
 
-def make_state(placement, routing, quantities) -> np.ndarray:
+def make_state(placement: ArrayLike, routing: ArrayLike, quantities: ArrayLike) -> IntArray:
     return to_int_array(np.concatenate((placement, routing, quantities)))
 
 
-def validate_compact_shapes(problem, graph: nx.Graph, placement, routing, quantities):
+def validate_compact_shapes(
+    problem: ProblemData | ProblemArrays,
+    graph: nx.Graph,
+    placement: ArrayLike,
+    routing: ArrayLike,
+    quantities: ArrayLike,
+) -> None:
     _check_compact_vectors(problem_arrays(problem), CompactSolution(placement, routing, quantities))
 
 
-def compact_to_arc(problem, graph: nx.Graph, path_fn, placement, routing, quantities):
+def compact_to_arc(
+    problem: ProblemData | ProblemArrays,
+    graph: nx.Graph,
+    path_fn: PathResolver,
+    placement: ArrayLike,
+    routing: ArrayLike,
+    quantities: ArrayLike,
+) -> ArcArrays:
     solution = to_arc_solution(
         problem, CompactSolution(placement, routing, quantities), path_resolver=path_fn
     )

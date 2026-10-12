@@ -14,12 +14,13 @@ from mecbench.domain.problem_arrays import ProblemArrays, problem_arrays
 from mecbench.domain.solution import Solution
 from mecbench.domain.validation import validate_arc_solution
 
-CompactSolution: TypeAlias = tuple[list[int], list[int], list[float]]
+# Mutable search candidates are separate from published CompactSolution snapshots.
+CompactCandidate: TypeAlias = tuple[list[int], list[int], list[float]]
 StateArray: TypeAlias = NDArray[np.int_]
 
 
 class SolutionChecker(Protocol):
-    def test_solution(
+    def is_feasible(
         self, placement: ArrayLike, routing: ArrayLike, quantities: ArrayLike
     ) -> bool: ...
 
@@ -39,7 +40,7 @@ def baseline_solution(problem: ProblemData) -> Solution:
     return Solution(x, y, np.asarray(data.min_flows, dtype=float))
 
 
-def basic_solution(problem: ProblemData | ProblemArrays, graph: nx.Graph) -> CompactSolution:
+def basic_solution(problem: ProblemData | ProblemArrays, graph: nx.Graph) -> CompactCandidate:
     data = problem_arrays(problem)
     cloud = int(np.argmax(data.node_resources))
     return (
@@ -60,7 +61,7 @@ def clip_solution(
     placement: ArrayLike,
     routing: ArrayLike,
     quantities: ArrayLike,
-) -> CompactSolution:
+) -> CompactCandidate:
     data = problem_arrays(problem)
     n = graph.number_of_nodes()
     p: list[int] = np.clip(placement, 0, n - 1).astype(int).tolist()
@@ -95,7 +96,7 @@ def greedy_quantity_lift(
             continue
         delta = min(increment, data.max_flows[d] - q[d])
         q[d] += delta
-        if not checker.test_solution(placement, routing, q):
+        if not checker.is_feasible(placement, routing, q):
             q[d] -= delta
     return placement, routing, q
 
@@ -108,13 +109,13 @@ def repair_solution(
     placement: ArrayLike,
     routing: ArrayLike,
     quantities: ArrayLike,
-) -> CompactSolution | None:
+) -> CompactCandidate | None:
     data = problem_arrays(problem)
     p, r, q = clip_solution(problem, graph, max_path, placement, routing, quantities)
-    if checker.test_solution(p, r, q):
+    if checker.is_feasible(p, r, q):
         return p, r, q
     q = data.min_flows.tolist()
-    if checker.test_solution(p, r, q):
+    if checker.is_feasible(p, r, q):
         return p, r, q
     return None
 

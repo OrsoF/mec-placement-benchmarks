@@ -49,7 +49,7 @@ def is_feasible_state(
             path_cache.nth_shortest_path(data.origins[d], placement[k], routing[d])
         except (IndexError, nx.NetworkXException):
             return False
-    return solution_checker.test_solution(placement, routing, quantities)
+    return solution_checker.is_feasible(placement, routing, quantities)
 
 
 def state_to_variables(

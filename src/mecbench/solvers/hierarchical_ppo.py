@@ -83,9 +83,9 @@ class Solver(GenericSolver):
         )
 
         best_state = self.flow_env.best_state_record[0]
-        self.x_var, self.y_var, self.q_var = self.flow_env._state_to_variables(best_state)
-        self._set_output_variables(self.x_var, self.y_var, self.q_var)
+        solution = self.flow_env.solution_from_state(best_state)
+        self._set_solution(solution, path_resolver=self.flow_env.path_cache.nth_shortest_path)
         self.runtime = time.time() - start
-        self.score = float(sum(self.q_var))
+        self.score = float(solution.quantities.sum())
         self.build_time = 0.0
         return self

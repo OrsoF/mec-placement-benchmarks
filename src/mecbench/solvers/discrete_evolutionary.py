@@ -67,10 +67,11 @@ class Solver(GenericSolver):
             pop,
             key=lambda z: sum(z[2]),
         )
-        self.x_var, self.y_var, self.q_var = self.sol_ins.solution_to_arc_variables(
+        self._set_compact_solution(
             self.placement,
             self.routing,
             self.quantities,
+            path_resolver=self.sol_ins.compute_nth_shortest_path,
         )
         self.score = sum(self.quantities)
         self.runtime = time.time() - start
@@ -147,7 +148,7 @@ class Solver(GenericSolver):
             if inc:
                 q_new = q.copy()
                 q_new[d] += inc
-                if self.sol_ins.test_solution(placement, routing, q_new):
+                if self.sol_ins.is_feasible(placement, routing, q_new):
                     q = q_new
 
         return placement, routing, q

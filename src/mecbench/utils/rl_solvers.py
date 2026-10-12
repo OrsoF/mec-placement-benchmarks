@@ -82,9 +82,9 @@ class RLSolver(GenericSolver):
         self.model.learn(total_timesteps=self.train_step, progress_bar=False)
 
         best_state = self.env.best_state_record[0]
-        self.x_var, self.y_var, self.q_var = self.env._state_to_variables(best_state)
-        self._set_output_variables(self.x_var, self.y_var, self.q_var)
+        solution = self.env.solution_from_state(best_state)
+        self._set_solution(solution, path_resolver=self.env.path_cache.nth_shortest_path)
         self.runtime = time.time() - start_time
-        self.score = sum(self.q_var)
+        self.score = float(solution.quantities.sum())
         self.build_time = 0.0
         return self
