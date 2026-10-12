@@ -38,7 +38,8 @@ and are shared by validation, reporting and graph updates.
 
 `solvers/` is flat: each of the 21 registered solvers has one module defining
 its `Solver` class and its specific constructor options. Historical solver names
-and aliases accepted by `solve` are unchanged. A2C, PPO and the PPO reset variant
+remain accepted by `solve` and the CLI as aliases of the clearer canonical names.
+A2C, PPO and the PPO reset variant
 own their constructors; shared training lives in `utils.rl_solvers.RLSolver`.
 
 `utils.solver_workspace.SolverWorkspace` owns a mutable graph, candidate state,

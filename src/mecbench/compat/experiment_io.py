@@ -12,7 +12,8 @@ from mecbench.compat.pickle_io import pickle_load as pickle_load
 from mecbench.compat.pickle_io import pickle_save as pickle_save
 from mecbench.domain.problem import ProblemInstance
 from mecbench.utils.solver_base import GenericSolver
-from mecbench.utils.solver_registry import SOLVER_FILE_ALIASES, SOLVER_MODULES
+from mecbench.utils.solver_registry import SOLVER_FILE_ALIASES as SOLVER_FILE_ALIASES
+from mecbench.utils.solver_registry import SOLVER_MODULES, canonical_name
 
 ARTIFACTS_PATH = os.path.join(os.getcwd(), "artifacts")
 INSTANCES_PATH = os.path.join(ARTIFACTS_PATH, "instances")
@@ -98,9 +99,7 @@ def import_instance_from_file(instance_name: str) -> ProblemInstance:
 
 
 def import_solver_from_file(solver_name: str, instance: ProblemInstance) -> GenericSolver:
-    solver_name = SOLVER_FILE_ALIASES.get(solver_name, solver_name)
-    solver_name = solver_name[:-3] if solver_name.endswith(".py") else solver_name
-    assert solver_name in SOLVER_MODULES, f"Unknown solver: {solver_name}"
+    solver_name = canonical_name(solver_name.removesuffix(".py"))
     module = importlib.import_module(SOLVER_MODULES[solver_name])
     return module.Solver(instance)
 

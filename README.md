@@ -54,8 +54,8 @@ for solver options, optional installations, reproducibility and error handling.
 `artifacts/figures/`.
 
 ```bash
-mecbench --instance tree --solvers ilp_arc heuristic fast_heuristic cma ppo hrl --seed 42 --start-users 20 --stop-users 410 --step-users 10 --plots
-mecbench --instance star --solvers ilp_arc heuristic fast_heuristic cma ppo hrl --seed 42 --groups 4 --start-users 15 --stop-users 125 --step-users 5 --plots
+mecbench --instance tree --solvers ilp_arc heuristic fast_heuristic cma_es ppo hierarchical_ppo --seed 42 --start-users 20 --stop-users 410 --step-users 10 --plots
+mecbench --instance star --solvers ilp_arc heuristic fast_heuristic cma_es ppo hierarchical_ppo --seed 42 --groups 4 --start-users 15 --stop-users 125 --step-users 5 --plots
 ```
 
 `python -m mecbench` invokes the same CLI. Use `--instance tree` or `--instance star`
@@ -72,7 +72,7 @@ one wireless access point, and all groups share the cloud.
 Common options:
 
 - `--instance`: `tree` or `star`.
-- `--solvers`: registered names; common choices are `ilp_arc`, `heuristic`, `fast_heuristic`, `cma`, `ppo`, `hrl`. Use `--help` for all names.
+- `--solvers`: registered names; common choices are `ilp_arc`, `heuristic`, `fast_heuristic`, `cma_es`, `ppo`, `hierarchical_ppo`. Use `--help` for all names.
 - `--seed`: search seed, recorded in CSV (default 0).
 - `--neighbors`: local user-neighborhood parameter.
 - `--ilp-time-limit`: Gurobi time limit for `ilp_arc`.

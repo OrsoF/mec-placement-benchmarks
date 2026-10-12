@@ -42,16 +42,34 @@ to its `run` method. Unsupported keywords raise `TypeError`. Pass `seed` and
 `time_limit` directly: they take precedence over corresponding optimizer options.
 Time limits apply to mathematical solvers; heuristics reject this option rather
 than silently ignoring it. Historical names such as `PPO` and `HRL` remain aliases
-of the canonical lowercase names `ppo` and `hrl`.
+of the canonical lowercase names `ppo` and `hierarchical_ppo`.
+
+Solver names and compatibility:
+
+Solver names match their module filenames. Historical names remain accepted as
+aliases; `list_solvers()` and `SolveResult.solver` use the new canonical names:
+
+| Historical name | Canonical name |
+| --- | --- |
+| `ilp_arc_95_latency` | `ilp_arc_gap_5pct` |
+| `heuristicprecise` | `heuristic_unit_step` |
+| `discrete` | `discrete_evolutionary` |
+| `cma` | `cma_es` |
+| `hrl` | `hierarchical_ppo` |
+| `ppo_options` | `ppo_best_state_reset` |
+
+`ilp_arc_gap_5pct` defaults to `MIPGap=0.05`; it does not change latency constraints.
+`heuristic_unit_step` defaults to a quantity increment of one. These defaults
+remain configurable through the existing solver options.
 
 Optional installations:
 
 | Solver | Extra |
 | --- | --- |
-| `heuristic`, `heuristicprecise`, `fast_heuristic`, `discrete` | Base installation |
-| `cma` | `python -m pip install -e ".[evolutionary]"` |
+| `heuristic`, `heuristic_unit_step`, `fast_heuristic`, `discrete_evolutionary` | Base installation |
+| `cma_es` | `python -m pip install -e ".[evolutionary]"` |
 | `ilp_*`, `milp_*`, `lp_*` | `python -m pip install -e ".[exact]"`, plus Gurobi/license |
-| `a2c`, `ppo`, `ppo_options`, `hrl` | `python -m pip install -e ".[rl]"` |
+| `a2c`, `ppo`, `ppo_best_state_reset`, `hierarchical_ppo` | `python -m pip install -e ".[rl]"` |
 | `ilp_arc_rl_warmstart` | `python -m pip install -e ".[exact,rl]"`, plus Gurobi/license |
 
 `SolveResult` contains a copied `Solution` (or `None`), `objective`, `status`,
