@@ -5,7 +5,9 @@ import numpy as np
 
 from mecbench.domain.conversions import compact_to_arc, validate_compact_shapes
 from mecbench.domain.loads import residual_arrays
+from mecbench.domain.network import NetworkSnapshot
 from mecbench.domain.problem import ProblemInstance
+from mecbench.domain.problem_arrays import problem_arrays
 from mecbench.domain.solution import Solution
 from mecbench.domain.validation import validate_arc_solution
 from mecbench.utils.heuristic_solvers import basic_solution, remaining_quantity
@@ -17,7 +19,7 @@ def apply_residuals_to_graph(problem, graph: nx.Graph, x, y, q) -> nx.Graph:
     for u in graph.nodes:
         graph.nodes[u]["remaining_resources"] = residual["remaining_resources"][u]
 
-    for a, e in enumerate(problem.network_graph.arc_list):
+    for a, e in enumerate(problem_arrays(problem).arcs):
         if not graph.has_edge(*e):
             continue
         graph.edges[e]["remaining_capacity"] = residual["remaining_capacity"][a]
@@ -28,7 +30,10 @@ def apply_residuals_to_graph(problem, graph: nx.Graph, x, y, q) -> nx.Graph:
 class SolverWorkspace:
     def __init__(self, problem_instance: ProblemInstance, verbose: bool = True, *, seed: int = 0):
         self.problem_instance = problem_instance
-        self.graph = self.problem_instance.network_graph.nx_graph.copy()
+        self.data = problem_arrays(problem_instance)
+        self.graph = NetworkSnapshot.make_graph(
+            self.data, self.problem_instance.network_graph.nx_graph
+        )
         self.path_cache = ShortestPathCache(self.graph)
         self.saved_shortest_path = self.path_cache._paths
         self.rng = np.random.default_rng(seed)
@@ -46,7 +51,7 @@ class SolverWorkspace:
 
     def update_graph_attributes(self, graph, placement, routing, quantities) -> nx.Graph:
         x, y, q = self.solution_to_arc_variables(placement, routing, quantities)
-        return apply_residuals_to_graph(self.problem_instance, graph, x, y, q)
+        return apply_residuals_to_graph(self.data, graph, x, y, q)
 
     def validate_graph_attributes(self, graph, placement, routing, quantities) -> bool:
         return self.test_compact_solution(placement, routing, quantities)
@@ -55,7 +60,7 @@ class SolverWorkspace:
         return self.test_compact_solution(placement, routing, quantities)
 
     def basic_placement_and_routing(self) -> tuple:
-        return basic_solution(self.problem_instance, self.graph)
+        return basic_solution(self.data, self.graph)
 
     def render_solution(
         self,
@@ -89,8 +94,8 @@ class SolverWorkspace:
 
     def solution_to_arc_variables(self, placement, routing, quantities):
         return compact_to_arc(
-            self.problem_instance,
-            self.problem_instance.network_graph.nx_graph,
+            self.data,
+            self.graph,
             self.compute_nth_shortest_path,
             placement,
             routing,
@@ -99,7 +104,7 @@ class SolverWorkspace:
 
     def path_edge_indices(self, source: int, destination: int, index: int) -> np.ndarray:
         path = self.compute_nth_shortest_path(source, destination, index)
-        arc_index = self.problem_instance.network_graph.arc_index_dictionary
+        arc_index = self.data.arc_index
         return np.fromiter(
             (arc_index[(path[i], path[i + 1])] for i in range(len(path) - 1)),
             dtype=int,
@@ -107,54 +112,50 @@ class SolverWorkspace:
         )
 
     def compact_path_indices(self, placement, routing) -> list[np.ndarray]:
-        problem = self.problem_instance
         return [
             self.path_edge_indices(
-                problem.origins[d],
-                int(placement[problem.demand_to_service[d]]),
+                self.data.origins[d],
+                int(placement[self.data.demand_to_service[d]]),
                 int(routing[d]),
             )
-            for d in range(problem.total_number_of_demands)
+            for d in range(self.data.n_demands)
         ]
 
     def compact_loads(self, placement, routing, quantities):
-        problem = self.problem_instance
         paths = self.compact_path_indices(placement, routing)
         q = np.asarray(quantities, dtype=float)
-        edge_load = np.zeros(problem.network_graph.nx_graph.number_of_edges())
+        edge_load = np.zeros(self.data.n_arcs)
         for d, idx in enumerate(paths):
             edge_load[idx] += q[d]
 
         node_load = np.bincount(
             np.asarray(placement, dtype=int),
-            weights=np.asarray(problem.needed_resources, dtype=float),
-            minlength=problem.network_graph.nx_graph.number_of_nodes(),
+            weights=np.asarray(self.data.service_resources, dtype=float),
+            minlength=self.data.n_nodes,
         )
         return paths, edge_load, node_load
 
     def test_compact_solution(self, placement, routing, quantities) -> bool:
         try:
             x, y, q = self.solution_to_arc_variables(placement, routing, quantities)
-            validate_arc_solution(self.problem_instance, x, y, q)
+            validate_arc_solution(self.data, x, y, q)
         except (IndexError, ValueError, TypeError, KeyError, nx.NetworkXException):
             return False
         return True
 
     def _validate_solution_vectors(self, placement, routing, quantities) -> None:
-        validate_compact_shapes(self.problem_instance, self.graph, placement, routing, quantities)
+        validate_compact_shapes(self.data, self.graph, placement, routing, quantities)
 
     def get_latency_from_graph(self, path_edge: list) -> float:
         return sum(self.graph.edges[e]["latency"] for e in path_edge)
 
     def maximize_quantities(self, placement, routing, quantities, addten=True):
         assert self.test_solution(placement, routing, quantities)
-        step = (
-            10 * self.problem_instance.total_number_of_demands * self.problem_instance.max_flows[0]
-        )
+        step = 10 * self.data.n_demands * self.data.max_flows[0]
         q = list(quantities)
-        for _ in range(step):
+        for _ in range(int(step)):
             q_new = q.copy()
-            d = self.rng.integers(self.problem_instance.total_number_of_demands)
+            d = self.rng.integers(self.data.n_demands)
             q_new[d] += 10 if addten else 1
             if self.test_solution(placement, routing, q_new):
                 q = q_new
@@ -176,13 +177,11 @@ class SolverWorkspace:
 
     def set_variable_solution(self, x_variable, y_variable, q_variable):
         solution = Solution(x_variable, y_variable, q_variable)
-        validate_arc_solution(self.problem_instance, solution.x, solution.y, solution.q)
+        validate_arc_solution(self.data, solution.x, solution.y, solution.q)
         x_variable, y_variable, q_variable = solution.x, solution.y, solution.q
         self.current_arc_solution = (x_variable, y_variable, q_variable)
-        placement = [
-            int(np.argmax(y_variable[k])) for k in range(self.problem_instance.number_of_service)
-        ]
-        routing = [0] * self.problem_instance.total_number_of_demands
+        placement = [int(np.argmax(y_variable[k])) for k in range(self.data.n_services)]
+        routing = [0] * self.data.n_demands
         quantities = list(q_variable)
         self.current_solution = (placement, routing, quantities)
         self.graph = self.initialize_graph_attributes(self.graph)
@@ -192,13 +191,11 @@ class SolverWorkspace:
         return self.current_solution
 
     def update_graph_attributes_from_arc_variables(self, graph, x_variable, y_variable, q_variable):
-        return apply_residuals_to_graph(
-            self.problem_instance, graph, x_variable, y_variable, q_variable
-        )
+        return apply_residuals_to_graph(self.data, graph, x_variable, y_variable, q_variable)
 
     def _get_remaining_quantity_per_demand(self, placement, routing, quantities, demand_index):
         x, y, q = self.solution_to_arc_variables(placement, routing, quantities)
-        return remaining_quantity(self.problem_instance, x, y, q, demand_index)
+        return remaining_quantity(self.data, x, y, q, demand_index)
 
     def compute_nth_shortest_path(self, source: int, destination: int, index: int) -> list:
         return self.path_cache.nth_shortest_path(int(source), int(destination), int(index))

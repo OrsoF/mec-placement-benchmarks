@@ -4,17 +4,18 @@ import numpy as np
 from numpy.typing import ArrayLike
 
 from mecbench.domain.contracts import FloatArray, ProblemData
+from mecbench.domain.problem_arrays import ProblemArrays, problem_arrays
 
 
-def traffic_arrays(problem: ProblemData, x: ArrayLike, q: ArrayLike) -> dict[str, FloatArray]:
+def traffic_arrays(
+    problem: ProblemData | ProblemArrays, x: ArrayLike, q: ArrayLike
+) -> dict[str, FloatArray]:
     """Calculate each arc's total traffic and the resulting demand latencies."""
     routing = np.asarray(x, dtype=float)
     quantities = np.asarray(q, dtype=float)
-    network = problem.network_graph
+    data = problem_arrays(problem)
     edge_load = routing.T @ quantities
-    arc_latency = (
-        np.asarray(network.betas, dtype=float) + np.asarray(network.alphas, dtype=float) * edge_load
-    )
+    arc_latency = data.latency_offsets + data.latency_slopes * edge_load
     return {
         "edge_load": edge_load,
         "arc_latency": arc_latency,
@@ -23,13 +24,14 @@ def traffic_arrays(problem: ProblemData, x: ArrayLike, q: ArrayLike) -> dict[str
 
 
 def residual_arrays(
-    problem: ProblemData, x: ArrayLike, y: ArrayLike, q: ArrayLike
+    problem: ProblemData | ProblemArrays, x: ArrayLike, y: ArrayLike, q: ArrayLike
 ) -> dict[str, FloatArray]:
-    traffic = traffic_arrays(problem, x, q)
+    data = problem_arrays(problem)
+    traffic = traffic_arrays(data, x, q)
     y = np.asarray(y, dtype=float)
-    node_load = y.T @ np.asarray(problem.needed_resources, dtype=float)
-    capacities = np.asarray(problem.network_graph.capacities, dtype=float)
-    resources = np.asarray(problem.network_graph.available_resources, dtype=float)
+    node_load = y.T @ data.service_resources
+    capacities = data.arc_capacities
+    resources = data.node_resources
     return {
         **traffic,
         "node_load": node_load,

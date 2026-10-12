@@ -27,23 +27,7 @@ class Solver(GenericSolver):
         self.seed = seed
 
         self.solving_instance = SolvingInstance(problem_instance)
-        self.g = problem_instance.network_graph.nx_graph
-        self.n = self.g.number_of_nodes()
-        self.m = self.g.number_of_edges()
-        self.S = problem_instance.number_of_service
-        self.D = problem_instance.total_number_of_demands
 
-        self.service = np.asarray(problem_instance.demand_to_service, dtype=int)
-        self.orig = np.asarray(problem_instance.origins, dtype=int)
-        self.qmin = np.asarray(problem_instance.min_flows, dtype=float)
-        self.qmax = np.asarray(problem_instance.max_flows, dtype=float)
-        self.lat = np.asarray(problem_instance.latencies, dtype=float)
-        self.res = np.asarray(problem_instance.needed_resources, dtype=float)
-        self.node_cap = np.asarray(problem_instance.network_graph.available_resources, dtype=float)
-        self.edge_cap = np.asarray(problem_instance.network_graph.capacities, dtype=float)
-        self.alpha = np.asarray(problem_instance.network_graph.alphas, dtype=float)
-        self.beta = np.asarray(problem_instance.network_graph.betas, dtype=float)
-        self.arc_index = problem_instance.network_graph.arc_index_dictionary
         self._path_cache = {}
         self._dist = None
         self._service_nodes = None
@@ -51,16 +35,16 @@ class Solver(GenericSolver):
     def run(self):
         start = time.time()
         self.rng = np.random.default_rng(self.seed)
-        self._dist = dict(nx.all_pairs_shortest_path_length(nx.Graph(self.g)))
+        self._dist = dict(nx.all_pairs_shortest_path_length(nx.Graph(self.graph)))
         self._service_nodes = self._candidate_nodes()
 
         p = self._initial_placement()
-        r = np.zeros(self.D, dtype=int)
-        q = self._lift(p, r, self.qmin.copy())
+        r = np.zeros(self.data.n_demands, dtype=int)
+        q = self._lift(p, r, self.data.min_flows.copy())
         best = (p.copy(), r.copy(), q.copy())
         current = best
         best_score = float(q.sum())
-        upper = float(self.qmax.sum())
+        upper = float(self.data.max_flows.sum())
         no_progress = 0
         self.visited_objectives = [best_score]
 
@@ -98,33 +82,39 @@ class Solver(GenericSolver):
         return self
 
     def _candidate_nodes(self) -> list[np.ndarray]:
-        top = np.argsort(-self.node_cap)[: self.candidate_nodes]
+        top = np.argsort(-self.data.node_resources)[: self.candidate_nodes]
         nodes = []
-        for s in range(self.S):
-            d = np.flatnonzero(self.service == s)
-            origins = np.unique(self.orig[d])
-            score = np.zeros(self.n)
+        for s in range(self.data.n_services):
+            d = np.flatnonzero(self.data.demand_to_service == s)
+            origins = np.unique(self.data.origins[d])
+            score = np.zeros(self.data.n_nodes)
             for u in origins:
                 du = self._dist[int(u)]
-                score += np.fromiter((du.get(v, self.n) for v in range(self.n)), float, self.n)
+                score += np.fromiter(
+                    (du.get(v, self.data.n_nodes) for v in range(self.data.n_nodes)),
+                    float,
+                    self.data.n_nodes,
+                )
             close = np.argsort(score)[: self.candidate_nodes]
             cand = np.unique(np.concatenate((origins, top, close)))
-            cand = cand[self.node_cap[cand] >= self.res[s]]
+            cand = cand[self.data.node_resources[cand] >= self.data.service_resources[s]]
             nodes.append(cand.astype(int))
         return nodes
 
     def _initial_placement(self) -> np.ndarray:
-        p = np.empty(self.S, dtype=int)
-        rem = self.node_cap.copy()
-        order = np.argsort(-self.res)
+        p = np.empty(self.data.n_services, dtype=int)
+        rem = self.data.node_resources.copy()
+        order = np.argsort(-self.data.service_resources)
         for s in order:
-            d = np.flatnonzero(self.service == s)
+            d = np.flatnonzero(self.data.demand_to_service == s)
             best, best_score = None, np.inf
             for v in self._service_nodes[s]:
-                if rem[v] < self.res[s]:
+                if rem[v] < self.data.service_resources[s]:
                     continue
                 dist = sum(
-                    self.qmax[j] * self._dist[int(self.orig[j])].get(int(v), self.n) for j in d
+                    self.data.max_flows[j]
+                    * self._dist[int(self.data.origins[j])].get(int(v), self.data.n_nodes)
+                    for j in d
                 )
                 score = dist - 1e-6 * rem[v]
                 if score < best_score:
@@ -132,7 +122,7 @@ class Solver(GenericSolver):
             if best is None:
                 best = int(np.argmax(rem))
             p[s] = best
-            rem[best] -= self.res[s]
+            rem[best] -= self.data.service_resources[s]
         return p
 
     def _path(self, source: int, dest: int, k: int):
@@ -142,7 +132,7 @@ class Solver(GenericSolver):
 
         path = self.solving_instance.compute_nth_shortest_path(source, dest, k)
         idx = np.fromiter(
-            (self.arc_index[(path[i], path[i + 1])] for i in range(len(path) - 1)),
+            (self.data.arc_index[(path[i], path[i + 1])] for i in range(len(path) - 1)),
             dtype=int,
             count=max(0, len(path) - 1),
         )
@@ -151,45 +141,51 @@ class Solver(GenericSolver):
 
     def _paths(self, p, r):
         paths = []
-        for d in range(self.D):
-            paths.append(self._path(self.orig[d], p[self.service[d]], r[d]))
+        for d in range(self.data.n_demands):
+            paths.append(self._path(self.data.origins[d], p[self.data.demand_to_service[d]], r[d]))
         return paths
 
     def _loads(self, p, r, q):
         paths = self._paths(p, r)
-        edge_load = np.zeros(self.m)
+        edge_load = np.zeros(self.data.n_arcs)
         for d, idx in enumerate(paths):
             edge_load[idx] += q[d]
-        node_load = np.bincount(p, weights=self.res, minlength=self.n)
+        node_load = np.bincount(p, weights=self.data.service_resources, minlength=self.data.n_nodes)
         return paths, edge_load, node_load
 
     def _feasible(self, p, r, q) -> bool:
         return self.solving_instance.test_compact_solution(p, r, q)
 
     def _lift(self, p, r, q):
-        q = np.minimum(np.maximum(q, self.qmin), self.qmax).astype(float)
+        q = np.minimum(np.maximum(q, self.data.min_flows), self.data.max_flows).astype(float)
         if not self._feasible(p, r, q):
-            q = self.qmin.copy()
+            q = self.data.min_flows.copy()
             if not self._feasible(p, r, q):
                 return q
 
         paths = self._paths(p, r)
-        incidence = np.zeros((self.D, self.m))
+        incidence = np.zeros((self.data.n_demands, self.data.n_arcs))
         for d, idx in enumerate(paths):
             incidence[d, idx] = 1
         # Entry (i, d) is the latency increase for demand i when q[d]
         # increases by one, including every arc shared by the two routes.
-        latency_sensitivity = (incidence * self.alpha) @ incidence.T
+        latency_sensitivity = (incidence * self.data.latency_slopes) @ incidence.T
 
         while True:
             paths, edge_load, _ = self._loads(p, r, q)
-            latency_slack = self.lat - incidence @ (self.beta + self.alpha * edge_load)
-            room = np.zeros(self.D)
+            latency_slack = self.data.latency_limits - incidence @ (
+                self.data.latency_offsets + self.data.latency_slopes * edge_load
+            )
+            room = np.zeros(self.data.n_demands)
             for d, idx in enumerate(paths):
-                flow_room = self.qmax[d] - q[d]
+                flow_room = self.data.max_flows[d] - q[d]
                 if flow_room <= 0:
                     continue
-                cap_room = np.inf if len(idx) == 0 else np.min(self.edge_cap[idx] - edge_load[idx])
+                cap_room = (
+                    np.inf
+                    if len(idx) == 0
+                    else np.min(self.data.arc_capacities[idx] - edge_load[idx])
+                )
                 affected = latency_sensitivity[:, d] > 0
                 lat_room = (
                     np.min(latency_slack[affected] / latency_sensitivity[affected, d])
@@ -213,7 +209,7 @@ class Solver(GenericSolver):
         r = np.clip(np.asarray(r, dtype=int), 0, self.limit_shortest_path - 1)
         q = np.asarray(q, dtype=float).copy()
         if not self._feasible(p, r, q):
-            q = self.qmin.copy()
+            q = self.data.min_flows.copy()
         if not self._feasible(p, r, q):
             return None
         return p, r, self._lift(p, r, q)
@@ -221,7 +217,7 @@ class Solver(GenericSolver):
     def _best_neighbor(self, p, r, q):
         best_score = float(q.sum())
 
-        for s in self.rng.permutation(self.S)[: min(self.S, 8)]:
+        for s in self.rng.permutation(self.data.n_services)[: min(self.data.n_services, 8)]:
             old = p[s]
             nodes = self.rng.permutation(self._service_nodes[s])[
                 : min(len(self._service_nodes[s]), 6)
@@ -231,14 +227,14 @@ class Solver(GenericSolver):
                     continue
                 pp = p.copy()
                 pp[s] = v
-                cand = self._repair_lift(pp, r, self.qmin)
+                cand = self._repair_lift(pp, r, self.data.min_flows)
                 if cand is None:
                     continue
                 score = float(cand[2].sum())
                 if score > best_score:
                     return cand
 
-        for d in self.rng.permutation(self.D)[: min(self.D, 16)]:
+        for d in self.rng.permutation(self.data.n_demands)[: min(self.data.n_demands, 16)]:
             old = r[d]
             for k in range(self.limit_shortest_path):
                 if k == old:
@@ -247,7 +243,7 @@ class Solver(GenericSolver):
                 rr[d] = k
                 cand = self._repair_lift(p, rr, q)
                 if cand is None:
-                    cand = self._repair_lift(p, rr, self.qmin)
+                    cand = self._repair_lift(p, rr, self.data.min_flows)
                 if cand is None:
                     continue
                 score = float(cand[2].sum())
@@ -259,15 +255,15 @@ class Solver(GenericSolver):
     def _perturb(self, p, r, q):
         pp, rr = p.copy(), r.copy()
         if self.rng.random() < 0.5:
-            s = int(self.rng.integers(self.S))
+            s = int(self.rng.integers(self.data.n_services))
             cand = self._service_nodes[s]
             if len(cand):
                 pp[s] = int(self.rng.choice(cand))
         else:
-            d = int(self.rng.integers(self.D))
+            d = int(self.rng.integers(self.data.n_demands))
             rr[d] = int(self.rng.integers(self.limit_shortest_path))
 
-        cand = self._repair_lift(pp, rr, self.qmin)
+        cand = self._repair_lift(pp, rr, self.data.min_flows)
         if cand is None:
             return p.copy(), r.copy(), q.copy()
         return cand

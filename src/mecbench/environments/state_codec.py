@@ -5,6 +5,7 @@ from mecbench.domain.conversions import compact_to_arc, split_state, to_int_arra
 from mecbench.domain.conversions import make_state as make_state
 from mecbench.domain.network import NetworkGraph
 from mecbench.domain.problem import ProblemInstance
+from mecbench.domain.problem_arrays import problem_arrays
 from mecbench.utils.heuristic_solvers import basic_state, clip_state
 from mecbench.utils.solver_paths import ShortestPathCache
 from mecbench.utils.solver_workspace import SolvingInstance
@@ -40,11 +41,12 @@ def is_feasible_state(
     path_cache: ShortestPathCache,
     s: np.ndarray | list,
 ) -> bool:
+    data = problem_arrays(problem)
     placement, routing, quantities = split_state(problem, to_int_array(s))
-    for d in range(problem.total_number_of_demands):
-        k = problem.demand_to_service[d]
+    for d in range(data.n_demands):
+        k = data.demand_to_service[d]
         try:
-            path_cache.nth_shortest_path(problem.origins[d], placement[k], routing[d])
+            path_cache.nth_shortest_path(data.origins[d], placement[k], routing[d])
         except (IndexError, nx.NetworkXException):
             return False
     return solution_checker.test_solution(placement, routing, quantities)

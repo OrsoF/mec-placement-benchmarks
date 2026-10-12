@@ -22,7 +22,6 @@ class Solver(GenericSolver):
         verbose: bool = False,
     ):
         super().__init__(problem_instance)
-        self.nx_graph = self.problem_instance.network_graph.nx_graph
         if max_pcc < 1:
             raise ValueError("max_pcc must be positive.")
         self.max_pcc = max_pcc
@@ -99,22 +98,22 @@ class Solver(GenericSolver):
                 self.best_solution = (placement, routing, quantities)
             return -score
 
-        flow_cap = sum(self.problem_instance.max_flows) + 1.0
+        flow_cap = sum(self.data.max_flows) + 1.0
         return (
             flow_cap + self.violation(placement, routing, quantities) - sum(quantities) / flow_cap
         )
 
     def decode(self, value: np.ndarray) -> tuple[list[int], list[int], list[int]]:
-        S = self.problem_instance.number_of_service
-        D = self.problem_instance.total_number_of_demands
+        S = self.data.n_services
+        D = self.data.n_demands
         z = np.rint(value).astype(int)
 
-        placement = np.clip(z[:S], 0, self.nx_graph.number_of_nodes() - 1)
+        placement = np.clip(z[:S], 0, self.graph.number_of_nodes() - 1)
         routing = np.clip(z[S : S + D], 0, self.max_pcc - 1)
         quantities = np.clip(
             z[-D:],
-            self.problem_instance.min_flows,
-            self.problem_instance.max_flows,
+            self.data.min_flows,
+            self.data.max_flows,
         )
         return placement.tolist(), routing.tolist(), quantities.tolist()
 
@@ -134,20 +133,20 @@ class Solver(GenericSolver):
                 quantities,
             )
         except (IndexError, KeyError, ValueError):
-            return sum(self.problem_instance.max_flows) + 1.0
+            return sum(self.data.max_flows) + 1.0
 
         capacity = sum(max(0.0, -graph.edges[e]["remaining_capacity"]) for e in graph.edges)
         resources = sum(max(0.0, -graph.nodes[v]["remaining_resources"]) for v in graph.nodes)
         latency = 0.0
         for d in range(len(quantities)):
-            service = self.problem_instance.demand_to_service[d]
+            service = self.data.demand_to_service[d]
             path = self.sol_ins.compute_nth_shortest_path(
-                self.problem_instance.origins[d],
+                self.data.origins[d],
                 placement[service],
                 routing[d],
             )
             delay = sum(graph.edges[e]["latency"] for e in path_node_to_path_tuple(path))
-            latency += max(0.0, delay - self.problem_instance.latencies[d])
+            latency += max(0.0, delay - self.data.latency_limits[d])
 
         return capacity + resources + latency
 
@@ -168,9 +167,9 @@ class Solver(GenericSolver):
         return np.asarray(placement + routing + quantities, dtype=float)
 
     def _bounds(self) -> list[list[float]]:
-        S = self.problem_instance.number_of_service
-        D = self.problem_instance.total_number_of_demands
-        n = self.nx_graph.number_of_nodes()
-        lower = [0] * S + [0] * D + list(self.problem_instance.min_flows)
-        upper = [n - 1] * S + [self.max_pcc - 1] * D + list(self.problem_instance.max_flows)
+        S = self.data.n_services
+        D = self.data.n_demands
+        n = self.graph.number_of_nodes()
+        lower = [0] * S + [0] * D + list(self.data.min_flows)
+        upper = [n - 1] * S + [self.max_pcc - 1] * D + list(self.data.max_flows)
         return [lower, upper]

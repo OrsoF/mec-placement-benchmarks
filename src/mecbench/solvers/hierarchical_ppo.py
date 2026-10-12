@@ -26,8 +26,8 @@ class Solver(GenericSolver):
         self.max_path_candidates = max_path_candidates
         self.quantity_increment = quantity_increment
 
-        S = problem.number_of_service
-        D = problem.total_number_of_demands
+        S = self.data.n_services
+        D = self.data.n_demands
         self.max_step = max_step or 500 + 4 * (S + D)
         self.placement_routing_train_step = placement_routing_train_step or 5000 + 20 * (S + D)
         self.flow_train_step = flow_train_step or 3000 + 20 * D

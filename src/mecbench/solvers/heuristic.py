@@ -31,7 +31,6 @@ class Solver(GenericSolver):
         if max_iter is not None and max_iter < 1:
             raise ValueError("max_iter must be positive.")
 
-        self.nx_graph = self.problem_instance.network_graph.nx_graph
         self.limit_shortest_path = limit_shortest_path
         self.quantity_increment = quantity_increment
         self.seed = seed
@@ -87,16 +86,16 @@ class Solver(GenericSolver):
         quantities: list[int],
     ) -> tuple[list[int], list[int], list[int]]:
         p, r, q = placement.copy(), routing.copy(), quantities.copy()
-        S = self.problem_instance.number_of_service
-        D = self.problem_instance.total_number_of_demands
+        S = self.data.n_services
+        D = self.data.n_demands
 
         op = self.rng.integers(3)
         if op == 0:
-            p[self.rng.integers(S)] = self.rng.integers(self.nx_graph.number_of_nodes())
-            q = list(self.problem_instance.min_flows)
+            p[self.rng.integers(S)] = self.rng.integers(self.graph.number_of_nodes())
+            q = list(self.data.min_flows)
         elif op == 1:
             r[self.rng.integers(D)] = self.rng.integers(self.limit_shortest_path)
-            q = list(self.problem_instance.min_flows)
+            q = list(self.data.min_flows)
         else:
             d = self.rng.integers(D)
             q[d] += self.rng.choice((-self.quantity_increment, self.quantity_increment))
@@ -111,7 +110,7 @@ class Solver(GenericSolver):
     ) -> tuple[list[int], list[int], list[int]] | None:
         repaired = repair_solution(
             self.problem_instance,
-            self.nx_graph,
+            self.graph,
             self.solving_instance,
             self.limit_shortest_path,
             placement,
@@ -128,8 +127,8 @@ class Solver(GenericSolver):
         routing: list[int],
         quantities: list[int],
     ) -> tuple[list[int], list[int], list[int]]:
-        D = self.problem_instance.total_number_of_demands
-        max_steps = D * max(1, max(self.problem_instance.max_flows))
+        D = self.data.n_demands
+        max_steps = int(D * max(1, max(self.data.max_flows)))
         return greedy_quantity_lift(
             self.problem_instance,
             self.solving_instance,
@@ -149,7 +148,7 @@ class Solver(GenericSolver):
     ) -> tuple[list[int], list[int], list[int]]:
         return clip_solution(
             self.problem_instance,
-            self.nx_graph,
+            self.graph,
             self.limit_shortest_path,
             placement,
             routing,

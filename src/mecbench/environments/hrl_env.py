@@ -28,23 +28,26 @@ class PlacementRoutingEnv(SPPEnv):
         self.action_space = MultiDiscrete(
             [
                 2,
-                self.problem_instance.number_of_service,
+                self.data.n_services,
                 self.graph.number_of_nodes(),
-                self.problem_instance.total_number_of_demands,
+                self.data.n_demands,
                 self.max_path_candidates,
             ]
         )
 
     def _make_initial_state(self) -> np.ndarray:
         p, r, _ = split_state(self.problem_instance, super()._make_initial_state())
-        return make_state(p, r, self.problem_instance.min_flows)
+        return make_state(p, r, self.data.min_flows)
 
     def _score_pr_state(self, s) -> float:
         steps = self.score_rollouts
         if steps is None:
-            steps = self.problem_instance.total_number_of_demands * max(
-                1,
-                max(self.problem_instance.max_flows),
+            steps = int(
+                self.data.n_demands
+                * max(
+                    1,
+                    max(self.data.max_flows),
+                )
             )
         return placement_routing_score(
             self.problem_instance,
@@ -96,7 +99,7 @@ class FlowSetupEnv(SPPEnv):
         super()._configure_spaces()
         self.action_space = MultiDiscrete(
             [
-                self.problem_instance.total_number_of_demands,
+                self.data.n_demands,
                 3,
             ]
         )
@@ -106,7 +109,7 @@ class FlowSetupEnv(SPPEnv):
             p, r, _ = split_state(self.problem_instance, super()._make_initial_state())
         else:
             p, r, _ = split_state(self.problem_instance, self.fixed_state)
-        return make_state(p, r, self.problem_instance.min_flows)
+        return make_state(p, r, self.data.min_flows)
 
     def reset(self, *args, **kwargs):
         obs, info = super().reset(*args, **kwargs)

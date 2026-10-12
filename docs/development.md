@@ -56,7 +56,7 @@ this active-code scope. To apply formatting locally, use `python -m ruff format
 src tests examples`. Tool versions are pinned in the `dev` extra for repeatable CI.
 
 Typing is strict within the explicit `tool.mypy.files` list in `pyproject.toml`:
-the public API and errors, solution, load and validation contracts, solver base and
+the public API and errors, immutable problem arrays, solution, load and validation contracts, solver base and
 registry, mathematical helpers, heuristic helpers, and legacy state adapter.
 `domain.contracts` and `utils.solver_base` define typed array aliases and
 protocols for these boundaries. Other algorithm and environment modules remain
@@ -76,6 +76,9 @@ metrics and termination information. Register the flat module in
 `utils.solver_registry`, explicitly declaring its optional extra and whether
 it is mathematical. Shared logic belongs in the appropriate `utils/` module.
 Keep mutable candidate state in a `SolverWorkspace`; treat input problems as
-shared data. Convert indexed optimizer outputs with the extraction helpers.
+shared data. Read numerical inputs from `self.data` rather than copying problem
+attributes into the solver. Copy vectors only when creating mutable candidates;
+`problem.with_data(...)` creates an independent problem variant. Convert indexed
+optimizer outputs with the extraction helpers.
 The public facade copies outputs into `Solution`, validates them, and recomputes
 the objective. Constructor contract tests cover every registered backend.

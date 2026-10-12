@@ -1,6 +1,7 @@
 import numpy as np
 
 from mecbench.domain.conversions import split_state
+from mecbench.domain.problem_arrays import problem_arrays
 
 
 def served_quantity(problem, s) -> float:
@@ -8,19 +9,20 @@ def served_quantity(problem, s) -> float:
 
 
 def placement_routing_score(problem, checker, rng, s, steps: int, increment: int) -> float:
+    data = problem_arrays(problem)
     p, r, q = split_state(problem, s)
     p = p.astype(int).tolist()
     r = r.astype(int).tolist()
-    q = list(problem.min_flows)
+    q = list(data.min_flows)
     if not checker.test_solution(p, r, q):
         return -1.0
 
-    D = problem.total_number_of_demands
-    for _ in range(steps):
+    D = data.n_demands
+    for _ in range(int(steps)):
         d = int(rng.integers(D))
-        if q[d] >= problem.max_flows[d]:
+        if q[d] >= data.max_flows[d]:
             continue
-        dq = min(increment, problem.max_flows[d] - q[d])
+        dq = min(increment, data.max_flows[d] - q[d])
         q[d] += dq
         if not checker.test_solution(p, r, q):
             q[d] -= dq

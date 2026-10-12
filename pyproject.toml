@@ -52,6 +52,7 @@ mypy_path = "src"
 files = [
   "src/mecbench/api.py", "src/mecbench/errors.py",
   "src/mecbench/domain/contracts.py", "src/mecbench/domain/solution.py", "src/mecbench/domain/validation.py", "src/mecbench/domain/loads.py",
+  "src/mecbench/domain/problem_arrays.py",
   "src/mecbench/utils/solver_base.py", "src/mecbench/utils/solver_registry.py",
   "src/mecbench/utils/ilp_solvers.py", "src/mecbench/utils/heuristic_solvers.py",
   "src/mecbench/compat/problem_state.py",

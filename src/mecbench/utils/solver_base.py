@@ -4,11 +4,14 @@ import time
 from collections.abc import Callable
 from typing import Protocol
 
+import networkx as nx
 import numpy as np
 from numpy.typing import ArrayLike
 
 from mecbench.domain.contracts import FloatArray
+from mecbench.domain.network import NetworkSnapshot
 from mecbench.domain.problem import ProblemInstance
+from mecbench.domain.problem_arrays import problem_arrays
 
 
 class SolverBackend(Protocol):
@@ -36,6 +39,13 @@ class GenericSolver:
 
     def __init__(self, problem_instance: ProblemInstance) -> None:
         self.problem_instance = problem_instance
+        self.data = problem_arrays(problem_instance)
+        network = problem_instance.network_graph
+        self._graph = (
+            network.nx_graph
+            if getattr(network, "data", None) is self.data
+            else NetworkSnapshot.from_data(self.data, network.nx_graph).nx_graph
+        )
         self.solver_name = "generic_solver"
 
         self.x_var: FloatArray | None = None
@@ -46,6 +56,10 @@ class GenericSolver:
         self.runtime: float | None = None
         self.build_time: float = 0.0
         self.termination_condition: str | None = None
+
+    @property
+    def graph(self) -> nx.DiGraph:
+        return self._graph
 
     def _set_output_variables(self, x_var: ArrayLike, y_var: ArrayLike, q_var: ArrayLike) -> None:
         self.x_var = np.asarray(x_var, dtype=float)

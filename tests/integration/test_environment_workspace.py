@@ -74,10 +74,7 @@ def test_reset_on_another_instance_rebuilds_an_isolated_workspace():
     from mecbench.environments.spp_env import SPPEnv
 
     first_problem = make_tree_instance(2, neighbors=0)
-    second_problem = make_tree_instance(2, neighbors=0)
-    second_problem.network_graph.capacities = [20] * len(second_problem.network_graph.arc_list)
-    for arc in second_problem.network_graph.nx_graph.edges:
-        second_problem.network_graph.nx_graph.edges[arc]["capacity"] = 20
+    second_problem = first_problem.with_data(arc_capacities=[20] * first_problem.data.n_arcs)
     first_graph = copy.deepcopy(first_problem.network_graph.nx_graph)
     second_graph = copy.deepcopy(second_problem.network_graph.nx_graph)
     env = SPPEnv([first_problem, second_problem], warm_start_heuristic=False)

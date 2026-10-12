@@ -8,6 +8,7 @@ import numpy as np
 
 from mecbench.domain.loads import residual_arrays, traffic_arrays
 from mecbench.domain.problem import ProblemInstance
+from mecbench.domain.problem_arrays import problem_arrays
 
 ORIGIN_COLOR = "tab:red"
 SERVER_COLOR = "tab:blue"
@@ -35,6 +36,7 @@ def plot_instance_solution(
     """Plot any problem instance from canonical `(x, y, q)` variables."""
     x, y, q = _resolve_solution(problem_instance, x=x, y=y, q=q)
     graph = problem_instance.network_graph.nx_graph
+    data = problem_arrays(problem_instance)
     pos = _make_layout(graph, problem_instance, layout)
 
     if ax is None:
@@ -45,10 +47,11 @@ def plot_instance_solution(
     node_colors = _node_colors(problem_instance, y)
     node_sizes = _node_sizes(graph, y)
     loads = residual_arrays(problem_instance, x, y, q)
-    edge_widths = _edge_widths(loads["edge_load"])
+    edge_indices = [data.arc_index[edge] for edge in graph.edges]
+    capacity_usage = loads["edge_load"][edge_indices]
+    edge_widths = _edge_widths(capacity_usage)
     edge_colors = [USED_EDGE_COLOR if width > 0.5 else UNUSED_EDGE_COLOR for width in edge_widths]
     resource_usage = loads["node_load"]
-    capacity_usage = loads["edge_load"]
 
     ax.axis("off")
     nx.draw_networkx_edges(
@@ -228,11 +231,11 @@ def _solution_summary(
     q: np.ndarray,
 ) -> str:
     lines = ["solution"]
-    latencies = traffic_arrays(problem_instance, x, q)["demand_latency"]
-    demand_index = 0
-    for service_index, demand_count in enumerate(problem_instance.demand_per_service):
+    data = problem_arrays(problem_instance)
+    latencies = traffic_arrays(data, x, q)["demand_latency"]
+    for service_index in range(data.n_services):
         lines.append(f"S{service_index}")
-        for _ in range(demand_count):
+        for demand_index in np.flatnonzero(data.demand_to_service == service_index):
             latency = latencies[demand_index]
             max_latency = problem_instance.latencies[demand_index]
             max_quantity = problem_instance.max_flows[demand_index]
@@ -242,7 +245,6 @@ def _solution_summary(
                 f" d{demand_index}: L {latency:g}/{max_latency:g} "
                 f"q {quantity:g}/{max_quantity:g} ({ratio:.0%})"
             )
-            demand_index += 1
 
     return "\n".join(lines)
 

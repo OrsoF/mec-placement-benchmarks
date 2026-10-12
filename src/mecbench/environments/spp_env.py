@@ -113,6 +113,7 @@ class SPPEnv(gym.Env):
     def _load_problem_instance(self, problem_instance: ProblemInstance) -> None:
         """Load problem-specific objects without rebuilding environment config."""
         self.problem_instance = problem_instance
+        self.data = problem_instance.data
         self.network_graph = self.problem_instance.network_graph
         self.solution_checker = SolverWorkspace(self.problem_instance)
         self.graph = self.solution_checker.graph

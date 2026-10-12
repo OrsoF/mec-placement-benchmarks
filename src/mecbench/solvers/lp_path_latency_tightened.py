@@ -6,7 +6,6 @@ import numpy as np
 import pyomo.environ as pyo
 
 from mecbench.domain.problem import ProblemInstance
-from mecbench.domain.services import Service
 from mecbench.utils.ilp_solvers import path_model_arrays
 from mecbench.utils.solver_base import GenericSolver
 
@@ -19,45 +18,23 @@ class Solver(GenericSolver):
         eps: float = 0.0001,
     ):
         super().__init__(problem_instance)
-        self.services: list[Service] = self.problem_instance.service_package.services
-        self.G: nx.DiGraph = self.problem_instance.network_graph.nx_graph
         self.limit = maximum_path_number
         self.solver_name = "LP_path_strong_latency"
         self.eps = eps
 
     def _model_parameters(self):
-        self.S = len(self.services)
-        self.number_of_tasks_per_service = [service.task_number for service in self.services]
-        self.D = sum(self.number_of_tasks_per_service)
-        self.E = self.G.number_of_nodes()
-        self.A = self.G.number_of_edges()
-        self.arc_dic = {elem: i for i, elem in enumerate(self.G.edges)}
-        self.arc_list = list(self.G.edges)
-        self.origins = [origin for service in self.services for origin in service.origin_nodes]
-        self.minimum_flows = [
-            min_flow for service in self.services for min_flow in service.min_flows
-        ]
-        self.maximum_flows = [
-            max_flow for service in self.services for max_flow in service.max_flows
-        ]
-        self.latencies = [latency for service in self.services for latency in service.max_latencies]
-        self.resources = [
-            service.needed_resources for service in self.services for _ in service.task_list
-        ]
-        self.alpha = [self.G.edges[edge]["alpha"] for edge in self.G.edges]
-        self.beta = [self.G.edges[edge]["beta"] for edge in self.G.edges]
         self.shortest_paths = [
             [
                 elem
-                for target in self.G.nodes
+                for target in self.graph.nodes
                 for elem in islice(
                     nx.algorithms.simple_paths.shortest_simple_paths(
-                        self.G, self.origins[d], target
+                        self.graph, self.data.origins[d], target
                     ),
                     self.limit,
                 )
             ]
-            for d in range(self.D)
+            for d in range(self.data.n_demands)
         ]
         self.all_shortest_paths = [elem for path_list in self.shortest_paths for elem in path_list]
         self.C = sum(len(path) for path in self.shortest_paths)
@@ -65,22 +42,22 @@ class Solver(GenericSolver):
             i for i, path_list in enumerate(self.shortest_paths) for _ in path_list
         ]
         self.D_path = [i for i, path_list in enumerate(self.shortest_paths) for _ in path_list]
-        self.m = max(self.maximum_flows)
-        self.n = max(self.latencies)
+        self.m = max(self.data.max_flows)
+        self.n = max(self.data.latency_limits)
 
         self.shortest_paths = [
             [
                 list(
                     islice(
                         nx.algorithms.simple_paths.shortest_simple_paths(
-                            self.G, self.origins[d], target
+                            self.graph, self.data.origins[d], target
                         ),
                         self.limit,
                     )
                 )
-                for target in self.G.nodes
+                for target in self.graph.nodes
             ]
-            for d in range(self.D)
+            for d in range(self.data.n_demands)
         ]
         self.paths = [path[0] for l_path in self.shortest_paths for path in l_path]
         self.P = len(self.paths)
@@ -93,15 +70,17 @@ class Solver(GenericSolver):
             for i in range(1, len(self.shortest_paths) + 1)
         ]
 
-        self.maximum_required_flow = max(self.maximum_flows)
-        self.maximum_possible_latency = max(self.alpha) * sum(self.maximum_flows) + max(self.beta)
+        self.maximum_required_flow = max(self.data.max_flows)
+        self.maximum_possible_latency = max(self.data.latency_slopes) * sum(
+            self.data.max_flows
+        ) + max(self.data.latency_offsets)
 
     def path_to_demand(self, p):
         return self.p_to_d[p]
 
     def delta(self, c, a):
         return int(
-            self.arc_list[a]
+            self.data.arcs[a]
             in [(self.paths[c][i], self.paths[c][i + 1]) for i in range(len(self.paths[c]) - 1)]
         )
 
@@ -109,11 +88,11 @@ class Solver(GenericSolver):
         self.model = pyo.ConcreteModel()
 
     def _set_creation(self):
-        self.model.A = pyo.Set(initialize=range(self.A))
+        self.model.A = pyo.Set(initialize=range(self.data.n_arcs))
         self.model.P = pyo.Set(initialize=range(self.P))
-        self.model.E = pyo.Set(initialize=range(self.E))
-        self.model.S = pyo.Set(initialize=range(self.S))
-        self.model.D = pyo.Set(initialize=range(self.D))
+        self.model.E = pyo.Set(initialize=range(self.data.n_nodes))
+        self.model.S = pyo.Set(initialize=range(self.data.n_services))
+        self.model.D = pyo.Set(initialize=range(self.data.n_demands))
 
     def _variable_creation(self):
         self.model.L = pyo.Var(self.model.P, self.model.A, within=pyo.NonNegativeReals)
@@ -130,25 +109,28 @@ class Solver(GenericSolver):
         self.model.val_q = pyo.Constraint(
             self.model.D,
             rule=lambda model, d: pyo.inequality(
-                self.minimum_flows[d], model.q[d], self.maximum_flows[d]
+                self.data.min_flows[d], model.q[d], self.data.max_flows[d]
             ),
         )
         self.model.res = pyo.Constraint(
             self.model.E,
-            rule=lambda model, e: sum(model.y[s, e] * self.resources[s] for s in model.S)
-            <= self.G.nodes[e]["available_resources"],
+            rule=lambda model, e: sum(
+                model.y[s, e] * self.data.service_resources[s] for s in model.S
+            )
+            <= self.data.node_resources[e],
         )
 
         self.model.capa = pyo.Constraint(
             self.model.A,
             rule=lambda model, a: model.nul[0] + sum(self.delta(p, a) * model.Q[p] for p in model.P)
-            <= self.G.edges[self.arc_list[a]]["capacity"],
+            <= self.data.arc_capacities[a],
         )
 
         self.model.lat = pyo.Constraint(
             self.model.P,
             self.model.A,
-            rule=lambda model, p, a: model.L[p, a] <= self.latencies[self.path_to_demand(p)],
+            rule=lambda model, p, a: model.L[p, a]
+            <= self.data.latency_limits[self.path_to_demand(p)],
         )
 
         self.model.ind1 = pyo.Constraint(
@@ -185,16 +167,16 @@ class Solver(GenericSolver):
             self.model.P,
             self.model.A,
             rule=lambda model, p, a: model.L[p, a]
-            <= self.alpha[a] * sum(self.delta(pp, a) * model.Q[pp] for pp in model.P)
-            + self.beta[a],
+            <= self.data.latency_slopes[a] * sum(self.delta(pp, a) * model.Q[pp] for pp in model.P)
+            + self.data.latency_offsets[a],
         )
 
         self.model.lat2 = pyo.Constraint(
             self.model.P,
             self.model.A,
             rule=lambda model, p, a: model.L[p, a]
-            >= self.alpha[a] * sum(self.delta(pp, a) * model.Q[pp] for pp in model.P)
-            + self.beta[a]
+            >= self.data.latency_slopes[a] * sum(self.delta(pp, a) * model.Q[pp] for pp in model.P)
+            + self.data.latency_offsets[a]
             - self.maximum_possible_latency * (1 - model.z[p]),
         )
 
@@ -213,11 +195,7 @@ class Solver(GenericSolver):
     def _set_params(self):
         self.model.serv_number = pyo.Param(
             self.model.D,
-            initialize={
-                sum(service.task_number for service in self.services[:i]) + j: i
-                for i, service in enumerate(self.services)
-                for j, task in enumerate(service.task_list)
-            },
+            initialize={d: int(self.data.demand_to_service[d]) for d in range(self.data.n_demands)},
             mutable=False,
             within=pyo.NonNegativeIntegers,
         )
@@ -253,11 +231,11 @@ class Solver(GenericSolver):
                 self.model.q,
                 self.paths,
                 self.p_to_d,
-                self.arc_dic,
-                self.D,
-                self.A,
-                self.S,
-                self.E,
+                self.data.arc_index,
+                self.data.n_demands,
+                self.data.n_arcs,
+                self.data.n_services,
+                self.data.n_nodes,
             )
         )
         self.runtime = time.time() - start_time

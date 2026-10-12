@@ -65,9 +65,9 @@ def test_remaining_quantity_respects_other_demands_latency(shared_arc):
 
 def test_remaining_quantity_sums_latency_slopes_over_entire_path():
     problem = make_problem(edges=((0, 1), (1, 2)), nodes=3)
-    checker = SolvingInstance(problem)
     # Both demands traverse both arcs. Load 2 on each arc gives latency 4.
     problem.latencies = [7, 7]
+    checker = SolvingInstance(problem)
     assert checker._get_remaining_quantity_per_demand([2], [0, 0], [1, 1], 0) == 1
 
 

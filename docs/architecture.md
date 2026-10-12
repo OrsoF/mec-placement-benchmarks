@@ -31,7 +31,15 @@ there is no need to add the repository root to `sys.path`.
 
 The domain defines demands, networks, services, packages, and problems.
 `domain.network` owns graph data, `domain.services` owns demands and services,
-and `domain.problem` assembles a problem. `domain.solution.Solution` owns copied,
+and `domain.problem` assembles a problem. `domain.problem_arrays.ProblemArrays`
+owns immutable numerical vectors, dimensions, demand-to-service indices and the
+arc ordering. `ProblemInstance.data` builds this snapshot once, and every solver
+receives that same object through `GenericSolver.data`. Validation, loads and
+workspaces consume it too. Construction inputs cannot change the snapshot;
+`ProblemInstance.with_data` creates a new validated problem. Compatibility
+properties delegate to the snapshot. The historical `service_package` is
+construction metadata, not a second numerical source. A private graph copy
+preserves topology and metadata; its topology is frozen. `domain.solution.Solution` owns copied,
 read-only arrays. Pure compact/arc conversion lives in `domain.conversions`;
 Load, residual and total-traffic latency calculations live in `domain.loads`
 and are shared by validation, reporting and graph updates.
@@ -45,8 +53,11 @@ own their constructors; shared training lives in `utils.rl_solvers.RLSolver`.
 `utils.solver_workspace.SolverWorkspace` owns a mutable graph, candidate state,
 path cache, and independent random generator. Its module also applies graph
 updates. Candidate search and baseline construction live in
-`utils.heuristic_solvers`; model parameters, optimizer options and indexed output
-extraction live in `utils.ilp_solvers`. Arc and path formulations retain their
+`utils.heuristic_solvers`; optimizer options and indexed output extraction live
+in `utils.ilp_solvers`. Its historical `ProblemArrays` and `problem_arrays`
+imports reexport their canonical definitions from the domain. Mathematical
+backends read shared parameters directly; only paths, formulation bounds and
+optimizer state are stored per solver. Arc and path formulations retain their
 own utility modules. Workspaces store their results without changing the
 problem's historical solution state. RL environments use the workspace's copy
 of the directed graph and its path cache, so observations never mutate the input

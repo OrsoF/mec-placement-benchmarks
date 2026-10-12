@@ -17,9 +17,9 @@ class Solver(RLSolver):
     ):
         """Initialize the default PPO RL solver."""
         problem_instance = problem[0] if isinstance(problem, list) else problem
-        max_step = 1000 + problem_instance.number_of_service * 10 if max_step is None else max_step
+        max_step = 1000 + problem_instance.data.n_services * 10 if max_step is None else max_step
         train_step = (
-            10000 + problem_instance.number_of_service * 20 if train_step is None else train_step
+            10000 + problem_instance.data.n_services * 20 if train_step is None else train_step
         )
         super().__init__(
             problem=problem,

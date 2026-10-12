@@ -29,7 +29,6 @@ class Solver(GenericSolver):
         if quantity_steps is not None and quantity_steps < 0:
             raise ValueError("quantity_steps must be nonnegative.")
 
-        self.nx_graph = self.problem_instance.network_graph.nx_graph
         self.max_pcc = max_pcc
         self.mu = mu
         self.lambda_ = lambda_
@@ -90,9 +89,9 @@ class Solver(GenericSolver):
         quantities: list[int],
     ) -> tuple[list[int], list[int], list[int]]:
         p, r, q = placement.copy(), routing.copy(), quantities.copy()
-        S = self.problem_instance.number_of_service
-        D = self.problem_instance.total_number_of_demands
-        n = self.nx_graph.number_of_nodes()
+        S = self.data.n_services
+        D = self.data.n_demands
+        n = self.graph.number_of_nodes()
 
         for _ in range(self.rng.integers(1, 4)):
             op = self.rng.integers(3)
@@ -102,7 +101,7 @@ class Solver(GenericSolver):
                 r[self.rng.integers(D)] = self.rng.integers(self.max_pcc)
             else:
                 d = self.rng.integers(D)
-                width = int(max(1, self.problem_instance.max_flows[d] // 10))
+                width = int(max(1, self.data.max_flows[d] // 10))
                 q[d] += self.rng.integers(-width, width + 1)
 
         return p, r, q
@@ -115,7 +114,7 @@ class Solver(GenericSolver):
     ) -> tuple[list[int], list[int], list[int]] | None:
         repaired = repair_solution(
             self.problem_instance,
-            self.nx_graph,
+            self.graph,
             self.sol_ins,
             self.max_pcc,
             placement,
@@ -133,7 +132,7 @@ class Solver(GenericSolver):
         quantities: list[int],
     ) -> tuple[list[int], list[int], list[int]]:
         q = quantities.copy()
-        D = self.problem_instance.total_number_of_demands
+        D = self.data.n_demands
         steps = 4 * D if self.quantity_steps is None else self.quantity_steps
 
         for _ in range(steps):
@@ -161,7 +160,7 @@ class Solver(GenericSolver):
     ) -> tuple[list[int], list[int], list[int]]:
         return clip_solution(
             self.problem_instance,
-            self.nx_graph,
+            self.graph,
             self.max_pcc,
             placement,
             routing,

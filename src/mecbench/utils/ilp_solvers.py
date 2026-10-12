@@ -4,55 +4,14 @@ This module does not import Pyomo, so basic usage stays independent of exact ext
 """
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
 from numpy.typing import ArrayLike
 
-from mecbench.domain.contracts import ArcArrays, ProblemData
-
-
-@dataclass(frozen=True)
-class ProblemArrays:
-    S: int
-    D: int
-    U: int
-    A: int
-    origins: Sequence[int]
-    qmin: Sequence[float]
-    qmax: Sequence[float]
-    latencies: Sequence[float]
-    resources: Sequence[float]
-    capacities: Sequence[float]
-    alpha: Sequence[float]
-    beta: Sequence[float]
-    demand_to_service: Sequence[int]
-    arc_index: Mapping[tuple[int, int], int]
-    arc_list: Sequence[tuple[int, int]]
-    node_resources: Sequence[float]
-
-
-def problem_arrays(problem: ProblemData) -> ProblemArrays:
-    graph = problem.network_graph.nx_graph
-    return ProblemArrays(
-        S=problem.number_of_service,
-        D=problem.total_number_of_demands,
-        U=graph.number_of_nodes(),
-        A=graph.number_of_edges(),
-        origins=problem.origins,
-        qmin=problem.min_flows,
-        qmax=problem.max_flows,
-        latencies=problem.latencies,
-        resources=problem.needed_resources,
-        capacities=problem.network_graph.capacities,
-        alpha=problem.network_graph.alphas,
-        beta=problem.network_graph.betas,
-        demand_to_service=problem.demand_to_service,
-        arc_index=problem.network_graph.arc_index_dictionary,
-        arc_list=problem.network_graph.arc_list,
-        node_resources=problem.network_graph.available_resources,
-    )
+from mecbench.domain.contracts import ArcArrays
+from mecbench.domain.problem_arrays import ProblemArrays as ProblemArrays
+from mecbench.domain.problem_arrays import problem_arrays as problem_arrays
 
 
 def configure_gurobi(

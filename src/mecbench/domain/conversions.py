@@ -2,8 +2,104 @@
 
 import networkx as nx
 import numpy as np
+from collections.abc import Callable, Sequence
+from numbers import Integral
+from typing import TypeAlias
 
 from mecbench.domain.graph_utils import path_node_to_path_tuple
+from mecbench.domain.contracts import ProblemData
+from mecbench.domain.problem_arrays import ProblemArrays, problem_arrays
+from mecbench.domain.solution import ArcSolution, CompactSolution
+
+PathResolver: TypeAlias = Callable[[int, int, int], Sequence[int]]
+
+
+class SolutionConversionError(ValueError):
+    """A compact candidate cannot be represented by arc variables."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        constraint: str = "routing",
+        variable: str | None = None,
+        demand: int | None = None,
+        observed: tuple[int, ...] | None = None,
+        limit: tuple[int, ...] | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.constraint = constraint
+        self.variable = variable
+        self.demand = demand
+        self.observed = observed
+        self.limit = limit
+
+
+def _check_compact_vectors(data: ProblemArrays, solution: CompactSolution) -> None:
+    for name, values, size in (
+        ("placement", solution.placement, data.n_services),
+        ("routing", solution.routing, data.n_demands),
+        ("quantities", solution.quantities, data.n_demands),
+    ):
+        if values.shape != (size,):
+            raise SolutionConversionError(
+                f"{name} shape must be ({size},), got {values.shape}.",
+                constraint="dimensions", variable=name, observed=values.shape, limit=(size,),
+            )
+        if not np.all(np.isfinite(values)):
+            raise SolutionConversionError(
+                f"{name} must contain only finite values.", constraint="finite", variable=name
+            )
+    if np.any((solution.placement < 0) | (solution.placement >= data.n_nodes)):
+        raise SolutionConversionError(
+            "placement contains an unknown node.", constraint="placement", variable="placement"
+        )
+    if np.any(solution.routing < 0):
+        raise SolutionConversionError("routing contains a negative path index.", variable="routing")
+
+
+def to_arc_solution(
+    problem: ProblemData | ProblemArrays,
+    solution: CompactSolution | ArcSolution,
+    *,
+    path_resolver: PathResolver | None = None,
+) -> ArcSolution:
+    """Normalize a candidate without rounding quantities or inferring path indices."""
+    if isinstance(solution, ArcSolution):
+        return solution
+    if not isinstance(solution, CompactSolution):
+        raise TypeError("solution must be a CompactSolution or an ArcSolution.")
+    data = problem_arrays(problem)
+    _check_compact_vectors(data, solution)
+    if path_resolver is None:
+        raise SolutionConversionError(
+            "A CompactSolution requires its path_resolver.", constraint="path_resolution"
+        )
+    y = np.zeros((data.n_services, data.n_nodes))
+    y[np.arange(data.n_services), solution.placement] = 1.0
+    x = np.zeros((data.n_demands, data.n_arcs))
+    for d in range(data.n_demands):
+        source = int(data.origins[d])
+        destination = int(solution.placement[data.demand_to_service[d]])
+        index = int(solution.routing[d])
+        try:
+            path = list(path_resolver(source, destination, index))
+            if (
+                not path
+                or any(not isinstance(node, Integral) for node in path)
+                or path[0] != source
+                or path[-1] != destination
+                or len(set(path)) != len(path)
+            ):
+                raise ValueError("The resolver must return a simple path with the requested endpoints.")
+            for arc in zip(path, path[1:], strict=False):
+                x[d, data.arc_index[arc]] = 1.0
+        except (IndexError, KeyError, TypeError, ValueError, nx.NetworkXException) as error:
+            raise SolutionConversionError(
+                f"Cannot resolve routing[{d}]={index} from {source} to {destination}: {error}",
+                variable="routing", demand=d,
+            ) from error
+    return ArcSolution(x, y, solution.quantities)
 
 
 def to_int_array(x) -> np.ndarray:
@@ -11,9 +107,10 @@ def to_int_array(x) -> np.ndarray:
 
 
 def split_state(problem, s) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    data = problem_arrays(problem)
     s = np.asarray(s)
-    S = problem.number_of_service
-    D = problem.total_number_of_demands
+    S = data.n_services
+    D = data.n_demands
     return s[:S], s[S : S + D], s[S + D : S + 2 * D]
 
 
@@ -22,38 +119,11 @@ def make_state(placement, routing, quantities) -> np.ndarray:
 
 
 def validate_compact_shapes(problem, graph: nx.Graph, placement, routing, quantities):
-    vectors = (
-        ("placement", placement, problem.number_of_service),
-        ("routing", routing, problem.total_number_of_demands),
-        ("quantities", quantities, problem.total_number_of_demands),
-    )
-    for name, values, size in vectors:
-        values = np.asarray(values, dtype=float)
-        if values.shape != (size,):
-            raise ValueError(f"{name} shape must be ({size},).")
-        if not np.all(np.isfinite(values)):
-            raise ValueError(f"{name} must contain only finite values.")
-        if name != "quantities" and np.any(values != np.rint(values)):
-            raise ValueError(f"{name} must contain integer indices.")
-    placement = np.asarray(placement, dtype=float)
-    routing = np.asarray(routing, dtype=float)
-    if np.any(placement < 0) or np.any(placement >= graph.number_of_nodes()):
-        raise ValueError("placement contains an unknown node.")
-    if np.any(routing < 0):
-        raise ValueError("routing contains a negative path index.")
+    _check_compact_vectors(problem_arrays(problem), CompactSolution(placement, routing, quantities))
 
 
 def compact_to_arc(problem, graph: nx.Graph, path_fn, placement, routing, quantities):
-    validate_compact_shapes(problem, graph, placement, routing, quantities)
-
-    y = np.zeros((problem.number_of_service, graph.number_of_nodes()), dtype=float)
-    y[np.arange(problem.number_of_service), np.asarray(placement, dtype=int)] = 1.0
-
-    x = np.zeros((problem.total_number_of_demands, graph.number_of_edges()), dtype=float)
-    for d in range(problem.total_number_of_demands):
-        k = problem.demand_to_service[d]
-        path = path_fn(problem.origins[d], int(placement[k]), int(routing[d]))
-        for e in path_node_to_path_tuple(path):
-            x[d, problem.network_graph.arc_index_dictionary[e]] = 1.0
-
-    return x, y, np.asarray(quantities, dtype=float)
+    solution = to_arc_solution(
+        problem, CompactSolution(placement, routing, quantities), path_resolver=path_fn
+    )
+    return solution.x, solution.y, solution.q

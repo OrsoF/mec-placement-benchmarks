@@ -1,16 +1,13 @@
-import networkx as nx
 import pyomo.environ as pyo
 
 from mecbench.benchmarks.metrics import get_result_informations
 from mecbench.domain.graph_utils import get_encoded_incoming_arc, get_encoded_outgoing_arc
 from mecbench.domain.problem import ProblemInstance
-from mecbench.domain.services import Service
 from mecbench.utils.arc_formulation import add_arc_constraints
 from mecbench.utils.ilp_solvers import (
     arc_model_arrays,
     configure_gurobi,
     objective_value,
-    problem_arrays,
 )
 from mecbench.utils.solver_base import GenericSolver
 
@@ -18,32 +15,16 @@ from mecbench.utils.solver_base import GenericSolver
 class Solver(GenericSolver):
     def __init__(self, problem_instance: ProblemInstance):
         super().__init__(problem_instance)
-        self.services: list[Service] = self.problem_instance.service_package.services
-        self.G: nx.DiGraph = self.problem_instance.network_graph.nx_graph
         self.solver_name = "MILP_arc"
-
-    def _model_parameters(self):
-        a = problem_arrays(self.problem_instance)
-        self.S, self.D, self.U, self.A = a.S, a.D, a.U, a.A
-        self.Sd = self.problem_instance.demand_per_service
-        self.arc_dic = a.arc_index
-        self.arc_list = a.arc_list
-        self.origins = a.origins
-        self.Pdmin = a.qmin
-        self.Pdmax = a.qmax
-        self.latencies = a.latencies
-        self.resources = a.resources
-        self.alpha = a.alpha
-        self.beta = a.beta
 
     def _build_model(self):
         self.model = pyo.ConcreteModel()
 
     def _build_sets(self):
-        self.model.D = pyo.Set(initialize=range(self.D))
-        self.model.S = pyo.Set(initialize=range(self.S))
-        self.model.U = pyo.Set(initialize=range(self.U))
-        self.model.A = pyo.Set(initialize=range(self.A))
+        self.model.D = pyo.Set(initialize=range(self.data.n_demands))
+        self.model.S = pyo.Set(initialize=range(self.data.n_services))
+        self.model.U = pyo.Set(initialize=range(self.data.n_nodes))
+        self.model.A = pyo.Set(initialize=range(self.data.n_arcs))
 
     def _build_variables(self):
         self.model.x = pyo.Var(self.model.D, self.model.A, within=pyo.Binary)
@@ -55,63 +36,60 @@ class Solver(GenericSolver):
     def _build_params(self):
         self.model.origins = pyo.Param(
             self.model.D,
-            initialize={d: self.origins[d] for d in range(self.D)},
+            initialize={d: self.data.origins[d] for d in range(self.data.n_demands)},
             mutable=False,
             within=pyo.NonNegativeIntegers,
         )
         self.model.Pdmin = pyo.Param(
             self.model.D,
-            initialize={d: self.Pdmin[d] for d in range(self.D)},
+            initialize={d: self.data.min_flows[d] for d in range(self.data.n_demands)},
             mutable=False,
             within=pyo.NonNegativeIntegers,
         )
         self.model.Pdmax = pyo.Param(
             self.model.D,
-            initialize={d: self.Pdmax[d] for d in range(self.D)},
+            initialize={d: self.data.max_flows[d] for d in range(self.data.n_demands)},
             mutable=False,
             within=pyo.NonNegativeIntegers,
         )
         self.model.latencies = pyo.Param(
             self.model.D,
-            initialize={d: self.latencies[d] for d in range(self.D)},
+            initialize={d: self.data.latency_limits[d] for d in range(self.data.n_demands)},
             mutable=False,
             within=pyo.NonNegativeReals,
         )
         self.model.resources = pyo.Param(
             self.model.S,
-            initialize={s: self.resources[s] for s in range(self.S)},
+            initialize={s: self.data.service_resources[s] for s in range(self.data.n_services)},
             mutable=False,
             within=pyo.NonNegativeIntegers,
         )
 
         self.model.alpha = pyo.Param(
             self.model.A,
-            initialize={edge: self.alpha[edge] for edge in self.model.A},  # type: ignore
+            initialize={edge: self.data.latency_slopes[edge] for edge in self.model.A},  # type: ignore
             mutable=False,
             within=pyo.NonNegativeReals,
         )
 
         self.model.beta = pyo.Param(
             self.model.A,
-            initialize={edge: self.beta[edge] for edge in self.model.A},  # type: ignore
+            initialize={edge: self.data.latency_offsets[edge] for edge in self.model.A},  # type: ignore
             mutable=False,
             within=pyo.NonNegativeReals,
         )
 
         self.model.serv_number = pyo.Param(
             self.model.D,
-            initialize={
-                sum(len(elem.task_list) for elem in self.services[:i]) + j: i
-                for i, service in enumerate(self.services)
-                for j, task in enumerate(service.task_list)
-            },
+            initialize={d: int(self.data.demand_to_service[d]) for d in range(self.data.n_demands)},
             mutable=False,
             within=pyo.NonNegativeIntegers,
         )
         self.model.out_arcs = pyo.Param(
             self.model.U,
             initialize={
-                u: get_encoded_outgoing_arc(self.G, self.arc_dic, u) for u in range(self.U)
+                u: get_encoded_outgoing_arc(self.graph, self.data.arc_index, u)
+                for u in range(self.data.n_nodes)
             },
             mutable=False,
             within=pyo.Any,
@@ -119,7 +97,8 @@ class Solver(GenericSolver):
         self.model.inc_arcs = pyo.Param(
             self.model.U,
             initialize={
-                u: get_encoded_incoming_arc(self.G, self.arc_dic, u) for u in range(self.U)
+                u: get_encoded_incoming_arc(self.graph, self.data.arc_index, u)
+                for u in range(self.data.n_nodes)
             },
             mutable=False,
             within=pyo.Any,
@@ -129,8 +108,8 @@ class Solver(GenericSolver):
             self.model.D,
             initialize={
                 (u, d): int(u == self.model.origins[d])
-                for u in range(self.U)
-                for d in range(self.D)
+                for u in range(self.data.n_nodes)
+                for d in range(self.data.n_demands)
             },
             mutable=False,
             within=pyo.Binary,
@@ -138,21 +117,21 @@ class Solver(GenericSolver):
 
         self.model.node_resources = pyo.Param(
             self.model.U,
-            initialize={u: self.G.nodes[u]["available_resources"] for u in range(self.U)},
+            initialize={u: self.data.node_resources[u] for u in range(self.data.n_nodes)},
             mutable=False,
             within=pyo.NonNegativeIntegers,
         )
         self.model.arc_capacity = pyo.Param(
             self.model.A,
-            initialize={a: self.G.edges[edge]["capacity"] for a, edge in enumerate(self.G.edges)},
+            initialize={a: self.data.arc_capacities[a] for a in range(self.data.n_arcs)},
             mutable=False,
             within=pyo.NonNegativeIntegers,
         )
         self.model.N = pyo.Param(
-            initialize=max(self.latencies), mutable=False, within=pyo.NonNegativeReals
+            initialize=max(self.data.latency_limits), mutable=False, within=pyo.NonNegativeReals
         )
         self.model.M = pyo.Param(
-            initialize=max(self.Pdmax), mutable=False, within=pyo.NonNegativeIntegers
+            initialize=max(self.data.max_flows), mutable=False, within=pyo.NonNegativeIntegers
         )
 
     def _build_constraints(self):
@@ -175,7 +154,6 @@ class Solver(GenericSolver):
         thread_limit: int = 1,
         solver: str = "gurobi",
     ):
-        self._model_parameters()
         self._build_model()
         self._build_sets()
         self._build_variables()
@@ -203,10 +181,10 @@ class Solver(GenericSolver):
                 self.model.x,
                 self.model.y,
                 self.model.p,
-                self.D,
-                self.A,
-                self.S,
-                self.U,
+                self.data.n_demands,
+                self.data.n_arcs,
+                self.data.n_services,
+                self.data.n_nodes,
             )
         )
         self.score = objective_value(self.q_var)

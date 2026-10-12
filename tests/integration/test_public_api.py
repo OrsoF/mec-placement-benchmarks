@@ -44,7 +44,7 @@ def test_user_quickstart_and_repeatability():
 def test_tree_seed_is_metadata_for_deterministic_generator():
     first, second = make_tree_instance(2, seed=0), make_tree_instance(2, seed=9)
     assert first.network_graph.arc_list == second.network_graph.arc_list
-    assert first.min_flows == second.min_flows
+    np.testing.assert_array_equal(first.min_flows, second.min_flows)
     assert (first.seed, second.seed) == (0, 9)
 
 

@@ -1,6 +1,69 @@
 """Network data and construction helpers."""
 
+from collections.abc import Mapping
+from copy import deepcopy
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
 import networkx as nx
+
+from mecbench.domain.contracts import FloatArray
+
+if TYPE_CHECKING:
+    from mecbench.domain.problem_arrays import ProblemArrays
+
+
+@dataclass(frozen=True)
+class NetworkSnapshot:
+    """Compatibility view of canonical numbers and a stable copied topology."""
+
+    data: "ProblemArrays"
+    nx_graph: nx.DiGraph
+
+    @classmethod
+    def from_data(cls, data: "ProblemArrays", template: nx.Graph) -> "NetworkSnapshot":
+        snapshot = cls(data, nx.freeze(cls.make_graph(data, template)))
+        return snapshot
+
+    @staticmethod
+    def make_graph(data: "ProblemArrays", template: nx.Graph) -> nx.DiGraph:
+        graph = nx.DiGraph()
+        graph.graph.update(deepcopy(template.graph))
+        for node in range(data.n_nodes):
+            graph.add_node(node, **deepcopy(template.nodes[node]) if node in template else {})
+            graph.nodes[node]["available_resources"] = float(data.node_resources[node])
+        for a, arc in enumerate(data.arcs):
+            graph.add_edge(*arc, **deepcopy(template.edges[arc]) if template.has_edge(*arc) else {})
+            graph.edges[arc].update(
+                capacity=float(data.arc_capacities[a]),
+                alpha=float(data.latency_slopes[a]),
+                beta=float(data.latency_offsets[a]),
+            )
+        return graph
+
+    @property
+    def alphas(self) -> FloatArray:
+        return self.data.latency_slopes
+
+    @property
+    def betas(self) -> FloatArray:
+        return self.data.latency_offsets
+
+    @property
+    def capacities(self) -> FloatArray:
+        return self.data.arc_capacities
+
+    @property
+    def available_resources(self) -> FloatArray:
+        return self.data.node_resources
+
+    @property
+    def arc_list(self) -> tuple[tuple[int, int], ...]:
+        return self.data.arcs
+
+    @property
+    def arc_index_dictionary(self) -> Mapping[tuple[int, int], int]:
+        return self.data.arc_index
 
 
 def check_network_graph(nx_graph: nx.DiGraph):

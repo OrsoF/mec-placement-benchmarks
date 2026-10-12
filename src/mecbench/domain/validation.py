@@ -13,7 +13,10 @@ import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
 from mecbench.domain.contracts import FloatArray, ProblemData, SolutionData
+from mecbench.domain.conversions import PathResolver, SolutionConversionError, to_arc_solution
 from mecbench.domain.loads import residual_arrays
+from mecbench.domain.problem_arrays import ProblemArrays, problem_arrays
+from mecbench.domain.solution import CompactSolution
 
 
 class SolutionValidationError(ValueError):
@@ -49,7 +52,10 @@ class ValidationReport:
 
 
 def validate(
-    problem: ProblemData, solution: SolutionData | None, *, atol: float = 1e-6
+    problem: ProblemData | ProblemArrays,
+    solution: SolutionData | CompactSolution | None,
+    *, atol: float = 1e-6,
+    path_resolver: PathResolver | None = None,
 ) -> ValidationReport:
     """Report all violations; malformed arrays stop dependent physical checks.
 
@@ -59,8 +65,16 @@ def validate(
     _check_tolerance(atol)
     if solution is None:
         return ValidationReport((Violation("no_solution", "No solution available."),))
+    if isinstance(solution, CompactSolution):
+        try:
+            solution = to_arc_solution(problem, solution, path_resolver=path_resolver)
+        except SolutionConversionError as error:
+            return ValidationReport((Violation(
+                error.constraint, str(error), error.observed, error.limit,
+                demand=error.demand, variable=error.variable,
+            ),))
     if not all(hasattr(solution, name) for name in ("x", "y", "q")):
-        raise TypeError("solution must expose x, y and q arrays, or be None.")
+        raise TypeError("solution must be compact, expose x, y and q arrays, or be None.")
     return _validate_arrays(problem, solution.x, solution.y, solution.q, atol=atol)
 
 
@@ -70,7 +84,7 @@ def _check_tolerance(atol: object) -> None:
 
 
 def _validate_arrays(
-    problem: ProblemData,
+    problem: ProblemData | ProblemArrays,
     x_values: ArrayLike,
     y_values: ArrayLike,
     q_values: ArrayLike,
@@ -78,11 +92,8 @@ def _validate_arrays(
     atol: float = 1e-6,
 ) -> ValidationReport:
     _check_tolerance(atol)
-    network = problem.network_graph
-    demands = problem.total_number_of_demands
-    services = problem.number_of_service
-    nodes = network.nx_graph.number_of_nodes()
-    arcs = network.nx_graph.number_of_edges()
+    data = problem_arrays(problem)
+    demands, services, nodes, arcs = data.n_demands, data.n_services, data.n_nodes, data.n_arcs
     violations = []
     arrays: dict[str, FloatArray] = {}
     for name, raw_values, shape in (
@@ -161,8 +172,8 @@ def _validate_arrays(
         np.ones(services),
         "service",
     )
-    minimum = np.maximum(0, np.asarray(problem.min_flows))
-    maximum = np.asarray(problem.max_flows)
+    minimum = np.maximum(0, data.min_flows)
+    maximum = data.max_flows
     record(
         q < minimum - atol,
         "minimum_flow",
@@ -179,9 +190,9 @@ def _validate_arrays(
         maximum,
         "demand",
     )
-    loads = residual_arrays(problem, x, y, q)
+    loads = residual_arrays(data, x, y, q)
     node_load = loads["node_load"]
-    resources = np.asarray(network.available_resources)
+    resources = data.node_resources
     record(
         node_load > resources + atol,
         "resources",
@@ -191,7 +202,7 @@ def _validate_arrays(
         "node",
     )
     edge_load = loads["edge_load"]
-    capacities = np.asarray(network.capacities)
+    capacities = data.arc_capacities
     record(
         edge_load > capacities + atol,
         "capacity",
@@ -202,11 +213,11 @@ def _validate_arrays(
     )
 
     balance = np.zeros((demands, nodes))
-    for a, (source, destination) in enumerate(network.arc_list):
+    for a, (source, destination) in enumerate(data.arcs):
         balance[:, source] += x[:, a]
         balance[:, destination] -= x[:, a]
-    expected = -y[np.asarray(problem.demand_to_service, dtype=int)].copy()
-    expected[np.arange(demands), np.asarray(problem.origins, dtype=int)] += 1
+    expected = -y[data.demand_to_service].copy()
+    expected[np.arange(demands), data.origins] += 1
     for d, node in np.argwhere(np.abs(balance - expected) > atol):
         violations.append(
             Violation(
@@ -220,7 +231,7 @@ def _validate_arrays(
         )
 
     demand_latency = loads["demand_latency"]
-    limits = np.asarray(problem.latencies)
+    limits = data.latency_limits
     record(
         demand_latency > limits + atol,
         "latency",
@@ -233,7 +244,12 @@ def _validate_arrays(
 
 
 def validate_arc_solution(
-    problem: ProblemData, x: ArrayLike, y: ArrayLike, q: ArrayLike, *, atol: float = 1e-6
+    problem: ProblemData | ProblemArrays,
+    x: ArrayLike,
+    y: ArrayLike,
+    q: ArrayLike,
+    *,
+    atol: float = 1e-6,
 ) -> None:
     """Strict compatibility entry point using the same checks as ``validate``."""
     _validate_arrays(problem, x, y, q, atol=atol).raise_if_infeasible()

@@ -10,6 +10,7 @@ from numpy.typing import ArrayLike, NDArray
 from mecbench.domain.contracts import FloatArray, ProblemData
 from mecbench.domain.conversions import make_state, split_state, to_int_array
 from mecbench.domain.loads import traffic_arrays
+from mecbench.domain.problem_arrays import ProblemArrays, problem_arrays
 from mecbench.domain.solution import Solution
 from mecbench.domain.validation import validate_arc_solution
 
@@ -24,30 +25,27 @@ class SolutionChecker(Protocol):
 
 
 def baseline_solution(problem: ProblemData) -> Solution:
+    data = problem_arrays(problem)
     network = problem.network_graph
     graph = network.nx_graph
-    placement_node = int(np.argmax(network.available_resources))
-    x = np.zeros((problem.total_number_of_demands, graph.number_of_edges()))
-    for d, origin in enumerate(problem.origins):
+    placement_node = int(np.argmax(data.node_resources))
+    x = np.zeros((data.n_demands, data.n_arcs))
+    for d, origin in enumerate(data.origins):
         nodes = nx.shortest_path(graph, origin, placement_node)
         for edge in zip(nodes, nodes[1:], strict=False):
-            x[d, network.arc_index_dictionary[edge]] = 1.0
-    y = np.zeros((problem.number_of_service, graph.number_of_nodes()))
+            x[d, data.arc_index[edge]] = 1.0
+    y = np.zeros((data.n_services, data.n_nodes))
     y[:, placement_node] = 1.0
-    return Solution(x, y, np.asarray(problem.min_flows, dtype=float))
+    return Solution(x, y, np.asarray(data.min_flows, dtype=float))
 
 
-def basic_solution(problem: ProblemData, graph: nx.Graph) -> CompactSolution:
-    resources = np.fromiter(
-        (graph.nodes[v]["available_resources"] for v in graph.nodes),
-        dtype=float,
-        count=graph.number_of_nodes(),
-    )
-    cloud = int(np.argmax(resources))
+def basic_solution(problem: ProblemData | ProblemArrays, graph: nx.Graph) -> CompactSolution:
+    data = problem_arrays(problem)
+    cloud = int(np.argmax(data.node_resources))
     return (
-        [cloud] * problem.number_of_service,
-        [0] * problem.total_number_of_demands,
-        list(problem.min_flows),
+        [cloud] * data.n_services,
+        [0] * data.n_demands,
+        data.min_flows.tolist(),
     )
 
 
@@ -63,10 +61,11 @@ def clip_solution(
     routing: ArrayLike,
     quantities: ArrayLike,
 ) -> CompactSolution:
+    data = problem_arrays(problem)
     n = graph.number_of_nodes()
     p: list[int] = np.clip(placement, 0, n - 1).astype(int).tolist()
     r: list[int] = np.clip(routing, 0, max_path - 1).astype(int).tolist()
-    q: list[float] = np.clip(quantities, problem.min_flows, problem.max_flows).astype(int).tolist()
+    q: list[float] = np.clip(quantities, data.min_flows, data.max_flows).astype(int).tolist()
     return p, r, q
 
 
@@ -87,13 +86,14 @@ def greedy_quantity_lift(
     steps: int,
     increment: float,
 ) -> tuple[Sequence[int], Sequence[int], list[float]]:
+    data = problem_arrays(problem)
     q = list(quantities)
-    D = problem.total_number_of_demands
+    D = data.n_demands
     for _ in range(steps):
         d = int(rng.integers(D))
-        if q[d] >= problem.max_flows[d]:
+        if q[d] >= data.max_flows[d]:
             continue
-        delta = min(increment, problem.max_flows[d] - q[d])
+        delta = min(increment, data.max_flows[d] - q[d])
         q[d] += delta
         if not checker.test_solution(placement, routing, q):
             q[d] -= delta
@@ -109,37 +109,36 @@ def repair_solution(
     routing: ArrayLike,
     quantities: ArrayLike,
 ) -> CompactSolution | None:
+    data = problem_arrays(problem)
     p, r, q = clip_solution(problem, graph, max_path, placement, routing, quantities)
     if checker.test_solution(p, r, q):
         return p, r, q
-    q = list(problem.min_flows)
+    q = data.min_flows.tolist()
     if checker.test_solution(p, r, q):
         return p, r, q
     return None
 
 
 def remaining_quantity(
-    problem: ProblemData,
+    problem: ProblemData | ProblemArrays,
     x: FloatArray,
     y: FloatArray,
     q: FloatArray,
     demand_index: int,
 ) -> float:
     """Integer increase allowed by every affected demand's shared-arc latency."""
-    validate_arc_solution(problem, x, y, q)
-    network = problem.network_graph
-    traffic = traffic_arrays(problem, x, q)
+    data = problem_arrays(problem)
+    validate_arc_solution(data, x, y, q)
+    traffic = traffic_arrays(data, x, q)
     edge_load = traffic["edge_load"]
-    alpha = np.asarray(network.alphas)
-    latency_slack = np.asarray(problem.latencies) - traffic["demand_latency"]
+    alpha = data.latency_slopes
+    latency_slack = np.asarray(data.latency_limits) - traffic["demand_latency"]
     sensitivity = x @ (alpha * x[demand_index])
     affected = sensitivity > 0
     latency_room = (
         np.min(latency_slack[affected] / sensitivity[affected]) if np.any(affected) else np.inf
     )
     used = x[demand_index] > 0
-    capacity_room = (
-        np.min((np.asarray(network.capacities) - edge_load)[used]) if np.any(used) else np.inf
-    )
-    flow_room = problem.max_flows[demand_index] - q[demand_index]
+    capacity_room = np.min((data.arc_capacities - edge_load)[used]) if np.any(used) else np.inf
+    flow_room = data.max_flows[demand_index] - q[demand_index]
     return float(max(0.0, np.floor(min(latency_room, capacity_room, flow_room))))

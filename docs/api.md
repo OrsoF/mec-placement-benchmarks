@@ -21,6 +21,34 @@ The seed passed to `solve` controls the solver search, including RL training and
 exact optimizer options. Reproducibility assumes the same software and runtime
 environment; runtimes themselves are not reproducible measurements.
 
+## Problem data
+
+`problem.data` is a `ProblemArrays` snapshot, created once and shared by solvers,
+workspaces, environments and validation. It contains `origins`,
+`demand_to_service`, `min_flows`, `max_flows`, `latency_limits`,
+`service_resources`, `node_resources`, `arc_capacities`, `latency_slopes` and
+`latency_offsets`. Floating-point vectors use NumPy `float64`; indices use
+`int64`. Dimensions are `n_services`, `n_demands`, `n_nodes` and `n_arcs`.
+`data.arcs` fixes the order of arc columns and `data.arc_index` maps each arc
+to its column.
+
+These arrays and mappings are read-only and independent of the original
+construction inputs. The problem's copied graph has a frozen topology;
+workspaces own their mutable graph and candidate arrays. To change numerical
+inputs, create another problem:
+
+```python
+larger_network = problem.with_data(arc_capacities=problem.data.arc_capacities * 2)
+```
+
+`with_data` checks dimensions, indices and numerical domains, preserves the name
+and seed, and resets historical solution state. All coupled vectors must remain
+dimensionally consistent. Historical attributes such as `problem.min_flows` and
+`problem.network_graph.capacities` expose the same read-only arrays. The retained
+`service_package` describes construction inputs; changing it does not change
+`problem.data`. For a mutable candidate, explicitly copy a vector, for example
+`quantities = problem.data.min_flows.copy()`.
+
 ## Solving
 
 `list_solvers()` returns canonical names without importing optional packages.
@@ -129,9 +157,9 @@ uses each arc's total traffic: `x @ (beta + alpha * (x.T @ q))`. Continuous
 quantities and balanced routing circulations are permitted, matching the arc
 MILP. The historical strict `validate_arc_solution` uses these same checks.
 
-Constructing a problem validates its components and initializes a baseline
-candidate. It does not assume that this particular placement proves feasibility;
-solve and validate determine the status of actual candidates.
+Constructing a problem validates its components. A historical baseline is
+initialized lazily when requested. This particular placement does not prove
+feasibility; solve and validate determine the status of actual candidates.
 
 ## Command line and results
 
