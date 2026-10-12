@@ -48,6 +48,10 @@ class Solver(GenericSolver):
 
     def run(self):
         start = time.time()
+        self._set_solution(None)
+        self.score = self.runtime = self.termination_condition = None
+        self.build_time = 0.0
+        self.flow_env = self.flow_model = None
 
         self.placement_routing_env = PlacementRoutingEnv(
             problem=self.problem_instance,
@@ -67,6 +71,9 @@ class Solver(GenericSolver):
         )
 
         placement_routing_state = self.placement_routing_env.best_state_record[0]
+        if placement_routing_state is None:
+            self.runtime = time.time() - start
+            return self
         self.flow_env = FlowSetupEnv(
             problem=self.problem_instance,
             max_step=self.max_step,
@@ -83,9 +90,10 @@ class Solver(GenericSolver):
         )
 
         best_state = self.flow_env.best_state_record[0]
-        solution = self.flow_env.solution_from_state(best_state)
-        self._set_solution(solution, path_resolver=self.flow_env.path_cache.nth_shortest_path)
+        if best_state is not None:
+            solution = self.flow_env.solution_from_state(best_state)
+            self._set_solution(solution, path_resolver=self.flow_env.path_cache.nth_shortest_path)
+            self.score = float(solution.quantities.sum())
         self.runtime = time.time() - start
-        self.score = float(solution.quantities.sum())
         self.build_time = 0.0
         return self

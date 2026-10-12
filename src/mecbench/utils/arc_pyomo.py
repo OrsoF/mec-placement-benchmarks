@@ -67,7 +67,13 @@ def add_arc_parameters(
         within=pyo.NonNegativeIntegers,
     )
     model.N = pyo.Param(
-        initialize=max(data.latency_limits), mutable=False, within=pyo.NonNegativeReals
+        # Capacity bounds total traffic, including on arcs unused by a demand.
+        initialize=max(
+            data.latency_offsets
+            + data.latency_slopes * data.arc_capacities.clip(max=data.max_flows.sum())
+        ),
+        mutable=False,
+        within=pyo.NonNegativeReals,
     )
     model.M = pyo.Param(
         initialize=max(data.max_flows), mutable=False, within=pyo.NonNegativeIntegers

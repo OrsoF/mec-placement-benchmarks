@@ -23,6 +23,7 @@ class Solver(GenericSolver):
 
     def _build_model(self):
         self.model = pyo.ConcreteModel()
+        self._has_initial_value = False
 
     def _build_sets(self):
         self.model.total_number_of_demands = pyo.Set(initialize=range(self.data.n_demands))
@@ -88,6 +89,7 @@ class Solver(GenericSolver):
         for service_index in range(self.data.n_services):
             for node_index in range(self.data.n_nodes):
                 self.model.y[service_index, node_index].value = y_var[service_index, node_index]
+        self._has_initial_value = True
 
     def set_heuristic_placement(self):
         cloud_server = np.argmax(self.data.node_resources)
@@ -100,9 +102,10 @@ class Solver(GenericSolver):
     def set_heuristic_solution(self, seed=0):
         heuristic_solver = Heursolv(self.problem_instance, seed=seed)
         heuristic_solver.run()
-        self._set_initial_value(
-            (heuristic_solver.x_var, heuristic_solver.y_var, heuristic_solver.q_var)
-        )
+        if heuristic_solver.solution is not None:
+            self._set_initial_value(
+                (heuristic_solver.x_var, heuristic_solver.y_var, heuristic_solver.q_var)
+            )
 
     def set_rl_solution(self, seed=0):
         from mecbench.solvers.ppo import Solver as RlPPO
@@ -110,10 +113,8 @@ class Solver(GenericSolver):
         solver = RlPPO(self.problem_instance, seed=seed)
         solver.run()
 
-        best_state = solver.env.best_state_record[0]
-
-        x_var, y_var, q_var = solver.env._state_to_variables(best_state)
-        self._set_initial_value((x_var, y_var, q_var))
+        if solver.arc_solution is not None:
+            self._set_initial_value(tuple(solver.arc_solution))
 
     def run(
         self,
@@ -149,7 +150,9 @@ class Solver(GenericSolver):
             {"Heuristics": 0, "MemLimit": 8, **(options or {})},
         )
 
-        solver_result = opt.solve(self.model)
+        solver_result = opt.solve(
+            self.model, **({"warmstart": True} if self._has_initial_value else {})
+        )
         self.termination_condition = str(solver_result.solver.termination_condition)
         solver_runtime = get_result_informations(solver_result)[0]
 

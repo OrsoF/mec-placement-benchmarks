@@ -41,12 +41,18 @@ class Solver(GenericSolver):
 
     def run(self):
         start = time.time()
+        self._set_solution(None)
+        self.placement: list[int] | None = None
+        self.routing: list[int] | None = None
+        self.quantities: list[float] | None = None
+        self.score = self.runtime = self.termination_condition = None
+        self.build_time = 0.0
         self.rng = np.random.default_rng(self.seed)
 
         placement, routing, quantities = self._initial_solution()
-        best = (placement, routing, quantities)
-        best_score = sum(quantities)
-        current = best
+        current = (placement, routing, quantities)
+        best = current if self.solving_instance.is_feasible(*current) else None
+        best_score = None if best is None else sum(best[2])
         no_progress = 0
         self.visited_objectives = [best_score]
 
@@ -55,7 +61,7 @@ class Solver(GenericSolver):
             if candidate is not None:
                 current = candidate
                 score = sum(candidate[2])
-                if score > best_score:
+                if best_score is None or score > best_score:
                     best = candidate
                     best_score = score
                     no_progress = 0
@@ -68,10 +74,11 @@ class Solver(GenericSolver):
             if no_progress >= self.patience:
                 break
 
-        self.placement, self.routing, self.quantities = best
-        self._set_compact_solution(
-            *best, path_resolver=self.solving_instance.compute_nth_shortest_path
-        )
+        if best is not None:
+            self.placement, self.routing, self.quantities = best
+            self._set_compact_solution(
+                *best, path_resolver=self.solving_instance.compute_nth_shortest_path
+            )
         self.score = best_score
         self.runtime = time.time() - start
         self.build_time = 0.0
@@ -79,6 +86,8 @@ class Solver(GenericSolver):
 
     def _initial_solution(self) -> tuple[list[int], list[int], list[int]]:
         placement, routing, quantities = self.solving_instance.basic_placement_and_routing()
+        if not self.solving_instance.is_feasible(placement, routing, quantities):
+            return placement, routing, quantities
         return self._maximize_quantities(placement, routing, quantities)
 
     def _mutate(

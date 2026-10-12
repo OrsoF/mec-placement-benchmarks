@@ -74,8 +74,7 @@ class PlacementRoutingEnv(SPPEnv):
         new_score = self._score_pr_state(self.state)
         reward = normalized_delta(new_score, old_score) if feasible else -0.05
 
-        if self.best_state_record[1] < new_score:
-            self.best_state_record = (self.state.copy(), new_score)
+        self._record_best_state(new_score, feasible=feasible)
 
         self.served_quantity_history.append(new_score)
         self.steps_done += 1
@@ -111,12 +110,6 @@ class FlowSetupEnv(SPPEnv):
             p, r, _ = split_state(self.problem_instance, self.fixed_state)
         return make_state(p, r, self.data.min_flows)
 
-    def reset(self, *args, **kwargs):
-        obs, info = super().reset(*args, **kwargs)
-        score = served_quantity(self.problem_instance, self.state)
-        self.best_state_record = (self.state.copy(), score)
-        return obs, info
-
     def step(self, action: tuple) -> tuple:
         d, quantity_action = action
         dq = (int(quantity_action) - 1) * self.quantity_increment
@@ -129,8 +122,7 @@ class FlowSetupEnv(SPPEnv):
         new_score = served_quantity(self.problem_instance, self.state)
         reward = normalized_delta(new_score, old_score) if feasible else -0.05
 
-        if self.best_state_record[1] < new_score:
-            self.best_state_record = (self.state.copy(), new_score)
+        self._record_best_state(new_score, feasible=feasible)
 
         self.served_quantity_history.append(new_score)
         self.steps_done += 1

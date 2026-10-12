@@ -53,7 +53,6 @@ class SPPEnv(gym.Env):
         self.steps_done = 0
         self.episode_start_score_index = 0
         self._load_problem_instance(self.base_problem_instance)
-        self.best_state_record = (self.state.copy(), self._score_state(self.state))
 
     @staticmethod
     def _make_problem_instances(
@@ -124,7 +123,21 @@ class SPPEnv(gym.Env):
         self.initial_solution = None
         self._configure_spaces()
         self.state = to_integer_state(self._make_initial_state())
-        self.best_state_record = (self.state.copy(), self._score_state(self.state))
+        self.best_state_record: tuple[np.ndarray | None, float] = (None, -np.inf)
+        self._record_best_state()
+
+    def _record_best_state(
+        self, score: float | None = None, *, feasible: bool | None = None
+    ) -> None:
+        """Keep only feasible incumbents; an empty record denotes no solution."""
+        if feasible is False:
+            return
+        if score is None:
+            score = self._score_state(self.state)
+        if score > self.best_state_record[1] and (
+            feasible is True or self._is_feasible_state(self.state)
+        ):
+            self.best_state_record = (self.state.copy(), score)
 
     def _make_initial_state(self) -> np.ndarray:
         """Build the initial placement, routing, and quantity state."""
@@ -137,15 +150,12 @@ class SPPEnv(gym.Env):
             heuristic_solution = Solver(self.problem_instance, 3, 3)
             heuristic_solution.run()
 
-            self.initial_solution = make_state(
-                heuristic_solution.placement,
-                heuristic_solution.routing,
-                heuristic_solution.quantities,
-            )
-            self.served_quantity_history.append(sum(heuristic_solution.quantities))
-            if self._is_feasible_state(self.initial_solution):
-                return self.initial_solution.copy()
-            self.initial_solution = None
+            if heuristic_solution.solution is not None:
+                self.initial_solution = make_state(*heuristic_solution.solution)
+                if self._is_feasible_state(self.initial_solution):
+                    self.served_quantity_history.append(self._score_state(self.initial_solution))
+                    return self.initial_solution.copy()
+                self.initial_solution = None
 
         return basic_state
 
@@ -188,11 +198,12 @@ class SPPEnv(gym.Env):
         else:
             self._configure_spaces()
 
-        if not self.reuse_best_on_reset:
+        if not self.reuse_best_on_reset or self.best_state_record[0] is None:
             self.state = to_integer_state(self._make_initial_state())
         else:
             self.state = to_integer_state(self.best_state_record[0])
 
+        self._record_best_state()
         self.steps_done = 0
         self.episode_start_score_index = len(self.served_quantity_history)
         return self._observe(self.state), {}
@@ -307,8 +318,7 @@ class SPPEnv(gym.Env):
         self.served_quantity_history.append(sum(self._state_to_vectors(self.state)[2]))
 
         current_score = self._score_state(self.state)
-        if self.best_state_record[1] < current_score:
-            self.best_state_record = (self.state.copy(), current_score)
+        self._record_best_state(current_score)
 
         self.steps_done += 1
         truncated = self.steps_done >= self.max_steps

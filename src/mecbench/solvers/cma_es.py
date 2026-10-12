@@ -3,12 +3,14 @@
 import time
 
 import numpy as np
+from numpy.typing import ArrayLike
 
-from mecbench.domain.graph_utils import path_node_to_path_tuple
+from mecbench.domain.contracts import FloatArray, IntArray
 from mecbench.domain.problem import ProblemInstance
 from mecbench.domain.solution import CompactSolution
+from mecbench.domain.validation import ValidationReport, validate
 from mecbench.utils.solver_base import GenericSolver
-from mecbench.utils.solver_workspace import SolvingInstance
+from mecbench.utils.solver_workspace import SolverWorkspace
 
 
 class Solver(GenericSolver):
@@ -32,12 +34,19 @@ class Solver(GenericSolver):
         self.seed = seed
         self.verbose = verbose
         self.solver_name = "cma_es"
+        self._flow_cap = float(self.data.max_flows.sum()) + 1.0
 
     def run(self):
         start_time = time.time()
-        self.sol_ins = SolvingInstance(self.problem_instance)
+        self._set_solution(None)
+        self.placement: IntArray | None = None
+        self.routing: IntArray | None = None
+        self.quantities: FloatArray | None = None
+        self.score = self.runtime = self.termination_condition = None
+        self.build_time = 0.0
+        self.sol_ins = SolverWorkspace(self.problem_instance, seed=self.seed)
         self.best_score = -np.inf
-        self.best_solution = None
+        self.best_solution: CompactSolution | None = None
         x0 = self.initial_value()
         self.objective(x0)
 
@@ -75,99 +84,104 @@ class Solver(GenericSolver):
                     es.logger.add()
                     es.disp()
 
-        if self.best_solution is None:
-            raise RuntimeError("CMA-ES did not find a feasible solution.")
-
-        self.placement, self.routing, self.quantities = self.best_solution
-        self._set_solution(
-            self.best_solution,
-            path_resolver=self.sol_ins.compute_nth_shortest_path,
-        )
+        if self.best_solution is not None:
+            self.placement = self.best_solution.placement
+            self.routing = self.best_solution.routing
+            self.quantities = self.best_solution.quantities
+            self._set_solution(
+                self.best_solution,
+                path_resolver=self.sol_ins.compute_nth_shortest_path,
+            )
+            self.score = self.best_score
 
         self.runtime = time.time() - start_time
-        self.score = self.best_score
-        self.build_time = 0.0
         return self
 
-    def objective(self, value: np.ndarray):
-        placement, routing, quantities = self.decode(value)
-        if self.sol_ins.is_feasible(placement, routing, quantities):
-            score = sum(quantities)
+    def objective(self, value: ArrayLike) -> float:
+        candidate = CompactSolution(*self.decode(value))
+        report = validate(
+            self.data, candidate, path_resolver=self.sol_ins.compute_nth_shortest_path
+        )
+        score = float(candidate.quantities.sum())
+        if report.feasible:
             if score > self.best_score:
                 self.best_score = score
-                self.best_solution = CompactSolution(placement, routing, quantities)
+                self.best_solution = candidate
             return -score
 
-        flow_cap = sum(self.data.max_flows) + 1.0
-        return (
-            flow_cap + self.violation(placement, routing, quantities) - sum(quantities) / flow_cap
-        )
+        return self._flow_cap + self._violation_penalty(report) - score / self._flow_cap
 
-    def decode(self, value: np.ndarray) -> tuple[list[int], list[int], list[int]]:
+    def decode(self, value: ArrayLike) -> tuple[list[int], list[int], list[float]]:
         S = self.data.n_services
         D = self.data.n_demands
-        z = np.rint(value).astype(int)
+        z = np.asarray(value, dtype=float)
+        if z.shape != (S + 2 * D,) or not np.all(np.isfinite(z)):
+            raise ValueError(
+                f"Encoded candidate must be a finite vector of shape ({S + 2 * D},)."
+            )
 
-        placement = np.clip(z[:S], 0, self.graph.number_of_nodes() - 1)
-        routing = np.clip(z[S : S + D], 0, self.max_pcc - 1)
+        placement = np.clip(np.rint(z[:S]), 0, self.data.n_nodes - 1).astype(np.int64)
+        routing = np.clip(np.rint(z[S : S + D]), 0, self.max_pcc - 1).astype(np.int64)
         quantities = np.clip(
-            z[-D:],
+            z[S + D :],
             self.data.min_flows,
             self.data.max_flows,
         )
         return placement.tolist(), routing.tolist(), quantities.tolist()
 
+    def _violation_penalty(self, report: ValidationReport) -> float:
+        penalty = 0.0
+        for violation in report.violations:
+            if (
+                violation.constraint not in ("capacity", "resources", "latency")
+                or not isinstance(violation.observed, float)
+                or not isinstance(violation.limit, float)
+            ):
+                return self._flow_cap
+            penalty += max(0.0, violation.observed - violation.limit)
+        return penalty
+
     def violation(
         self,
         placement: list[int],
         routing: list[int],
-        quantities: list[int],
+        quantities: list[float],
     ) -> float:
-        graph = self.sol_ins.graph.copy()
-        graph = self.sol_ins.initialize_graph_attributes(graph)
+        """Compatibility entry point using the reference validator's violations."""
         try:
-            graph = self.sol_ins.update_graph(
+            report = validate(
+                self.data,
                 CompactSolution(placement, routing, quantities),
-                graph=graph,
+                path_resolver=self.sol_ins.compute_nth_shortest_path,
             )
-        except (IndexError, KeyError, ValueError):
-            return sum(self.data.max_flows) + 1.0
+        except (TypeError, ValueError):
+            return self._flow_cap
+        return self._violation_penalty(report)
 
-        capacity = sum(max(0.0, -graph.edges[e]["remaining_capacity"]) for e in graph.edges)
-        resources = sum(max(0.0, -graph.nodes[v]["remaining_resources"]) for v in graph.nodes)
-        latency = 0.0
-        for d in range(len(quantities)):
-            service = self.data.demand_to_service[d]
-            path = self.sol_ins.compute_nth_shortest_path(
-                self.data.origins[d],
-                placement[service],
-                routing[d],
-            )
-            delay = sum(graph.edges[e]["latency"] for e in path_node_to_path_tuple(path))
-            latency += max(0.0, delay - self.data.latency_limits[d])
-
-        return capacity + resources + latency
-
-    def initial_value(self, method: str = "heuristic") -> np.ndarray:
+    def initial_value(self, method: str = "heuristic") -> FloatArray:
         if method == "basic":
-            placement, routing, quantities = self.sol_ins.basic_placement_and_routing()
+            candidate = CompactSolution(*self.sol_ins.basic_placement_and_routing())
         elif method == "heuristic":
             from mecbench.solvers.heuristic import Solver as HeuristicSolver
 
             sol = HeuristicSolver(self.problem_instance, seed=self.seed)
             sol.run()
-            placement, routing, quantities = sol.placement, sol.routing, sol.quantities
+            if sol.solution is None:
+                candidate = CompactSolution(*self.sol_ins.basic_placement_and_routing())
+            elif isinstance(sol.solution, CompactSolution):
+                candidate = sol.solution
+            else:
+                raise RuntimeError("The warm-start heuristic must publish a CompactSolution.")
         else:
             raise ValueError("method must be 'basic' or 'heuristic'.")
 
-        value = np.asarray(placement + routing + quantities, dtype=float)
-        placement, routing, quantities = self.decode(value)
-        return np.asarray(placement + routing + quantities, dtype=float)
+        value = np.concatenate((candidate.placement, candidate.routing, candidate.quantities))
+        return np.concatenate(self.decode(value), dtype=np.float64)
 
     def _bounds(self) -> list[list[float]]:
         S = self.data.n_services
         D = self.data.n_demands
-        n = self.graph.number_of_nodes()
-        lower = [0] * S + [0] * D + list(self.data.min_flows)
-        upper = [n - 1] * S + [self.max_pcc - 1] * D + list(self.data.max_flows)
+        n = self.data.n_nodes
+        lower = [0] * S + [0] * D + self.data.min_flows.tolist()
+        upper = [n - 1] * S + [self.max_pcc - 1] * D + self.data.max_flows.tolist()
         return [lower, upper]

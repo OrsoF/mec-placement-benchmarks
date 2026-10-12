@@ -1,4 +1,4 @@
-"""Arc parameter contracts captured before their shared implementation."""
+"""Arc parameter contracts, including the corrected latency upper bound."""
 
 import importlib
 import json
@@ -52,7 +52,7 @@ def solver(request):
     return build_solver(request.param, data)
 
 
-def test_parameters_match_pre_refactor_snapshot(solver):
+def test_parameters_match_expected_snapshot(solver):
     import pyomo.environ as pyo
 
     params = solver.model.component_map(pyo.Param)

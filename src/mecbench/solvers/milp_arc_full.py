@@ -73,14 +73,14 @@ class Solver(GenericSolver):
     def _set_initial_value(self, initial_value: tuple):
         x_variable, y_variable, q_variable = initial_value
         for demand_index in range(self.data.n_demands):
-            self.model.p[demand_index].Start = q_variable[demand_index]
+            self.model.p[demand_index].value = q_variable[demand_index]
             for arc_index in range(self.data.n_arcs):
-                self.model.demand_arc_transit[demand_index, arc_index].Start = x_variable[
+                self.model.demand_arc_transit[demand_index, arc_index].value = x_variable[
                     demand_index, arc_index
                 ]
         for service_index in range(self.data.n_services):
             for node_index in range(self.data.n_nodes):
-                self.model.y[service_index, node_index].Start = y_variable[
+                self.model.y[service_index, node_index].value = y_variable[
                     service_index, node_index
                 ]
 
@@ -104,7 +104,9 @@ class Solver(GenericSolver):
         opt.options["threads"] = 1
         opt.options["Heuristics"] = 0
         opt.options.update(options or {})
-        solver_result = opt.solve(self.model)
+        solver_result = opt.solve(
+            self.model, **({"warmstart": True} if initial_value is not None else {})
+        )
         self.termination_condition = str(solver_result.solver.termination_condition)
 
         (

@@ -88,6 +88,12 @@ def add_path_params(
 
 
 def add_path_constraints(model, m, n) -> None:
+    total_flow = sum(pyo.value(model.Pdmax[d]) for d in model.D)
+    latency_bounds = {
+        a: pyo.value(model.beta[a])
+        + pyo.value(model.alpha[a]) * min(pyo.value(model.arc_capacity[a]), total_flow)
+        for a in model.A
+    }
     model.valeurs_p = pyo.Constraint(
         model.D,
         rule=lambda model, d: pyo.inequality(model.Pdmin[d], model.p[d], model.Pdmax[d]),
@@ -123,13 +129,19 @@ def add_path_constraints(model, m, n) -> None:
     )
     model.realization = pyo.Constraint(
         model.S,
-        rule=lambda model, s: sum(model.y[s, u] for u in model.U) >= 1,
+        rule=lambda model, s: sum(model.y[s, u] for u in model.U) == 1,
+    )
+    model.path_selection = pyo.Constraint(
+        model.D,
+        rule=lambda model, d: sum(
+            model.l[p] for p in range(model.path_demand[d], model.path_demand[d + 1])
+        ) == 1,
     )
     model.reach_server = pyo.Constraint(
         model.D,
         model.U,
         rule=lambda model, d, u: model.y[model.serv_number[d], u]
-        <= sum(
+        == sum(
             float(model.ind_destination[p, u]) * model.l[p]
             for p in range(model.path_demand[d], model.path_demand[d + 1])
         ),
@@ -156,7 +168,8 @@ def add_path_constraints(model, m, n) -> None:
     model.latency_rule_2 = pyo.Constraint(
         model.C,
         model.A,
-        rule=lambda model, p, a: model.L[p, a] <= n * model.l[p],
+        rule=lambda model, p, a: model.L[p, a]
+        <= latency_bounds[a] * model.delta[p, a] * model.l[p],
     )
     model.latency_rule_3 = pyo.Constraint(
         model.C,
@@ -164,5 +177,5 @@ def add_path_constraints(model, m, n) -> None:
         rule=lambda model, p, a: model.L[p, a]
         >= model.alpha[a] * sum(float(model.delta[pp, a]) * model.P[pp] for pp in model.C)
         + model.beta[a]
-        - n * (1 - model.l[p]),
+        - latency_bounds[a] * (1 - model.delta[p, a] * model.l[p]),
     )

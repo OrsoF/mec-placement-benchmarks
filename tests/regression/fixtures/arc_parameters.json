@@ -12,6 +12,6 @@
   "ind_u_origin": {"domain": "Binary", "mutable": false, "dimen": 2, "indices": [[0, 0], [0, 1], [0, 2], [0, 3], [1, 0], [1, 1], [1, 2], [1, 3], [2, 0], [2, 1], [2, 2], [2, 3], [3, 0], [3, 1], [3, 2], [3, 3]], "values": [0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 0]},
   "node_resources": {"domain": "NonNegativeIntegers", "mutable": false, "dimen": 1, "indices": [0, 1, 2, 3], "values": [17.0, 23.0, 31.0, 47.0]},
   "arc_capacity": {"domain": "NonNegativeIntegers", "mutable": false, "dimen": 1, "indices": [0, 1, 2, 3, 4, 5], "values": [11.0, 13.0, 17.0, 19.0, 23.0, 29.0]},
-  "N": {"domain": "NonNegativeReals", "mutable": false, "dimen": 0, "indices": [null], "values": [29.0]},
+  "N": {"domain": "NonNegativeReals", "mutable": false, "dimen": 0, "indices": [null], "values": [44.0]},
   "M": {"domain": "NonNegativeIntegers", "mutable": false, "dimen": 0, "indices": [null], "values": [8.0]}
 }

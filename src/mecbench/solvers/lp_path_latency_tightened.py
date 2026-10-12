@@ -104,6 +104,7 @@ class Solver(GenericSolver):
         self.model.l = pyo.Var(self.model.P, within=pyo.NonNegativeReals, bounds=(0, 1))
         self.model.z = pyo.Var(self.model.P, within=pyo.Binary)
         self.model.nul = pyo.Var(range(1))
+        self.model.nul[0].fix(0)
 
     def _set_constraints(self):
         self.model.val_q = pyo.Constraint(
@@ -127,10 +128,13 @@ class Solver(GenericSolver):
         )
 
         self.model.lat = pyo.Constraint(
-            self.model.P,
-            self.model.A,
-            rule=lambda model, p, a: model.L[p, a]
-            <= self.data.latency_limits[self.path_to_demand(p)],
+            self.model.D,
+            rule=lambda model, d: sum(
+                model.L[p, a]
+                for p in range(self.pd[d], self.pd[d + 1])
+                for a in model.A
+                if self.delta(p, a)
+            ) <= self.data.latency_limits[d],
         )
 
         self.model.ind1 = pyo.Constraint(
@@ -142,7 +146,13 @@ class Solver(GenericSolver):
         )
 
         self.model.res_reach = pyo.Constraint(
-            self.model.S, rule=lambda model, s: sum(model.y[s, e] for e in model.E) >= 1
+            self.model.S, rule=lambda model, s: sum(model.y[s, e] for e in model.E) == 1
+        )
+        self.model.path_selection = pyo.Constraint(
+            self.model.D,
+            rule=lambda model, d: sum(
+                model.l[p] for p in range(self.pd[d], self.pd[d + 1])
+            ) == 1,
         )
 
         self.model.reach_serv = pyo.Constraint(self.model.D, self.model.E, rule=self.reach_serv)
@@ -177,13 +187,14 @@ class Solver(GenericSolver):
             rule=lambda model, p, a: model.L[p, a]
             >= self.data.latency_slopes[a] * sum(self.delta(pp, a) * model.Q[pp] for pp in model.P)
             + self.data.latency_offsets[a]
-            - self.maximum_possible_latency * (1 - model.z[p]),
+            - self.maximum_possible_latency * (1 - self.delta(p, a) * model.z[p]),
         )
 
         self.model.lat3 = pyo.Constraint(
             self.model.P,
             self.model.A,
-            rule=lambda model, p, a: model.L[p, a] <= self.maximum_possible_latency * model.z[p],
+            rule=lambda model, p, a: model.L[p, a]
+            <= self.maximum_possible_latency * self.delta(p, a) * model.z[p],
         )
 
     def gamma(self, p, e):
@@ -201,7 +212,7 @@ class Solver(GenericSolver):
         )
 
     def reach_serv(self, model, d, e):
-        return model.y[model.serv_number[d], e] <= sum(
+        return model.y[model.serv_number[d], e] == sum(
             self.gamma(p, e) * model.l[p] for p in range(self.pd[d], self.pd[d + 1])
         )
 

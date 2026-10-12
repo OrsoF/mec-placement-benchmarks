@@ -39,11 +39,17 @@ class Solver(GenericSolver):
 
     def run(self):
         start = time.time()
+        self._set_solution(None)
+        self.placement: list[int] | None = None
+        self.routing: list[int] | None = None
+        self.quantities: list[float] | None = None
+        self.score = self.runtime = self.termination_condition = None
+        self.build_time = 0.0
         self.rng = np.random.default_rng(self.seed)
         self.sol_ins = SolvingInstance(self.problem_instance)
 
         base = self._initial_solution()
-        pop = [base]
+        pop = [base] if self.sol_ins.is_feasible(*base) else []
         for _ in range(self.mu * self.lambda_):
             if len(pop) >= self.mu:
                 break
@@ -54,7 +60,7 @@ class Solver(GenericSolver):
         for _ in range(self.generations):
             children = []
             for _ in range(self.lambda_):
-                parent = pop[self.rng.integers(len(pop))]
+                parent = pop[self.rng.integers(len(pop))] if pop else base
                 child = self._repair(*self._mutate(*parent))
                 if child is not None:
                     children.append(child)
@@ -63,17 +69,18 @@ class Solver(GenericSolver):
             pool.sort(key=lambda z: sum(z[2]), reverse=True)
             pop = pool[: self.mu]
 
-        self.placement, self.routing, self.quantities = max(
-            pop,
-            key=lambda z: sum(z[2]),
-        )
-        self._set_compact_solution(
-            self.placement,
-            self.routing,
-            self.quantities,
-            path_resolver=self.sol_ins.compute_nth_shortest_path,
-        )
-        self.score = sum(self.quantities)
+        if pop:
+            self.placement, self.routing, self.quantities = max(
+                pop,
+                key=lambda z: sum(z[2]),
+            )
+            self._set_compact_solution(
+                self.placement,
+                self.routing,
+                self.quantities,
+                path_resolver=self.sol_ins.compute_nth_shortest_path,
+            )
+            self.score = sum(self.quantities)
         self.runtime = time.time() - start
         self.build_time = 0.0
         return self
@@ -81,6 +88,8 @@ class Solver(GenericSolver):
     def _initial_solution(self) -> tuple[list[int], list[int], list[int]]:
         placement, routing, quantities = self.sol_ins.basic_placement_and_routing()
         placement, routing, quantities = self._clip(placement, routing, quantities)
+        if not self.sol_ins.is_feasible(placement, routing, quantities):
+            return placement, routing, quantities
         return self._maximize_quantities(placement, routing, quantities)
 
     def _mutate(

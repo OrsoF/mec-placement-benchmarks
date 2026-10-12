@@ -78,13 +78,39 @@ class RLSolver(GenericSolver):
     def run(self):
         """Train the model and record aggregate solver metrics."""
         start_time = time.time()
+        self._set_solution(None)
+        self.score = self.runtime = self.termination_condition = None
+        self.build_time = 0.0
 
         self.model.learn(total_timesteps=self.train_step, progress_bar=False)
 
-        best_state = self.env.best_state_record[0]
-        solution = self.env.solution_from_state(best_state)
-        self._set_solution(solution, path_resolver=self.env.path_cache.nth_shortest_path)
+        # Evaluate on the solver's target, independently of training-instance resets.
+        self.evaluation_env = SPPEnv(
+            problem=self.problem_instance,
+            max_step=self.env.max_steps,
+            max_path_candidates=self.env.max_path_candidates,
+            warm_start_heuristic=self.env.warm_start_heuristic,
+            reuse_best_on_reset=self.env.reuse_best_on_reset,
+        )
+        if self.env.problem_instance is self.problem_instance:
+            trained_state = self.env.best_state_record[0]
+            if trained_state is not None:
+                self.evaluation_env.state = trained_state.copy()
+                self.evaluation_env._record_best_state()
+        observation, _ = self.evaluation_env.reset(seed=self.seed)
+        for _ in range(self.evaluation_step):
+            action, _ = self.model.predict(observation, deterministic=True)
+            observation, _, terminated, truncated, _ = self.evaluation_env.step(action)
+            if terminated or truncated:
+                observation, _ = self.evaluation_env.reset()
+
+        best_state = self.evaluation_env.best_state_record[0]
+        if best_state is not None:
+            solution = self.evaluation_env.solution_from_state(best_state)
+            self._set_solution(
+                solution, path_resolver=self.evaluation_env.path_cache.nth_shortest_path
+            )
+            self.score = float(solution.quantities.sum())
         self.runtime = time.time() - start_time
-        self.score = float(solution.quantities.sum())
         self.build_time = 0.0
         return self
