@@ -1,5 +1,5 @@
 from mecbench.instances.synthetic import make_tree_instance
-from mecbench.benchmarks.io import solve, import_instance_from_file, import_solver_from_file
+from mecbench.compat.experiment_io import solve, import_instance_from_file, import_solver_from_file
 import os
 from mecbench.solvers.rl.a2c import Solver
 

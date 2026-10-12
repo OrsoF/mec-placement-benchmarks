@@ -15,7 +15,7 @@ from mecbench.solvers.search import basic_solution, remaining_quantity
 class SolverWorkspace:
     def __init__(self, problem_instance: ProblemInstance, verbose: bool = True, *, seed: int = 0):
         self.problem_instance = problem_instance
-        self.graph = nx.Graph(self.problem_instance.network_graph.nx_graph)
+        self.graph = self.problem_instance.network_graph.nx_graph.copy()
         self.path_cache = ShortestPathCache(self.graph)
         self.saved_shortest_path = self.path_cache._paths
         self.rng = np.random.default_rng(seed)

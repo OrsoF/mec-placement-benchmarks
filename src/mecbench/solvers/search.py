@@ -4,6 +4,7 @@ import networkx as nx
 import numpy as np
 
 from mecbench.domain.conversions import make_state, split_state, to_int_array
+from mecbench.domain.loads import traffic_arrays
 from mecbench.domain.validation import validate_arc_solution
 
 
@@ -68,11 +69,10 @@ def remaining_quantity(problem, x, y, q, demand_index):
     """Integer increase allowed by every affected demand's shared-arc latency."""
     validate_arc_solution(problem, x, y, q)
     network = problem.network_graph
-    edge_load = x.T @ q
+    traffic = traffic_arrays(problem, x, q)
+    edge_load = traffic["edge_load"]
     alpha = np.asarray(network.alphas)
-    latency_slack = np.asarray(problem.latencies) - x @ (
-        np.asarray(network.betas) + alpha * edge_load
-    )
+    latency_slack = np.asarray(problem.latencies) - traffic["demand_latency"]
     sensitivity = x @ (alpha * x[demand_index])
     affected = sensitivity > 0
     latency_room = (

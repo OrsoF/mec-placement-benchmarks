@@ -1,4 +1,4 @@
-from mecbench.benchmarks.io import (
+from mecbench.compat.experiment_io import (
     reset,
     get_instance_list,
     get_solver_list,

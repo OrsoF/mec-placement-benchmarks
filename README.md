@@ -58,15 +58,14 @@ mecbench --instance tree --solvers ilp_arc heuristic fast_heuristic cma ppo hrl 
 mecbench --instance star --solvers ilp_arc heuristic fast_heuristic cma ppo hrl --seed 42 --groups 4 --start-users 15 --stop-users 125 --step-users 5 --plots
 ```
 
-`python -m mecbench` invokes the same CLI. The historical commands are now
-`examples/exp.py`, `examples/exp_tree.py`, and `examples/exp_star.py`; install
-the package before running them.
+`python -m mecbench` invokes the same CLI. Use `--instance tree` or `--instance star`
+to select the experiment topology.
 
-`exp_tree.py` builds instances with `create_tree_problem_instance(n_users,
+The tree experiment builds instances with `create_tree_problem_instance(n_users,
 neighbors)`: users are connected locally, then to one wireless access point and
 one cloud node.
 
-`exp_star.py` builds instances with `create_star_problem_instance(n_groups,
+The star experiment builds instances with `create_star_problem_instance(n_groups,
 users_per_group, neighbors)`: users are split into local groups, each group has
 one wireless access point, and all groups share the cloud.
 
@@ -102,7 +101,7 @@ Default figures:
 
 ```text
 src/mecbench/domain/        Problem objects, solutions, reference validator
-src/mecbench/compat/        Historical mutable problem-state adapter
+src/mecbench/compat/        Historical problem-state and experiment adapters
 src/mecbench/instances/     Synthetic builders and topology loading
 src/mecbench/solvers/       Base contract, heuristics, exact, evolutionary, RL
 src/mecbench/environments/  Gymnasium environments and RL support code

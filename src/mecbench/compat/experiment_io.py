@@ -1,14 +1,16 @@
+"""Historical experiment interfaces; new code uses mecbench.solve and the CLI."""
+
 import importlib
 import os
-import pickle as pkl
 from pathlib import Path
 
 import pandas as pd
 
 from mecbench.benchmarks.metrics import get_info_from_results as get_info_from_results
 from mecbench.benchmarks.metrics import get_result_informations as get_result_informations
+from mecbench.compat.pickle_io import pickle_load as pickle_load
+from mecbench.compat.pickle_io import pickle_save as pickle_save
 from mecbench.domain.problem import ProblemInstance
-from mecbench.domain.problem import ToyInstance as ToyInstance
 from mecbench.solvers.base import GenericSolver
 from mecbench.solvers.registry import SOLVER_FILE_ALIASES, SOLVER_MODULES
 
@@ -17,18 +19,6 @@ INSTANCES_PATH = os.path.join(ARTIFACTS_PATH, "instances")
 RESULTS_PATH = os.path.join(ARTIFACTS_PATH, "data")
 SOLVER_PATH = str(Path(__file__).resolve().parents[1] / "solvers")
 CURRENT_FOLDER = os.getcwd()
-
-
-def pickle_save(object_instance: object, file_name: str):
-    with open(file_name, "wb") as handle:
-        pkl.dump(object_instance, handle, protocol=pkl.HIGHEST_PROTOCOL)
-
-
-def pickle_load(file_name: str):
-    """Load any pickle file."""
-    with open(file_name, "rb") as handle:
-        python_variable = pkl.load(handle)
-    return python_variable
 
 
 def folder_management():
@@ -101,25 +91,6 @@ def create_dataframe_from_dict(input_dict: dict):
     return df
 
 
-def reorder_columns(df1, df2):
-    if isinstance(df1, pd.DataFrame) and isinstance(df2, pd.DataFrame):
-        if df1.shape[0] >= 1:
-            # Get the column order from the first row of df1
-            column_order = df1.iloc[0].index.tolist()
-
-            # Reorder columns in df1
-            df1_reordered = df1[column_order]
-
-            # Reorder columns in df2 based on the column order of df1
-            df2_reordered = df2[column_order]
-
-            return df1_reordered, df2_reordered
-        else:
-            raise ValueError("The first DataFrame must have at least one row.")
-    else:
-        raise TypeError("Input arguments must be Pandas DataFrames.")
-
-
 def import_instance_from_file(instance_name: str) -> ProblemInstance:
     instance_name = instance_name + ".pkl" if not instance_name.endswith(".pkl") else instance_name
     instance_path = os.path.join(INSTANCES_PATH, instance_name)
@@ -179,13 +150,3 @@ def solve(
         instance._set_arc_solution(solver.x_var, solver.y_var, solver.q_var)
         instance.check_current_solution()
     return instance, solver
-
-
-def print_constraint_variables(model) -> None:
-    import pyomo.environ as pyo
-
-    num_variables = len([v for v in model.component_data_objects(pyo.Var)])
-    print("Number of variables:", num_variables)
-
-    num_constraints = len([c for c in model.component_data_objects(pyo.Constraint)])
-    print("Number of constraints:", num_constraints)

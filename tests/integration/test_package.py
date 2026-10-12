@@ -68,11 +68,10 @@ def test_local_imports_and_dynamic_registry_paths_exist():
                     }, (path, module)
 
 
-@pytest.mark.requires("pandas", "tqdm")
 def test_solver_aliases_and_package_directory():
-    from mecbench.benchmarks.io import SOLVER_FILE_ALIASES, SOLVER_MODULES, SOLVER_PATH
+    from mecbench.solvers.registry import SOLVER_FILE_ALIASES, SOLVER_MODULES
 
-    assert Path(SOLVER_PATH).is_dir()
+    assert (SOURCE / "mecbench/solvers").is_dir()
     assert set(SOLVER_FILE_ALIASES.values()) <= set(SOLVER_MODULES)
 
 

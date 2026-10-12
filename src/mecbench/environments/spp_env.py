@@ -20,8 +20,7 @@ from mecbench.environments.state_codec import (
     to_integer_state,
 )
 from mecbench.solvers.heuristics.heuristicprecise import Solver
-from mecbench.solvers.paths import ShortestPathCache
-from mecbench.solvers.workspace import SolvingInstance
+from mecbench.solvers.workspace import SolverWorkspace
 
 
 class SPPEnv(gym.Env):
@@ -115,10 +114,10 @@ class SPPEnv(gym.Env):
         """Load problem-specific objects without rebuilding environment config."""
         self.problem_instance = problem_instance
         self.network_graph = self.problem_instance.network_graph
-        self.graph = self.network_graph.nx_graph
-        self.path_cache = ShortestPathCache(self.graph)
+        self.solution_checker = SolverWorkspace(self.problem_instance)
+        self.graph = self.solution_checker.graph
+        self.path_cache = self.solution_checker.path_cache
         self.saved_shortest_path = self.path_cache._paths
-        self.solution_checker = SolvingInstance(self.problem_instance)
         self.initial_solution = None
         self._configure_spaces()
         self.state = to_integer_state(self._make_initial_state())

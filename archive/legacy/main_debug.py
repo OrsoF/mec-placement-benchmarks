@@ -3,8 +3,8 @@ import pandas as pd
 import argparse
 from datetime import datetime
 from mecbench.instances.synthetic import make_star_instance, make_tree_instance
-from mecbench.benchmarks.io import solve
-from mecbench.benchmarks.pickle_io import pickle_load, pickle_save
+from mecbench.compat.experiment_io import solve
+from mecbench.compat.pickle_io import pickle_load, pickle_save
 from mecbench.solvers.base import GenericSolver
 from mecbench.solvers.exact.ilp_arc import Solver as Solver_ILP_arc
 from mecbench.solvers.exact.ilp_arc_95_latency import Solver as Solver_ILP_arc_95

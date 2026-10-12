@@ -16,7 +16,8 @@ there is no need to add the repository root to `sys.path`.
 | `solvers.exact`, `solvers.relaxations` | `mecbench.solvers.exact`, `mecbench.solvers.relaxations` |
 | `solvers.evolutionary`, `solvers.rl` | `mecbench.solvers.evolutionary`, `mecbench.solvers.rl` |
 | `rl.*` | `mecbench.environments.*` |
-| `data_io.experiment_io` | `mecbench.benchmarks.io` |
+| `data_io.experiment_io`, `mecbench.benchmarks.io` | `mecbench.compat.experiment_io` |
+| `mecbench.benchmarks.pickle_io` | `mecbench.compat.pickle_io` |
 | `plotting.result_plots` | `mecbench.benchmarks.reporting` |
 | `exp.py` | `mecbench.cli`, `mecbench.benchmarks.runner` |
 
@@ -24,14 +25,17 @@ The domain defines demands, networks, services, packages, and problems.
 `domain.network` owns graph data, `domain.services` owns demands and services,
 and `domain.problem` assembles a problem. `domain.solution.Solution` owns copied,
 read-only arrays. Pure compact/arc conversion lives in `domain.conversions`;
-load calculations live in `domain.loads`.
+Load, residual and total-traffic latency calculations live in `domain.loads`
+and are shared by validation, reporting and graph updates.
 
 `solvers.workspace.SolverWorkspace` owns a mutable graph, candidate state, path
 cache, and independent random generator. Candidate search lives in `solvers.search`,
 graph updates in `solvers.graph_state`, baseline construction in
 `solvers.initialization`, and indexed optimizer extraction in
 `solvers.exact.extraction`. Workspaces store their results without changing the
-problem's historical solution state. `GenericSolver` initializes outputs through
+problem's historical solution state. RL environments use the workspace's copy
+of the directed graph and its path cache, so observations never mutate the input
+problem or another environment. `GenericSolver` initializes outputs through
 an ordinary constructor; subclasses explicitly call `super().__init__`.
 
 All feasibility decisions use `domain.validation`; its exception is
@@ -65,7 +69,16 @@ separate RL profile, builds distributions, and checks Docker. Ruff covers active
 Python sources, tests, and examples; strict mypy coverage grows from an explicit
 list of public contracts and adapters. See [development](development.md).
 
-`examples/` contains the previous executable scripts. `data/`, `artifacts/`,
+`examples/` contains the quickstart, solver smoke runner and environment rendering
+example. The former `exp.py`, `exp_tree.py`, `exp_star.py`, and `reset.py` wrappers
+were removed; use the CLI for tree/star experiments. The historical experiment
+API and its single pickle implementation live in `compat/`. Archived scripts
+and notebooks reference those modules; the archived allocation helper lives
+beside its only caller in `archive/legacy/service_placement.py`.
+
+Unused `instances.utility`, `ToyInstance`, GML/path reconstruction helpers,
+old graph-update functions and unused plotting/reward aliases were removed.
+`data/`, `artifacts/`,
 and `archive/` retain input topologies, experiment outputs, and historical work.
 Archived imports were updated; historical algorithms and saved notebook outputs
 are retained. Old module namespaces are removed. Previously pickled Python

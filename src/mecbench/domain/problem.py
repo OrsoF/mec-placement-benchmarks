@@ -91,8 +91,3 @@ class ProblemInstance(LegacyProblemState):
                 lo <= hi for lo, hi in zip(service.min_flows, service.max_flows, strict=False)
             )
             assert all(latency >= 0 for latency in service.max_latencies)
-
-
-class ToyInstance(ProblemInstance):
-    def __init__(self) -> None:
-        pass

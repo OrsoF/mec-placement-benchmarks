@@ -13,7 +13,6 @@ def apply_residuals_to_graph(problem, graph: nx.Graph, x, y, q) -> nx.Graph:
     for a, e in enumerate(problem.network_graph.arc_list):
         if not graph.has_edge(*e):
             continue
-        load = residual["edge_load"][a]
         graph.edges[e]["remaining_capacity"] = residual["remaining_capacity"][a]
-        graph.edges[e]["latency"] = graph.edges[e]["beta"] + load * graph.edges[e]["alpha"]
+        graph.edges[e]["latency"] = residual["arc_latency"][a]
     return graph

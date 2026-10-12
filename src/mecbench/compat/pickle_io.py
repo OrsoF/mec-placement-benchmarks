@@ -1,3 +1,5 @@
+"""Pickle helpers used by historical experiment scripts."""
+
 import pickle as pkl
 
 

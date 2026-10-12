@@ -1,5 +1,5 @@
 from mecbench.instances.synthetic import make_tree_instance
-from mecbench.benchmarks.io import solve
+from mecbench.compat.experiment_io import solve
 
 users = 7
 neighbors = 3

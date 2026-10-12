@@ -1,4 +1,4 @@
-from mecbench.benchmarks.io import folder_management
+from mecbench.compat.experiment_io import folder_management
 from mecbench.instances.synthetic import make_tree_instance
 
 folder_management()

@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 
+from mecbench.domain.loads import residual_arrays, traffic_arrays
 from mecbench.domain.problem import ProblemInstance
 
 ORIGIN_COLOR = "tab:red"
@@ -43,10 +44,11 @@ def plot_instance_solution(
 
     node_colors = _node_colors(problem_instance, y)
     node_sizes = _node_sizes(graph, y)
-    edge_widths = _edge_widths(graph, x, q)
+    loads = residual_arrays(problem_instance, x, y, q)
+    edge_widths = _edge_widths(loads["edge_load"])
     edge_colors = [USED_EDGE_COLOR if width > 0.5 else UNUSED_EDGE_COLOR for width in edge_widths]
-    resource_usage = _node_resource_usage(problem_instance, y)
-    capacity_usage = _edge_capacity_usage(problem_instance, x, q)
+    resource_usage = loads["node_load"]
+    capacity_usage = loads["edge_load"]
 
     ax.axis("off")
     nx.draw_networkx_edges(
@@ -118,56 +120,6 @@ def plot_instance_solution(
     return fig, ax
 
 
-def plot_instance(
-    nx_graph: nx.Graph | None = None,
-    x: np.ndarray | None = None,
-    p: np.ndarray | None = None,
-    y: np.ndarray | None = None,
-    q: np.ndarray | None = None,
-    problem_instance: ProblemInstance | None = None,
-    **kwargs,
-) -> tuple[plt.Figure, plt.Axes]:
-    """Backward-compatible wrapper around :func:`plot_instance_solution`."""
-    if problem_instance is None:
-        raise ValueError("plot_instance requires a problem_instance.")
-    if q is None:
-        q = p
-    return plot_instance_solution(problem_instance, x=x, y=y, q=q, **kwargs)
-
-
-def plot_small_instance(
-    nx_graph: nx.Graph,
-    x: np.ndarray | None = None,
-    p: np.ndarray | None = None,
-    y: np.ndarray | None = None,
-    q: np.ndarray | None = None,
-    problem_instance: ProblemInstance | None = None,
-) -> tuple[plt.Figure, plt.Axes]:
-    """Compatibility wrapper for old callers."""
-    return plot_instance(nx_graph, x=x, p=p, y=y, q=q, problem_instance=problem_instance)
-
-
-def plot_large_instance(
-    nx_graph: nx.Graph,
-    x: np.ndarray | None = None,
-    p: np.ndarray | None = None,
-    y: np.ndarray | None = None,
-    q: np.ndarray | None = None,
-    problem_instance: ProblemInstance | None = None,
-) -> tuple[plt.Figure, plt.Axes]:
-    """Compatibility wrapper for old callers."""
-    return plot_instance(
-        nx_graph,
-        x=x,
-        p=p,
-        y=y,
-        q=q,
-        problem_instance=problem_instance,
-        layout="shell",
-        with_labels=False,
-    )
-
-
 def _resolve_solution(
     problem_instance: ProblemInstance,
     *,
@@ -236,27 +188,10 @@ def _node_sizes(graph: nx.Graph, y: np.ndarray) -> np.ndarray:
     return 120 + 180 * services_per_node
 
 
-def _edge_widths(graph: nx.Graph, x: np.ndarray, q: np.ndarray) -> np.ndarray:
-    edge_loads = np.asarray(x.T @ q, dtype=float)
-    if graph.number_of_edges() == 0 or edge_loads.max(initial=0) <= 0:
-        return np.full(graph.number_of_edges(), 0.5)
+def _edge_widths(edge_loads: np.ndarray) -> np.ndarray:
+    if edge_loads.size == 0 or edge_loads.max(initial=0) <= 0:
+        return np.full(edge_loads.size, 0.5)
     return 0.5 + 4.0 * edge_loads / edge_loads.max()
-
-
-def _node_resource_usage(
-    problem_instance: ProblemInstance,
-    y: np.ndarray,
-) -> np.ndarray:
-    needed_resources = np.asarray(problem_instance.needed_resources, dtype=float)
-    return np.asarray(y.T @ needed_resources, dtype=float)
-
-
-def _edge_capacity_usage(
-    problem_instance: ProblemInstance,
-    x: np.ndarray,
-    q: np.ndarray,
-) -> np.ndarray:
-    return np.asarray(x.T @ q, dtype=float)
 
 
 def _node_labels(
@@ -293,11 +228,12 @@ def _solution_summary(
     q: np.ndarray,
 ) -> str:
     lines = ["solution"]
+    latencies = traffic_arrays(problem_instance, x, q)["demand_latency"]
     demand_index = 0
     for service_index, demand_count in enumerate(problem_instance.demand_per_service):
         lines.append(f"S{service_index}")
         for _ in range(demand_count):
-            latency = _demand_latency(problem_instance, x, q, demand_index)
+            latency = latencies[demand_index]
             max_latency = problem_instance.latencies[demand_index]
             max_quantity = problem_instance.max_flows[demand_index]
             quantity = q[demand_index]
@@ -309,23 +245,6 @@ def _solution_summary(
             demand_index += 1
 
     return "\n".join(lines)
-
-
-def _demand_latency(
-    problem_instance: ProblemInstance,
-    x: np.ndarray,
-    q: np.ndarray,
-    demand_index: int,
-) -> float:
-    used_edge_indices = np.nonzero(x[demand_index])[0]
-    quantity = q[demand_index]
-    return float(
-        sum(
-            problem_instance.network_graph.alphas[edge_index] * quantity
-            + problem_instance.network_graph.betas[edge_index]
-            for edge_index in used_edge_indices
-        )
-    )
 
 
 def _make_layout(

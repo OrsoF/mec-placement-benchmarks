@@ -3,9 +3,9 @@ from mecbench.domain.problem import ServicePackage
 from mecbench.domain.problem import NetworkGraph
 from mecbench.domain.problem import Service
 from mecbench.domain.problem import ProblemInstance
-from mecbench.benchmarks.io import get_info_from_results
+from mecbench.compat.experiment_io import get_info_from_results
 from mecbench.domain.graph_utils import get_encoded_incoming_arc, get_encoded_outgoing_arc
-from mecbench.solvers.heuristics.service_placement import greedy_service_placement as greedy_server_allocation
+from service_placement import greedy_service_placement as greedy_server_allocation
 from mecbench.solvers.exact.ilp_path import Solver as ilp_solver
 
 import pyomo.environ as pyo

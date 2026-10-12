@@ -56,7 +56,7 @@ this active-code scope. To apply formatting locally, use `python -m ruff format
 src tests examples`. Tool versions are pinned in the `dev` extra for repeatable CI.
 
 Typing is strict within the explicit `tool.mypy.files` list in `pyproject.toml`:
-the public API and errors, solution and validation contracts, solver base and
+the public API and errors, solution, load and validation contracts, solver base and
 registry, optimizer extraction, baseline builder, and legacy state adapter.
 `domain.contracts` and `solvers.contracts` define typed array aliases and
 protocols for these boundaries. Other algorithm and environment modules remain

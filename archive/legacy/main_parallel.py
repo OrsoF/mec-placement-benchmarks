@@ -4,8 +4,8 @@ import pandas as pd
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 from mecbench.instances.synthetic import make_star_instance
-from mecbench.benchmarks.io import solve
-from mecbench.benchmarks.pickle_io import pickle_load, pickle_save
+from mecbench.compat.experiment_io import solve
+from mecbench.compat.pickle_io import pickle_load, pickle_save
 from mecbench.solvers.base import GenericSolver
 
 from mecbench.solvers.exact.ilp_arc import Solver as Solver_ILP_arc

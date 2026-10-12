@@ -13,6 +13,7 @@ import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
 from mecbench.domain.contracts import FloatArray, ProblemData, SolutionData
+from mecbench.domain.loads import residual_arrays
 
 
 class SolutionValidationError(ValueError):
@@ -178,7 +179,8 @@ def _validate_arrays(
         maximum,
         "demand",
     )
-    node_load = y.T @ np.asarray(problem.needed_resources, dtype=float)
+    loads = residual_arrays(problem, x, y, q)
+    node_load = loads["node_load"]
     resources = np.asarray(network.available_resources)
     record(
         node_load > resources + atol,
@@ -188,7 +190,7 @@ def _validate_arrays(
         resources,
         "node",
     )
-    edge_load = x.T @ q
+    edge_load = loads["edge_load"]
     capacities = np.asarray(network.capacities)
     record(
         edge_load > capacities + atol,
@@ -217,8 +219,7 @@ def _validate_arrays(
             )
         )
 
-    arc_latency = np.asarray(network.betas) + np.asarray(network.alphas) * edge_load
-    demand_latency = x @ arc_latency
+    demand_latency = loads["demand_latency"]
     limits = np.asarray(problem.latencies)
     record(
         demand_latency > limits + atol,

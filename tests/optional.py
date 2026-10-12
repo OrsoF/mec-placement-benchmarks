@@ -21,8 +21,8 @@ def module_requirements(module: str) -> tuple[str, ...]:
         "mecbench.environments.observation",
     }:
         return ("gymnasium",)
-    if module == "mecbench.benchmarks.io":
-        return ("pandas", "tqdm")
+    if module == "mecbench.compat.experiment_io":
+        return ("pandas",)
     if module == "mecbench.benchmarks.reporting":
         return ("matplotlib",)
     return ()

@@ -51,7 +51,7 @@ python_version = "3.10"
 mypy_path = "src"
 files = [
   "src/mecbench/api.py", "src/mecbench/errors.py",
-  "src/mecbench/domain/contracts.py", "src/mecbench/domain/solution.py", "src/mecbench/domain/validation.py",
+  "src/mecbench/domain/contracts.py", "src/mecbench/domain/solution.py", "src/mecbench/domain/validation.py", "src/mecbench/domain/loads.py",
   "src/mecbench/solvers/contracts.py", "src/mecbench/solvers/base.py", "src/mecbench/solvers/registry.py",
   "src/mecbench/solvers/exact/extraction.py", "src/mecbench/solvers/initialization.py",
   "src/mecbench/compat/problem_state.py",
