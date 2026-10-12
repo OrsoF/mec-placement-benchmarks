@@ -14,7 +14,7 @@ from mecbench.domain.solution import Solution
 from mecbench.domain.validation import ValidationReport, validate
 from mecbench.errors import SolverExecutionError
 from mecbench.instances.synthetic import create_star_problem_instance, create_tree_problem_instance
-from mecbench.solvers.registry import REGISTRY, canonical_name, dependency_error, make_solver
+from mecbench.utils.solver_registry import REGISTRY, canonical_name, dependency_error, make_solver
 
 
 class SolveStatus(str, Enum):

@@ -19,8 +19,8 @@ from mecbench.environments.state_codec import (
     state_to_vectors,
     to_integer_state,
 )
-from mecbench.solvers.heuristics.heuristicprecise import Solver
-from mecbench.solvers.workspace import SolverWorkspace
+from mecbench.solvers.heuristic_unit_step import Solver
+from mecbench.utils.solver_workspace import SolverWorkspace
 
 
 class SPPEnv(gym.Env):

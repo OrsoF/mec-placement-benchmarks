@@ -5,9 +5,9 @@ from mecbench.domain.conversions import compact_to_arc, split_state, to_int_arra
 from mecbench.domain.conversions import make_state as make_state
 from mecbench.domain.network import NetworkGraph
 from mecbench.domain.problem import ProblemInstance
-from mecbench.solvers.paths import ShortestPathCache
-from mecbench.solvers.search import basic_state, clip_state
-from mecbench.solvers.workspace import SolvingInstance
+from mecbench.utils.heuristic_solvers import basic_state, clip_state
+from mecbench.utils.solver_paths import ShortestPathCache
+from mecbench.utils.solver_workspace import SolvingInstance
 
 
 def to_integer_state(s: np.ndarray | list) -> np.ndarray:

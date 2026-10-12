@@ -52,8 +52,8 @@ mypy_path = "src"
 files = [
   "src/mecbench/api.py", "src/mecbench/errors.py",
   "src/mecbench/domain/contracts.py", "src/mecbench/domain/solution.py", "src/mecbench/domain/validation.py", "src/mecbench/domain/loads.py",
-  "src/mecbench/solvers/contracts.py", "src/mecbench/solvers/base.py", "src/mecbench/solvers/registry.py",
-  "src/mecbench/solvers/exact/extraction.py", "src/mecbench/solvers/initialization.py",
+  "src/mecbench/utils/solver_base.py", "src/mecbench/utils/solver_registry.py",
+  "src/mecbench/utils/ilp_solvers.py", "src/mecbench/utils/heuristic_solvers.py",
   "src/mecbench/compat/problem_state.py",
 ]
 follow_imports = "silent"

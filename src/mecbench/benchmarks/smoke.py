@@ -6,20 +6,20 @@ from contextlib import redirect_stderr, redirect_stdout
 from mecbench.instances.synthetic import create_tree_problem_instance
 
 SOLVERS = [
-    ("heuristic", "mecbench.solvers.heuristics.heuristic"),
-    ("heuristicprecise", "mecbench.solvers.heuristics.heuristicprecise"),
-    ("fast_heuristic", "mecbench.solvers.heuristics.fast_heuristic"),
-    ("ilp_arc", "mecbench.solvers.exact.ilp_arc"),
-    ("ilp_arc_95_latency", "mecbench.solvers.exact.ilp_arc_95_latency"),
-    ("ilp_arc_heuristic_placement", "mecbench.solvers.exact.ilp_arc_heuristic_placement"),
-    ("ilp_arc_heuristic_warmstart", "mecbench.solvers.exact.ilp_arc_heuristic_warmstart"),
-    ("ilp_path", "mecbench.solvers.exact.ilp_path"),
-    ("milp_arc", "mecbench.solvers.exact.milp_arc"),
-    ("milp_arc_full", "mecbench.solvers.exact.milp_arc_full"),
-    ("milp_path", "mecbench.solvers.exact.milp_path"),
-    ("lp_arc", "mecbench.solvers.relaxations.lp_arc"),
-    ("lp_path", "mecbench.solvers.relaxations.lp_path"),
-    ("lp_path_latency_tightened", "mecbench.solvers.relaxations.lp_path_latency_tightened"),
+    ("heuristic", "mecbench.solvers.heuristic"),
+    ("heuristic_unit_step", "mecbench.solvers.heuristic_unit_step"),
+    ("fast_heuristic", "mecbench.solvers.fast_heuristic"),
+    ("ilp_arc", "mecbench.solvers.ilp_arc"),
+    ("ilp_arc_gap_5pct", "mecbench.solvers.ilp_arc_gap_5pct"),
+    ("ilp_arc_heuristic_placement", "mecbench.solvers.ilp_arc_heuristic_placement"),
+    ("ilp_arc_heuristic_warmstart", "mecbench.solvers.ilp_arc_heuristic_warmstart"),
+    ("ilp_path", "mecbench.solvers.ilp_path"),
+    ("milp_arc", "mecbench.solvers.milp_arc"),
+    ("milp_arc_full", "mecbench.solvers.milp_arc_full"),
+    ("milp_path", "mecbench.solvers.milp_path"),
+    ("lp_arc", "mecbench.solvers.lp_arc"),
+    ("lp_path", "mecbench.solvers.lp_path"),
+    ("lp_path_latency_tightened", "mecbench.solvers.lp_path_latency_tightened"),
 ]
 
 

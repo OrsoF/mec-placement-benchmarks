@@ -1,7 +1,0 @@
-instance,solver,users,neighbors,groups,score,runtime,buildtime
-star,ilp_arc,60,1,4,,0.0160672664642334,
-star,ilp_arc,60,1,4,,0.0010600090026855469,
-star,heuristic,60,1,4,199,13.43757438659668,0.0
-star,fast_heuristic,60,1,4,376.0,20.221393823623657,0.0
-star,cma,60,1,4,199,67.19201326370239,0.0
-star,ilp_arc,60,1,4,,0.0007104873657226562,

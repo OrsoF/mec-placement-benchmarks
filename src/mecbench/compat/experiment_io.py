@@ -11,8 +11,8 @@ from mecbench.benchmarks.metrics import get_result_informations as get_result_in
 from mecbench.compat.pickle_io import pickle_load as pickle_load
 from mecbench.compat.pickle_io import pickle_save as pickle_save
 from mecbench.domain.problem import ProblemInstance
-from mecbench.solvers.base import GenericSolver
-from mecbench.solvers.registry import SOLVER_FILE_ALIASES, SOLVER_MODULES
+from mecbench.utils.solver_base import GenericSolver
+from mecbench.utils.solver_registry import SOLVER_FILE_ALIASES, SOLVER_MODULES
 
 ARTIFACTS_PATH = os.path.join(os.getcwd(), "artifacts")
 INSTANCES_PATH = os.path.join(ARTIFACTS_PATH, "instances")

@@ -6,7 +6,7 @@ import pytest
 from mecbench.domain.loads import residual_arrays
 from mecbench.domain.solution import Solution
 from mecbench.domain.validation import validate
-from mecbench.solvers.workspace import SolverWorkspace
+from mecbench.utils.solver_workspace import SolverWorkspace
 from tests.helpers import make_problem, route_solution
 
 

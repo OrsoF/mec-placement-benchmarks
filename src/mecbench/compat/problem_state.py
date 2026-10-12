@@ -77,7 +77,7 @@ class LegacyProblemState:
         self.check_current_solution()
 
     def _initialize_baseline(self) -> None:
-        from mecbench.solvers.initialization import baseline_solution
+        from mecbench.utils.heuristic_solvers import baseline_solution
 
         candidate = baseline_solution(cast(ProblemData, self))
         self._set_arc_solution(candidate.x, candidate.y, candidate.q)

@@ -16,7 +16,7 @@ from mecbench import SolveStatus
 from mecbench.benchmarks import runner
 from mecbench.cli import main
 from mecbench.instances.synthetic import create_tree_problem_instance
-from tests.optional import module_requirements
+from tests.optional import is_rl_module, module_requirements
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "src"
@@ -33,7 +33,7 @@ MODULES = sorted(
             module,
             marks=[
                 pytest.mark.requires(*module_requirements(module)),
-                *([pytest.mark.rl] if module.startswith("mecbench.solvers.rl.") else []),
+                *([pytest.mark.rl] if is_rl_module(module) else []),
             ],
         )
         for module in MODULES
@@ -69,7 +69,7 @@ def test_local_imports_and_dynamic_registry_paths_exist():
 
 
 def test_solver_aliases_and_package_directory():
-    from mecbench.solvers.registry import SOLVER_FILE_ALIASES, SOLVER_MODULES
+    from mecbench.utils.solver_registry import SOLVER_FILE_ALIASES, SOLVER_MODULES
 
     assert (SOURCE / "mecbench/solvers").is_dir()
     assert set(SOLVER_FILE_ALIASES.values()) <= set(SOLVER_MODULES)

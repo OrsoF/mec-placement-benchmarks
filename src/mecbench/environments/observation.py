@@ -7,8 +7,8 @@ from gymnasium.spaces import Box, MultiDiscrete
 from mecbench.domain.loads import residual_arrays
 from mecbench.domain.problem import ProblemInstance
 from mecbench.environments.state_codec import state_to_vectors
-from mecbench.solvers.graph_state import apply_residuals_to_graph
-from mecbench.solvers.paths import ShortestPathCache
+from mecbench.utils.solver_paths import ShortestPathCache
+from mecbench.utils.solver_workspace import apply_residuals_to_graph
 
 
 def make_action_space(

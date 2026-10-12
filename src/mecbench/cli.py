@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 from mecbench.benchmarks.runner import INSTANCES, SOLVERS, run_benchmarks
-from mecbench.solvers.registry import make_solver as make_solver
+from mecbench.utils.solver_registry import make_solver as make_solver
 
 
 def positive_int(value):

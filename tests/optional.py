@@ -1,19 +1,23 @@
-"""Dependency declarations for package import smoke tests."""
+"""Dependency declarations for flat solver and utility import smoke tests."""
+
+from mecbench.utils.solver_registry import REGISTRY
+
+
+def is_rl_module(module: str) -> bool:
+    return module == "mecbench.utils.rl_solvers" or any(
+        spec.module == module and spec.extra == "rl" for spec in REGISTRY.values()
+    )
 
 
 def module_requirements(module: str) -> tuple[str, ...]:
-    if module == "mecbench.solvers.exact.extraction":
-        return ()
-    if module.startswith("mecbench.solvers.rl."):
+    if is_rl_module(module):
         return ("stable_baselines3",)
-    if module.startswith(
-        ("mecbench.solvers.exact.", "mecbench.solvers.relaxations.")
-    ) or module in {
-        "mecbench.solvers.arc_formulation",
-        "mecbench.solvers.path_formulation",
-    }:
+    if module in {
+        "mecbench.utils.arc_formulation",
+        "mecbench.utils.path_formulation",
+    } or any(spec.module == module and spec.mathematical for spec in REGISTRY.values()):
         return ("pyomo",)
-    if module == "mecbench.solvers.evolutionary.cma":
+    if module == REGISTRY["cma_es"].module:
         return ("cma",)
     if module in {
         "mecbench.environments.spp_env",

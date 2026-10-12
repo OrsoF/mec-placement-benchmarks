@@ -7,8 +7,8 @@ from mecbench import make_tree_instance, solve
 from mecbench.domain.conversions import compact_to_arc
 from mecbench.domain.solution import SolvingInstance
 from mecbench.domain.solution import compact_to_arc as legacy_compact_to_arc
-from mecbench.solvers.initialization import baseline_solution
-from mecbench.solvers.workspace import SolverWorkspace
+from mecbench.utils.heuristic_solvers import baseline_solution
+from mecbench.utils.solver_workspace import SolverWorkspace
 
 
 def test_public_solve_does_not_create_legacy_problem_state():

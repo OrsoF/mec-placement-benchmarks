@@ -20,7 +20,7 @@ from mecbench import (
     solve,
     validate,
 )
-from mecbench.solvers import registry
+from mecbench.utils import solver_registry as registry
 
 
 def test_user_quickstart_and_repeatability():
@@ -233,7 +233,7 @@ def test_license_failure_is_not_disguised_as_a_candidate(monkeypatch):
 def test_real_arc_adapter_records_structured_termination(monkeypatch, termination, incumbent):
     from pyomo.opt import SolverResults, TerminationCondition
 
-    import mecbench.solvers.exact.ilp_arc as module
+    import mecbench.solvers.ilp_arc as module
 
     problem = make_tree_instance(2)
 
@@ -272,18 +272,18 @@ def test_mathematical_adapters_accept_optimizer_options(name):
     assert "options" in inspect.signature(cls.run).parameters
 
 
-@pytest.mark.parametrize("name", ["a2c", "ppo", "ppo_options"])
+@pytest.mark.parametrize("name", ["a2c", "ppo", "ppo_best_state_reset"])
 @pytest.mark.requires("stable_baselines3")
 @pytest.mark.rl
 def test_rl_seed_and_explicit_training_options_reach_base_solver(monkeypatch, name):
-    from mecbench.solvers.rl import base_solver
+    from mecbench.utils import rl_solvers
 
     def env(self, problem, max_step, reuse):
         return SimpleNamespace(max_step=max_step)
 
-    monkeypatch.setattr(base_solver.Solver, "_make_env", env)
+    monkeypatch.setattr(rl_solvers.RLSolver, "_make_env", env)
     monkeypatch.setattr(
-        base_solver.Solver, "_make_model", lambda self: SimpleNamespace(seed=self.seed)
+        rl_solvers.RLSolver, "_make_model", lambda self: SimpleNamespace(seed=self.seed)
     )
     backend = registry.make_solver(name, make_tree_instance(2), seed=42, max_step=12, train_step=32)
     assert backend.seed == backend.model.seed == 42

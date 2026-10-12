@@ -3,9 +3,9 @@
 import pytest
 
 from mecbench import make_tree_instance
-from mecbench.solvers.base import GenericSolver
-from mecbench.solvers.registry import SOLVER_MODULES, make_solver
-from tests.optional import module_requirements
+from mecbench.utils.solver_base import GenericSolver
+from mecbench.utils.solver_registry import SOLVER_MODULES, make_solver
+from tests.optional import is_rl_module, module_requirements
 
 
 @pytest.mark.parametrize(
@@ -15,7 +15,7 @@ from tests.optional import module_requirements
             name,
             marks=[
                 pytest.mark.requires(*module_requirements(module)),
-                *([pytest.mark.rl] if ".rl." in module else []),
+                *([pytest.mark.rl] if is_rl_module(module) else []),
             ],
         )
         for name, module in SOLVER_MODULES.items()

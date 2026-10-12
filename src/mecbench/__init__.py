@@ -12,7 +12,7 @@ from mecbench.domain.validation import (
     validate,
 )
 from mecbench.errors import MissingSolverDependencyError, SolverExecutionError, UnknownSolverError
-from mecbench.solvers.registry import list_solvers
+from mecbench.utils.solver_registry import list_solvers
 
 __all__ = [
     "make_tree_instance",

@@ -57,8 +57,8 @@ src tests examples`. Tool versions are pinned in the `dev` extra for repeatable 
 
 Typing is strict within the explicit `tool.mypy.files` list in `pyproject.toml`:
 the public API and errors, solution, load and validation contracts, solver base and
-registry, optimizer extraction, baseline builder, and legacy state adapter.
-`domain.contracts` and `solvers.contracts` define typed array aliases and
+registry, mathematical helpers, heuristic helpers, and legacy state adapter.
+`domain.contracts` and `utils.solver_base` define typed array aliases and
 protocols for these boundaries. Other algorithm and environment modules remain
 outside strict coverage; add them to this list as their annotations mature.
 Following their imports silently allows this incremental approach without
@@ -68,9 +68,13 @@ have a named override. Dynamic solver options and indexed optimizer objects use
 
 ## Adding a solver
 
-Subclass `GenericSolver` and call `super().__init__(problem)` explicitly.
+Create `src/mecbench/solvers/<name>.py` with a `Solver` class. Subclass
+`GenericSolver` from `mecbench.utils.solver_base` and call
+`super().__init__(problem)` explicitly.
 Implement `run`, populate outputs through `_set_output_variables`, and record
-metrics and termination information. Register the module in `solvers.registry`.
+metrics and termination information. Register the flat module in
+`utils.solver_registry`, explicitly declaring its optional extra and whether
+it is mathematical. Shared logic belongs in the appropriate `utils/` module.
 Keep mutable candidate state in a `SolverWorkspace`; treat input problems as
 shared data. Convert indexed optimizer outputs with the extraction helpers.
 The public facade copies outputs into `Solution`, validates them, and recomputes

@@ -5,7 +5,7 @@ import pytest
 
 from mecbench.domain.solution import SolvingInstance
 from mecbench.domain.validation import SolutionValidationError, validate_arc_solution
-from mecbench.solvers.heuristics.fast_heuristic import Solver as FastHeuristic
+from mecbench.solvers.fast_heuristic import Solver as FastHeuristic
 from tests.helpers import make_problem, route_solution
 
 
@@ -82,7 +82,7 @@ def arc_milp_model(problem):
     """Build the repository's actual constraints; no optimizer is required."""
     import pyomo.environ as pyo
 
-    from mecbench.solvers.arc_formulation import add_arc_constraints
+    from mecbench.utils.arc_formulation import add_arc_constraints
 
     model = pyo.ConcreteModel()
     network = problem.network_graph

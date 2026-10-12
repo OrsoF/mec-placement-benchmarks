@@ -8,13 +8,21 @@ there is no need to add the repository root to `sys.path`.
 | `core.problem_classes.*` | `mecbench.domain.problem` |
 | `core.solution`, `core.problem_classes.solving_instance` | `mecbench.domain.solution` |
 | `core.feasibility` | `mecbench.domain.validation` |
-| `core.generic_solver` | `mecbench.solvers.base` |
-| `core.pyomo_model` | `mecbench.solvers.model_utils` |
+| `core.generic_solver` | `mecbench.utils.solver_base` |
+| `core.pyomo_model` | `mecbench.utils.ilp_solvers` |
 | `instances.builder` | `mecbench.instances.synthetic` |
 | `instances.graph_build` | `mecbench.instances.topology` |
-| `solvers.heuristic` | `mecbench.solvers.heuristics` |
-| `solvers.exact`, `solvers.relaxations` | `mecbench.solvers.exact`, `mecbench.solvers.relaxations` |
-| `solvers.evolutionary`, `solvers.rl` | `mecbench.solvers.evolutionary`, `mecbench.solvers.rl` |
+| `solvers.heuristic`, `mecbench.solvers.heuristics.*` | `mecbench.solvers.*` |
+| `solvers.exact`, `solvers.relaxations`, `mecbench.solvers.exact.*`, `mecbench.solvers.relaxations.*` | `mecbench.solvers.*` |
+| `solvers.evolutionary`, `solvers.rl`, `mecbench.solvers.evolutionary.*`, `mecbench.solvers.rl.*` | `mecbench.solvers.*` |
+| `mecbench.solvers.base`, `mecbench.solvers.contracts` | `mecbench.utils.solver_base` |
+| `mecbench.solvers.registry` | `mecbench.utils.solver_registry` |
+| `mecbench.solvers.workspace`, `mecbench.solvers.graph_state` | `mecbench.utils.solver_workspace` |
+| `mecbench.solvers.paths` | `mecbench.utils.solver_paths` |
+| `mecbench.solvers.search`, `mecbench.solvers.initialization` | `mecbench.utils.heuristic_solvers` |
+| `mecbench.solvers.model_utils`, `mecbench.solvers.exact.extraction` | `mecbench.utils.ilp_solvers` |
+| `mecbench.solvers.rl.base_solver` | `mecbench.utils.rl_solvers` |
+| `mecbench.solvers.arc_formulation`, `mecbench.solvers.path_formulation` | `mecbench.utils.arc_formulation`, `mecbench.utils.path_formulation` |
 | `rl.*` | `mecbench.environments.*` |
 | `data_io.experiment_io`, `mecbench.benchmarks.io` | `mecbench.compat.experiment_io` |
 | `mecbench.benchmarks.pickle_io` | `mecbench.compat.pickle_io` |
@@ -28,11 +36,17 @@ read-only arrays. Pure compact/arc conversion lives in `domain.conversions`;
 Load, residual and total-traffic latency calculations live in `domain.loads`
 and are shared by validation, reporting and graph updates.
 
-`solvers.workspace.SolverWorkspace` owns a mutable graph, candidate state, path
-cache, and independent random generator. Candidate search lives in `solvers.search`,
-graph updates in `solvers.graph_state`, baseline construction in
-`solvers.initialization`, and indexed optimizer extraction in
-`solvers.exact.extraction`. Workspaces store their results without changing the
+`solvers/` is flat: each of the 21 registered solvers has one module defining
+its `Solver` class and its specific constructor options. Historical solver names
+and aliases accepted by `solve` are unchanged. A2C, PPO and the PPO reset variant
+own their constructors; shared training lives in `utils.rl_solvers.RLSolver`.
+
+`utils.solver_workspace.SolverWorkspace` owns a mutable graph, candidate state,
+path cache, and independent random generator. Its module also applies graph
+updates. Candidate search and baseline construction live in
+`utils.heuristic_solvers`; model parameters, optimizer options and indexed output
+extraction live in `utils.ilp_solvers`. Arc and path formulations retain their
+own utility modules. Workspaces store their results without changing the
 problem's historical solution state. RL environments use the workspace's copy
 of the directed graph and its path cache, so observations never mutate the input
 problem or another environment. `GenericSolver` initializes outputs through
@@ -52,9 +66,16 @@ does not prove that the problem is infeasible. New code should use `solve` and
 
 The public facade in `api.py` exports instance builders and `solve`. Results
 carry a copied `Solution`, a `ValidationReport`, termination status and objective
-recomputed from validated quantities. `solvers.registry` provides the shared
-lazy registry, including historical aliases. The CLI and benchmark runner use
+recomputed from validated quantities. `utils.solver_registry` provides the shared
+lazy registry, including historical aliases and explicit optional-dependency and
+mathematical-backend metadata. It no longer infers families from folder names.
+The CLI and benchmark runner use
 this facade. See [the API guide](api.md) for the public contracts.
+
+Old solver module paths are replaced by the flat paths in the table above;
+in-repository imports, archived notebook sources and typing targets have been
+updated. `utils/__init__.py` does not import the optional solver families, so
+using the base API does not require Pyomo or Stable-Baselines3.
 
 Instance construction, environments, and solvers depend on the domain.
 Benchmark orchestration depends on those components, validates solver outputs,

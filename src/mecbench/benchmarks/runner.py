@@ -6,8 +6,8 @@ from pathlib import Path
 
 from mecbench.api import make_star_instance, make_tree_instance, solve
 from mecbench.benchmarks.metrics import RESULT_COLUMNS, failed_row, result_row
-from mecbench.solvers.registry import SOLVER_FILE_ALIASES, list_solvers
-from mecbench.solvers.registry import make_solver as make_solver
+from mecbench.utils.solver_registry import SOLVER_FILE_ALIASES, list_solvers
+from mecbench.utils.solver_registry import make_solver as make_solver
 
 INSTANCES = ("tree", "star")
 SOLVERS = (*list_solvers(), *SOLVER_FILE_ALIASES)
@@ -46,7 +46,7 @@ def make_problem(args, size: int):
 
 
 def run_solver(name: str, problem, ilp_time_limit: float, seed: int = 0):
-    from mecbench.solvers.registry import REGISTRY, canonical_name
+    from mecbench.utils.solver_registry import REGISTRY, canonical_name
 
     time_limit = ilp_time_limit if REGISTRY[canonical_name(name)].mathematical else None
     return solve(problem, solver=name, seed=seed, time_limit=time_limit)
