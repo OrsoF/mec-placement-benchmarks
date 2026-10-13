@@ -2,39 +2,49 @@
 
 **Benchmark service placement strategies before integrating them into an edge network orchestrator.**
 
-`mecbench` is a Python benchmark toolkit for deciding where to host services,
-how to route their traffic, and how much demand to serve under latency, compute,
-and link-capacity constraints. Train and evaluate reinforcement learning methods
-alongside mathematical optimization and heuristic baselines through one API and
-a shared feasibility validator.
+`mecbench` compares strategies for hosting services, routing traffic, and serving
+demand under latency, compute, and link-capacity constraints. Train and evaluate
+reinforcement learning alongside mathematical optimization and heuristics, using
+one Python API and a shared feasibility validator.
 
-Built from research presented at **IFIP Networking 2025**, it gives telecom and
-industrial R&D teams an executable starting point for evaluating orchestration
-strategies in their own environment.
+Based on **IFIP Networking 2025** research, it gives telecom and industrial R&D
+teams a runnable framework for evaluating orchestration strategies.
 
 ![Validated service placement and directed routing on an edge network](docs/assets/service-placement-routing.png)
 
-*An actual solved scenario: orange outlines mark service hosts, arrows show
-directed routing, and the right panel follows one service's demands. Arc colors
-in the left panel show capacity usage. Explore the
-[400-user network view](docs/assets/large-service-placement-routing.png) in the notebook.*
+*A solved synthetic edge scenario: orange outlines mark service hosts, arrows
+show routing, and colors indicate link usage. The right panel follows one
+service's demands.*
 
 ## From a network scenario to an engineering decision
 
-- **Compare approaches:** exact and relaxed mathematical models, heuristics,
-  evolutionary search, PPO/A2C, and hierarchical PPO.
-- **Explore operating constraints:** vary network size, latency budgets, node
-  resources, and link capacities to study the tradeoff between traffic served
-  and computation time.
-- **Check every candidate:** a shared validator checks placement, routing,
-  flow bounds, resources, capacity, and latency. Invalid candidates receive no score.
-- **Keep results usable:** export scores, runtimes, feasibility, solver status,
-  seeds, and errors as CSV; generate figures for technical reviews.
+- **Compare approaches:** mathematical optimization, heuristics, evolutionary
+  search, and RL (PPO, A2C, hierarchical PPO).
+- **Explore constraints:** vary network size, latency budgets, compute resources,
+  and link capacities.
+- **Check every candidate:** shared checks cover placement, routing, flows,
+  capacity, resources, and latency. Invalid candidates receive no score.
+- **Export results:** scores, runtimes, feasibility, status, seeds, and errors
+  in CSV, with plots for technical reviews.
 
-For an operator or systems integrator, the workflow is straightforward: start
-with the included tree/star scenarios, establish baseline performance, then
-construct problem instances that represent the intended network and demands.
-Use the same evaluation interface to assess candidate methods before integration.
+## Compare strategies on the same scenario
+
+Compare traffic served and computation time on shared network inputs to select
+strategies for further integration.
+
+![Two heuristics compared on the same synthetic network scenarios](docs/assets/benchmark-overview.png)
+
+*Two heuristics on synthetic trees with 10, 20, and 40 users, across three search
+seeds. Lines: means; shading: observed range. All 18 runs passed validation;
+timings depend on the host. See the
+[measurements](docs/assets/benchmark-results.csv) and
+[protocol](docs/assets/benchmark-protocol.json).*
+
+The notebook also includes a separate
+[scaling campaign from 40 to 400 users](docs/assets/large-benchmark-overview.png)
+and a [400-user placement and routing view](docs/assets/large-service-placement-routing.png),
+with [measurements](docs/assets/large-benchmark-results.csv) and a
+[documented search budget](docs/assets/large-benchmark-protocol.json).
 
 ## Run your first comparison
 
@@ -45,58 +55,55 @@ python -m pip install -e .
 mecbench --instance tree --solvers fast_heuristic heuristic --seed 42 --start-users 10 --stop-users 41 --step-users 10 --output artifacts/data/first_comparison.csv
 ```
 
-This compares two heuristics on 10, 20, 30, and 40 users and writes a CSV with
-their scores, runtimes, and validation outcomes. The base installation needs
-NumPy and NetworkX; this example requires no GPU or optimizer license.
-The score is total served flow, summed across demands; higher is better for
-the same instance.
+This compares 10, 20, 30, and 40 users and exports CSV results. Higher scores mean
+more total served flow on the same instance. The base package needs NumPy and
+NetworkX; no GPU or optimizer license.
 
-For interactive exploration, open the
-[benchmark notebook](examples/benchmark_walkthrough.ipynb). It plots placement
-and routing, compares two heuristics, then scales a separate campaign to
-400 users. It exports measurements and experiment metadata. Install with:
+Use the [notebook](examples/benchmark_walkthrough.ipynb) for network views,
+solver comparisons, and the scaling campaign. It exports data and configuration.
+Install its plotting and Jupyter dependencies with:
 
 ```bash
 python -m pip install -e ".[benchmarks]" jupyterlab
 jupyter lab examples/benchmark_walkthrough.ipynb
 ```
 
-![Measured scaling to 400 users on grouped star networks](docs/assets/large-benchmark-overview.png)
+## Adapt the benchmark to your constraints
 
-*Illustrative scaling run: 40–400 users in groups of 20, `neighbors=1`,
-`fast_heuristic` with 8 search iterations, patience 3, 4 candidate nodes,
-2 path candidates, and seeds 7, 21, and 42. Lines show means; shading shows the
-observed range. Seeds vary search on deterministic instances; timings depend
-on the host. See the [measurements](docs/assets/large-benchmark-results.csv),
-[protocol](docs/assets/large-benchmark-protocol.json), and
-[two-heuristic comparison](docs/assets/benchmark-overview.png).*
+Adjust capacities, resources, and latency budgets through the Python API.
+Here, both methods receive the same variant with double link capacity and
+20% tighter latency limits:
+
+```python
+from mecbench import make_tree_instance, solve
+
+problem = make_tree_instance(n_users=20)
+scenario = problem.with_data(
+    arc_capacities=problem.data.arc_capacities * 2,
+    latency_limits=problem.data.latency_limits * 0.8,
+)
+for method in ("fast_heuristic", "heuristic"):
+    result = solve(scenario, solver=method, seed=42)
+    print(method, result.objective, result.runtime, result.validation.feasible)
+```
+
+See [input data and configuration](docs/api.md#problem-data) for additional
+parameters to adapt the scenarios in your evaluation pipeline.
 
 ## Execute in your environment
 
-**Container execution** packages the benchmark as a CLI job, with results
-persisted to a mounted directory:
+Docker packages the benchmark as a CLI job, with results persisted to a mounted
+directory:
 
 ```bash
 docker build -t mecbench .
 docker run --rm -v "${PWD}/artifacts:/app/artifacts" mecbench --instance tree --solvers fast_heuristic heuristic --seed 42 --start-users 10 --stop-users 41 --step-users 10
 ```
 
-**Python integration** lets an internal evaluation pipeline build, solve,
-and inspect instances:
-
-```python
-from mecbench import make_tree_instance, solve
-
-problem = make_tree_instance(n_users=20)
-result = solve(problem, solver="fast_heuristic", seed=42)
-print(result.objective, result.status, result.validation.feasible)
-```
-
-The deployable component is the benchmark runner and Python toolkit. Connecting
-its decisions to a live orchestrator requires an integration specific to the
-target system. RL and evolutionary dependencies are optional; mathematical
-backends require Gurobi and a license. See the
-[experiment and Docker guide](docs/experiments.md) for installation profiles.
+Deploy the toolkit and runner as evaluation jobs; connecting their decisions to
+a live orchestrator requires an adapter for the target system. RL/evolutionary
+dependencies are optional; mathematical backends require Gurobi and a license.
+See [installation profiles](docs/experiments.md).
 
 ## Documentation and research
 
