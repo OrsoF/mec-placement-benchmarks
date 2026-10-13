@@ -134,7 +134,8 @@ class Solver(GenericSolver):
                 for p in range(self.pd[d], self.pd[d + 1])
                 for a in model.A
                 if self.delta(p, a)
-            ) <= self.data.latency_limits[d],
+            )
+            <= self.data.latency_limits[d],
         )
 
         self.model.ind1 = pyo.Constraint(
@@ -150,9 +151,7 @@ class Solver(GenericSolver):
         )
         self.model.path_selection = pyo.Constraint(
             self.model.D,
-            rule=lambda model, d: sum(
-                model.l[p] for p in range(self.pd[d], self.pd[d + 1])
-            ) == 1,
+            rule=lambda model, d: sum(model.l[p] for p in range(self.pd[d], self.pd[d + 1])) == 1,
         )
 
         self.model.reach_serv = pyo.Constraint(self.model.D, self.model.E, rule=self.reach_serv)

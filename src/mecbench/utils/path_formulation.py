@@ -135,7 +135,8 @@ def add_path_constraints(model, m, n) -> None:
         model.D,
         rule=lambda model, d: sum(
             model.l[p] for p in range(model.path_demand[d], model.path_demand[d + 1])
-        ) == 1,
+        )
+        == 1,
     )
     model.reach_server = pyo.Constraint(
         model.D,

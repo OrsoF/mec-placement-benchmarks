@@ -116,9 +116,7 @@ class Solver(GenericSolver):
         D = self.data.n_demands
         z = np.asarray(value, dtype=float)
         if z.shape != (S + 2 * D,) or not np.all(np.isfinite(z)):
-            raise ValueError(
-                f"Encoded candidate must be a finite vector of shape ({S + 2 * D},)."
-            )
+            raise ValueError(f"Encoded candidate must be a finite vector of shape ({S + 2 * D},).")
 
         placement = np.clip(np.rint(z[:S]), 0, self.data.n_nodes - 1).astype(np.int64)
         routing = np.clip(np.rint(z[S : S + D]), 0, self.max_pcc - 1).astype(np.int64)
