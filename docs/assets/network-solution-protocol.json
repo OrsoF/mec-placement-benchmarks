@@ -1,0 +1,58 @@
+[
+  {
+    "case": "small_star",
+    "users": 12,
+    "groups": 4,
+    "nodes": 17,
+    "directed_arcs": 56,
+    "services": 12,
+    "demands": 24,
+    "solver": "fast_heuristic",
+    "seed": 42,
+    "objective": 72.0,
+    "runtime": 0.31832950000034543,
+    "feasible": true,
+    "solver_options": {},
+    "layout": "Schematic positions; actual topology and solution arrays.",
+    "selected_service": 0
+  },
+  {
+    "case": "small_tree",
+    "users": 6,
+    "groups": 1,
+    "nodes": 8,
+    "directed_arcs": 24,
+    "services": 6,
+    "demands": 12,
+    "solver": "fast_heuristic",
+    "seed": 42,
+    "objective": 42.0,
+    "runtime": 0.0019490000004225294,
+    "feasible": true,
+    "solver_options": {},
+    "layout": "Schematic positions; actual topology and solution arrays.",
+    "selected_service": 0
+  },
+  {
+    "case": "large_star",
+    "users": 400,
+    "groups": 20,
+    "nodes": 421,
+    "directed_arcs": 1640,
+    "services": 400,
+    "demands": 800,
+    "solver": "fast_heuristic",
+    "seed": 42,
+    "objective": 2416.0,
+    "runtime": 34.50716049999983,
+    "feasible": true,
+    "solver_options": {
+      "max_iter": 8,
+      "patience": 3,
+      "candidate_nodes": 4,
+      "limit_shortest_path": 2
+    },
+    "layout": "Schematic positions; actual topology and solution arrays.",
+    "selected_service": 0
+  }
+]

@@ -164,3 +164,6 @@ outcmaes/*
 results.png
 .test-tmp/
 .ruff_cache/
+
+# Regenerated notebook outputs; reviewed README snapshots live in docs/assets.
+artifacts/readme/

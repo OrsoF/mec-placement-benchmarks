@@ -1,0 +1,47 @@
+{
+  "git_revision": "ca651fbe57a6058585d450b01e8c1a6ec415916e",
+  "git_working_tree": "M .gitignore\n M MANIFEST.in\n M README.md\n M docs/experiments.md\n?? docs/assets/\n?? examples/benchmark_walkthrough.ipynb",
+  "python": "3.12.14",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "processor": "Intel64 Family 6 Model 183 Stepping 1, GenuineIntel",
+  "packages": {
+    "mec-placement-benchmarks": "0.1.0",
+    "numpy": "2.5.4",
+    "networkx": "3.7",
+    "pandas": "3.0.1",
+    "matplotlib": "3.11.2",
+    "pyomo": null,
+    "gurobipy": null,
+    "cma": null,
+    "torch": null,
+    "stable-baselines3": null
+  },
+  "started_at_utc": "2026-10-13T10:32:52.094423+00:00",
+  "instance": "star",
+  "group_counts": [
+    2,
+    5,
+    10,
+    20
+  ],
+  "users_per_group": 20,
+  "neighbors": 1,
+  "search_seeds": [
+    7,
+    21,
+    42
+  ],
+  "solver": "fast_heuristic",
+  "solver_options": {
+    "max_iter": 8,
+    "patience": 3,
+    "candidate_nodes": 4,
+    "limit_shortest_path": 2
+  },
+  "scaling": "Access groups grow; each group contains 20 users in this run.",
+  "runtime": "Wall seconds for solver construction, execution and validation; includes RL training and evaluation.",
+  "aggregation": "Mean and observed min/max across feasible runs; no confidence intervals.",
+  "completed_at_utc": "2026-10-13T10:35:11.954457+00:00",
+  "runs": 12,
+  "feasible_runs": 12
+}

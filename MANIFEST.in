@@ -3,6 +3,7 @@ include .github/workflows/ci.yml
 recursive-include src *.py
 recursive-include tests *.py
 recursive-include tests/regression/fixtures *.json
-recursive-include examples *.py
+recursive-include examples *.py *.ipynb
 recursive-include docs *.md *.tex
+recursive-include docs/assets *.svg *.png *.csv *.json
 recursive-include data *.gml

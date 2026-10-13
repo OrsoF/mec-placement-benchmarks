@@ -1,0 +1,46 @@
+{
+  "started_at_utc": "2026-10-13T10:31:17.181068+00:00",
+  "instance": "tree",
+  "sizes": [
+    10,
+    20,
+    40
+  ],
+  "search_seeds": [
+    7,
+    21,
+    42
+  ],
+  "neighbors": 1,
+  "groups": 1,
+  "solvers": [
+    "fast_heuristic",
+    "heuristic"
+  ],
+  "solver_options": {},
+  "solver_defaults": "Defaults of the recorded source revision unless explicitly overridden.",
+  "mathematical_time_limit_seconds": 30.0,
+  "instance_generation": "Deterministic; search seeds do not randomize instances.",
+  "runtime": "Wall seconds for solver construction, execution and validation; includes RL training and evaluation.",
+  "aggregation": "Mean and observed min/max across feasible runs; no confidence intervals.",
+  "git_revision": "ca651fbe57a6058585d450b01e8c1a6ec415916e",
+  "git_working_tree": "M .gitignore\n M MANIFEST.in\n M README.md\n M docs/experiments.md\n?? docs/assets/\n?? examples/benchmark_walkthrough.ipynb",
+  "python": "3.12.14",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "processor": "Intel64 Family 6 Model 183 Stepping 1, GenuineIntel",
+  "packages": {
+    "mec-placement-benchmarks": "0.1.0",
+    "numpy": "2.5.4",
+    "networkx": "3.7",
+    "pandas": "3.0.1",
+    "matplotlib": "3.11.2",
+    "pyomo": null,
+    "gurobipy": null,
+    "cma": null,
+    "torch": null,
+    "stable-baselines3": null
+  },
+  "completed_at_utc": "2026-10-13T10:32:50.821293+00:00",
+  "runs": 18,
+  "feasible_runs": 18
+}
