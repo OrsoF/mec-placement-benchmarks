@@ -43,6 +43,10 @@ module that imports an optional dependency.
 
 ## Static checks
 
+CI runs these checks with Python 3.10, matching the minimum supported version
+and mypy's target. Use Python 3.10 to reproduce that environment locally; newer
+Python versions may install dependency stubs that require newer Python syntax.
+
 ```bash
 python -m pip install -e ".[dev]"
 python -m ruff check src tests examples
